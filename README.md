@@ -31,7 +31,7 @@ Docker (empty volume works, no manual steps):
 
 ```sh
 docker compose up -d --build --wait   # data-init, migrate (atlas), then api on :8080
-open http://localhost:8080
+docker compose exec api wget -qO- http://localhost:8080/healthz
 docker compose down -v
 ```
 
