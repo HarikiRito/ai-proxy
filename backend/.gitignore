@@ -1,0 +1,9 @@
+.env
+tmp/
+bin/
+data/
+scratch.db
+*.test
+*.out
+.idea/
+.vscode/

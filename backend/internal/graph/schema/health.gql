@@ -1,0 +1,7 @@
+type Query {
+  health: Health!
+}
+
+type Health {
+  ok: Boolean!
+}
