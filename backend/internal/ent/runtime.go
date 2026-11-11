@@ -3,18 +3,92 @@
 package ent
 
 import (
+	"time"
+
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/schema"
-	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/google/uuid"
 )
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
-	settingFields := schema.Setting{}.Fields()
-	_ = settingFields
-	// settingDescKey is the schema descriptor for key field.
-	settingDescKey := settingFields[0].Descriptor()
-	// setting.KeyValidator is a validator for the "key" field. It is called by the builders before save.
-	setting.KeyValidator = settingDescKey.Validators[0].(func(string) error)
+	providerFields := schema.Provider{}.Fields()
+	_ = providerFields
+	// providerDescName is the schema descriptor for name field.
+	providerDescName := providerFields[1].Descriptor()
+	// provider.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	provider.NameValidator = providerDescName.Validators[0].(func(string) error)
+	// providerDescBaseURL is the schema descriptor for base_url field.
+	providerDescBaseURL := providerFields[3].Descriptor()
+	// provider.BaseURLValidator is a validator for the "base_url" field. It is called by the builders before save.
+	provider.BaseURLValidator = providerDescBaseURL.Validators[0].(func(string) error)
+	// providerDescEnabled is the schema descriptor for enabled field.
+	providerDescEnabled := providerFields[4].Descriptor()
+	// provider.DefaultEnabled holds the default value on creation for the enabled field.
+	provider.DefaultEnabled = providerDescEnabled.Default.(bool)
+	// providerDescCacheAffinitySeconds is the schema descriptor for cache_affinity_seconds field.
+	providerDescCacheAffinitySeconds := providerFields[6].Descriptor()
+	// provider.DefaultCacheAffinitySeconds holds the default value on creation for the cache_affinity_seconds field.
+	provider.DefaultCacheAffinitySeconds = providerDescCacheAffinitySeconds.Default.(int)
+	// provider.CacheAffinitySecondsValidator is a validator for the "cache_affinity_seconds" field. It is called by the builders before save.
+	provider.CacheAffinitySecondsValidator = providerDescCacheAffinitySeconds.Validators[0].(func(int) error)
+	// providerDescCreatedAt is the schema descriptor for created_at field.
+	providerDescCreatedAt := providerFields[7].Descriptor()
+	// provider.DefaultCreatedAt holds the default value on creation for the created_at field.
+	provider.DefaultCreatedAt = providerDescCreatedAt.Default.(func() time.Time)
+	// providerDescUpdatedAt is the schema descriptor for updated_at field.
+	providerDescUpdatedAt := providerFields[8].Descriptor()
+	// provider.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	provider.DefaultUpdatedAt = providerDescUpdatedAt.Default.(func() time.Time)
+	// provider.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	provider.UpdateDefaultUpdatedAt = providerDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// providerDescID is the schema descriptor for id field.
+	providerDescID := providerFields[0].Descriptor()
+	// provider.DefaultID holds the default value on creation for the id field.
+	provider.DefaultID = providerDescID.Default.(func() uuid.UUID)
+	providerkeyFields := schema.ProviderKey{}.Fields()
+	_ = providerkeyFields
+	// providerkeyDescName is the schema descriptor for name field.
+	providerkeyDescName := providerkeyFields[1].Descriptor()
+	// providerkey.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	providerkey.NameValidator = providerkeyDescName.Validators[0].(func(string) error)
+	// providerkeyDescLast4 is the schema descriptor for last4 field.
+	providerkeyDescLast4 := providerkeyFields[3].Descriptor()
+	// providerkey.DefaultLast4 holds the default value on creation for the last4 field.
+	providerkey.DefaultLast4 = providerkeyDescLast4.Default.(string)
+	// providerkeyDescEnabled is the schema descriptor for enabled field.
+	providerkeyDescEnabled := providerkeyFields[4].Descriptor()
+	// providerkey.DefaultEnabled holds the default value on creation for the enabled field.
+	providerkey.DefaultEnabled = providerkeyDescEnabled.Default.(bool)
+	// providerkeyDescMaxInFlight is the schema descriptor for max_in_flight field.
+	providerkeyDescMaxInFlight := providerkeyFields[5].Descriptor()
+	// providerkey.MaxInFlightValidator is a validator for the "max_in_flight" field. It is called by the builders before save.
+	providerkey.MaxInFlightValidator = providerkeyDescMaxInFlight.Validators[0].(func(int) error)
+	// providerkeyDescWeight is the schema descriptor for weight field.
+	providerkeyDescWeight := providerkeyFields[6].Descriptor()
+	// providerkey.DefaultWeight holds the default value on creation for the weight field.
+	providerkey.DefaultWeight = providerkeyDescWeight.Default.(int)
+	// providerkey.WeightValidator is a validator for the "weight" field. It is called by the builders before save.
+	providerkey.WeightValidator = providerkeyDescWeight.Validators[0].(func(int) error)
+	// providerkeyDescPriority is the schema descriptor for priority field.
+	providerkeyDescPriority := providerkeyFields[7].Descriptor()
+	// providerkey.DefaultPriority holds the default value on creation for the priority field.
+	providerkey.DefaultPriority = providerkeyDescPriority.Default.(int)
+	// providerkeyDescCreatedAt is the schema descriptor for created_at field.
+	providerkeyDescCreatedAt := providerkeyFields[8].Descriptor()
+	// providerkey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	providerkey.DefaultCreatedAt = providerkeyDescCreatedAt.Default.(func() time.Time)
+	// providerkeyDescUpdatedAt is the schema descriptor for updated_at field.
+	providerkeyDescUpdatedAt := providerkeyFields[9].Descriptor()
+	// providerkey.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	providerkey.DefaultUpdatedAt = providerkeyDescUpdatedAt.Default.(func() time.Time)
+	// providerkey.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	providerkey.UpdateDefaultUpdatedAt = providerkeyDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// providerkeyDescID is the schema descriptor for id field.
+	providerkeyDescID := providerkeyFields[0].Descriptor()
+	// providerkey.DefaultID holds the default value on creation for the id field.
+	providerkey.DefaultID = providerkeyDescID.Default.(func() uuid.UUID)
 }

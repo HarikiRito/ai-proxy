@@ -3,28 +3,78 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
 
 var (
-	// SettingsColumns holds the columns for the "settings" table.
-	SettingsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "key", Type: field.TypeString, Unique: true},
-		{Name: "value", Type: field.TypeString},
+	// ProvidersProvidersColumns holds the columns for the "providers_providers" table.
+	ProvidersProvidersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"openai_compatible", "anthropic", "claude_subscription"}},
+		{Name: "base_url", Type: field.TypeString},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "rotation", Type: field.TypeEnum, Enums: []string{"round_robin", "weighted_round_robin", "priority_overflow", "least_in_flight"}, Default: "round_robin"},
+		{Name: "cache_affinity_seconds", Type: field.TypeInt, Default: 600},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 	}
-	// SettingsTable holds the schema information for the "settings" table.
-	SettingsTable = &schema.Table{
-		Name:       "settings",
-		Columns:    SettingsColumns,
-		PrimaryKey: []*schema.Column{SettingsColumns[0]},
+	// ProvidersProvidersTable holds the schema information for the "providers_providers" table.
+	ProvidersProvidersTable = &schema.Table{
+		Name:       "providers_providers",
+		Columns:    ProvidersProvidersColumns,
+		PrimaryKey: []*schema.Column{ProvidersProvidersColumns[0]},
+	}
+	// ProvidersKeysColumns holds the columns for the "providers_keys" table.
+	ProvidersKeysColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "ciphertext", Type: field.TypeBytes},
+		{Name: "last4", Type: field.TypeString, Default: ""},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "max_in_flight", Type: field.TypeInt},
+		{Name: "weight", Type: field.TypeInt, Default: 1},
+		{Name: "priority", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "provider_keys", Type: field.TypeUUID},
+	}
+	// ProvidersKeysTable holds the schema information for the "providers_keys" table.
+	ProvidersKeysTable = &schema.Table{
+		Name:       "providers_keys",
+		Columns:    ProvidersKeysColumns,
+		PrimaryKey: []*schema.Column{ProvidersKeysColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "providers_keys_providers_providers_keys",
+				Columns:    []*schema.Column{ProvidersKeysColumns[10]},
+				RefColumns: []*schema.Column{ProvidersProvidersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "providerkey_name_provider_keys",
+				Unique:  true,
+				Columns: []*schema.Column{ProvidersKeysColumns[1], ProvidersKeysColumns[10]},
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		SettingsTable,
+		ProvidersProvidersTable,
+		ProvidersKeysTable,
 	}
 )
 
 func init() {
+	ProvidersProvidersTable.Annotation = &entsql.Annotation{
+		Table: "providers_providers",
+	}
+	ProvidersKeysTable.ForeignKeys[0].RefTable = ProvidersProvidersTable
+	ProvidersKeysTable.Annotation = &entsql.Annotation{
+		Table: "providers_keys",
+	}
 }

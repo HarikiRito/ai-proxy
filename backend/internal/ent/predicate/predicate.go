@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Setting is the predicate function for setting builders.
-type Setting func(*sql.Selector)
+// Provider is the predicate function for provider builders.
+type Provider func(*sql.Selector)
+
+// ProviderKey is the predicate function for providerkey builders.
+type ProviderKey func(*sql.Selector)

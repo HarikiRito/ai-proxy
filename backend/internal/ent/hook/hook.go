@@ -9,16 +9,28 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent"
 )
 
-// The SettingFunc type is an adapter to allow the use of ordinary
-// function as Setting mutator.
-type SettingFunc func(context.Context, *ent.SettingMutation) (ent.Value, error)
+// The ProviderFunc type is an adapter to allow the use of ordinary
+// function as Provider mutator.
+type ProviderFunc func(context.Context, *ent.ProviderMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f SettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SettingMutation); ok {
+func (f ProviderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProviderMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SettingMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProviderMutation", m)
+}
+
+// The ProviderKeyFunc type is an adapter to allow the use of ordinary
+// function as ProviderKey mutator.
+type ProviderKeyFunc func(context.Context, *ent.ProviderKeyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProviderKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProviderKeyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProviderKeyMutation", m)
 }
 
 // Condition is a hook condition function.

@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/predicate"
-	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
+	"github.com/google/uuid"
 )
 
 const (
@@ -23,34 +26,45 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeSetting = "Setting"
+	TypeProvider    = "Provider"
+	TypeProviderKey = "ProviderKey"
 )
 
-// SettingMutation represents an operation that mutates the Setting nodes in the graph.
-type SettingMutation struct {
+// ProviderMutation represents an operation that mutates the Provider nodes in the graph.
+type ProviderMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	key           *string
-	value         *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Setting, error)
-	predicates    []predicate.Setting
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	name                      *string
+	kind                      *provider.Kind
+	base_url                  *string
+	enabled                   *bool
+	rotation                  *provider.Rotation
+	cache_affinity_seconds    *int
+	addcache_affinity_seconds *int
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	keys                      map[uuid.UUID]struct{}
+	removedkeys               map[uuid.UUID]struct{}
+	clearedkeys               bool
+	done                      bool
+	oldValue                  func(context.Context) (*Provider, error)
+	predicates                []predicate.Provider
 }
 
-var _ ent.Mutation = (*SettingMutation)(nil)
+var _ ent.Mutation = (*ProviderMutation)(nil)
 
-// settingOption allows management of the mutation configuration using functional options.
-type settingOption func(*SettingMutation)
+// providerOption allows management of the mutation configuration using functional options.
+type providerOption func(*ProviderMutation)
 
-// newSettingMutation creates new mutation for the Setting entity.
-func newSettingMutation(c config, op Op, opts ...settingOption) *SettingMutation {
-	m := &SettingMutation{
+// newProviderMutation creates new mutation for the Provider entity.
+func newProviderMutation(c config, op Op, opts ...providerOption) *ProviderMutation {
+	m := &ProviderMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeSetting,
+		typ:           TypeProvider,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -59,20 +73,20 @@ func newSettingMutation(c config, op Op, opts ...settingOption) *SettingMutation
 	return m
 }
 
-// withSettingID sets the ID field of the mutation.
-func withSettingID(id int) settingOption {
-	return func(m *SettingMutation) {
+// withProviderID sets the ID field of the mutation.
+func withProviderID(id uuid.UUID) providerOption {
+	return func(m *ProviderMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *Setting
+			value *Provider
 		)
-		m.oldValue = func(ctx context.Context) (*Setting, error) {
+		m.oldValue = func(ctx context.Context) (*Provider, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().Setting.Get(ctx, id)
+					value, err = m.Client().Provider.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -81,10 +95,10 @@ func withSettingID(id int) settingOption {
 	}
 }
 
-// withSetting sets the old Setting of the mutation.
-func withSetting(node *Setting) settingOption {
-	return func(m *SettingMutation) {
-		m.oldValue = func(context.Context) (*Setting, error) {
+// withProvider sets the old Provider of the mutation.
+func withProvider(node *Provider) providerOption {
+	return func(m *ProviderMutation) {
+		m.oldValue = func(context.Context) (*Provider, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -93,7 +107,7 @@ func withSetting(node *Setting) settingOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m SettingMutation) Client() *Client {
+func (m ProviderMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -101,7 +115,7 @@ func (m SettingMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m SettingMutation) Tx() (*Tx, error) {
+func (m ProviderMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -110,9 +124,15 @@ func (m SettingMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Provider entities.
+func (m *ProviderMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *SettingMutation) ID() (id int, exists bool) {
+func (m *ProviderMutation) ID() (id uuid.UUID, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -123,102 +143,392 @@ func (m *SettingMutation) ID() (id int, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *SettingMutation) IDs(ctx context.Context) ([]int, error) {
+func (m *ProviderMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
 		if exists {
-			return []int{id}, nil
+			return []uuid.UUID{id}, nil
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().Setting.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().Provider.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
-// SetKey sets the "key" field.
-func (m *SettingMutation) SetKey(s string) {
-	m.key = &s
+// SetName sets the "name" field.
+func (m *ProviderMutation) SetName(s string) {
+	m.name = &s
 }
 
-// Key returns the value of the "key" field in the mutation.
-func (m *SettingMutation) Key() (r string, exists bool) {
-	v := m.key
+// Name returns the value of the "name" field in the mutation.
+func (m *ProviderMutation) Name() (r string, exists bool) {
+	v := m.name
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldKey returns the old "key" field's value of the Setting entity.
-// If the Setting object wasn't provided to the builder, the object is fetched from the database.
+// OldName returns the old "name" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SettingMutation) OldKey(ctx context.Context) (v string, err error) {
+func (m *ProviderMutation) OldName(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldKey requires an ID field in the mutation")
+		return v, errors.New("OldName requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
 	}
-	return oldValue.Key, nil
+	return oldValue.Name, nil
 }
 
-// ResetKey resets all changes to the "key" field.
-func (m *SettingMutation) ResetKey() {
-	m.key = nil
+// ResetName resets all changes to the "name" field.
+func (m *ProviderMutation) ResetName() {
+	m.name = nil
 }
 
-// SetValue sets the "value" field.
-func (m *SettingMutation) SetValue(s string) {
-	m.value = &s
+// SetKind sets the "kind" field.
+func (m *ProviderMutation) SetKind(pr provider.Kind) {
+	m.kind = &pr
 }
 
-// Value returns the value of the "value" field in the mutation.
-func (m *SettingMutation) Value() (r string, exists bool) {
-	v := m.value
+// Kind returns the value of the "kind" field in the mutation.
+func (m *ProviderMutation) Kind() (r provider.Kind, exists bool) {
+	v := m.kind
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldValue returns the old "value" field's value of the Setting entity.
-// If the Setting object wasn't provided to the builder, the object is fetched from the database.
+// OldKind returns the old "kind" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SettingMutation) OldValue(ctx context.Context) (v string, err error) {
+func (m *ProviderMutation) OldKind(ctx context.Context) (v provider.Kind, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldValue requires an ID field in the mutation")
+		return v, errors.New("OldKind requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
 	}
-	return oldValue.Value, nil
+	return oldValue.Kind, nil
 }
 
-// ResetValue resets all changes to the "value" field.
-func (m *SettingMutation) ResetValue() {
-	m.value = nil
+// ResetKind resets all changes to the "kind" field.
+func (m *ProviderMutation) ResetKind() {
+	m.kind = nil
 }
 
-// Where appends a list predicates to the SettingMutation builder.
-func (m *SettingMutation) Where(ps ...predicate.Setting) {
+// SetBaseURL sets the "base_url" field.
+func (m *ProviderMutation) SetBaseURL(s string) {
+	m.base_url = &s
+}
+
+// BaseURL returns the value of the "base_url" field in the mutation.
+func (m *ProviderMutation) BaseURL() (r string, exists bool) {
+	v := m.base_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBaseURL returns the old "base_url" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderMutation) OldBaseURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBaseURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBaseURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBaseURL: %w", err)
+	}
+	return oldValue.BaseURL, nil
+}
+
+// ResetBaseURL resets all changes to the "base_url" field.
+func (m *ProviderMutation) ResetBaseURL() {
+	m.base_url = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *ProviderMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *ProviderMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *ProviderMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetRotation sets the "rotation" field.
+func (m *ProviderMutation) SetRotation(pr provider.Rotation) {
+	m.rotation = &pr
+}
+
+// Rotation returns the value of the "rotation" field in the mutation.
+func (m *ProviderMutation) Rotation() (r provider.Rotation, exists bool) {
+	v := m.rotation
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRotation returns the old "rotation" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderMutation) OldRotation(ctx context.Context) (v provider.Rotation, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRotation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRotation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRotation: %w", err)
+	}
+	return oldValue.Rotation, nil
+}
+
+// ResetRotation resets all changes to the "rotation" field.
+func (m *ProviderMutation) ResetRotation() {
+	m.rotation = nil
+}
+
+// SetCacheAffinitySeconds sets the "cache_affinity_seconds" field.
+func (m *ProviderMutation) SetCacheAffinitySeconds(i int) {
+	m.cache_affinity_seconds = &i
+	m.addcache_affinity_seconds = nil
+}
+
+// CacheAffinitySeconds returns the value of the "cache_affinity_seconds" field in the mutation.
+func (m *ProviderMutation) CacheAffinitySeconds() (r int, exists bool) {
+	v := m.cache_affinity_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheAffinitySeconds returns the old "cache_affinity_seconds" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderMutation) OldCacheAffinitySeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheAffinitySeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheAffinitySeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheAffinitySeconds: %w", err)
+	}
+	return oldValue.CacheAffinitySeconds, nil
+}
+
+// AddCacheAffinitySeconds adds i to the "cache_affinity_seconds" field.
+func (m *ProviderMutation) AddCacheAffinitySeconds(i int) {
+	if m.addcache_affinity_seconds != nil {
+		*m.addcache_affinity_seconds += i
+	} else {
+		m.addcache_affinity_seconds = &i
+	}
+}
+
+// AddedCacheAffinitySeconds returns the value that was added to the "cache_affinity_seconds" field in this mutation.
+func (m *ProviderMutation) AddedCacheAffinitySeconds() (r int, exists bool) {
+	v := m.addcache_affinity_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheAffinitySeconds resets all changes to the "cache_affinity_seconds" field.
+func (m *ProviderMutation) ResetCacheAffinitySeconds() {
+	m.cache_affinity_seconds = nil
+	m.addcache_affinity_seconds = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ProviderMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ProviderMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ProviderMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ProviderMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ProviderMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Provider entity.
+// If the Provider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ProviderMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddKeyIDs adds the "keys" edge to the ProviderKey entity by ids.
+func (m *ProviderMutation) AddKeyIDs(ids ...uuid.UUID) {
+	if m.keys == nil {
+		m.keys = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.keys[ids[i]] = struct{}{}
+	}
+}
+
+// ClearKeys clears the "keys" edge to the ProviderKey entity.
+func (m *ProviderMutation) ClearKeys() {
+	m.clearedkeys = true
+}
+
+// KeysCleared reports if the "keys" edge to the ProviderKey entity was cleared.
+func (m *ProviderMutation) KeysCleared() bool {
+	return m.clearedkeys
+}
+
+// RemoveKeyIDs removes the "keys" edge to the ProviderKey entity by IDs.
+func (m *ProviderMutation) RemoveKeyIDs(ids ...uuid.UUID) {
+	if m.removedkeys == nil {
+		m.removedkeys = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.keys, ids[i])
+		m.removedkeys[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedKeys returns the removed IDs of the "keys" edge to the ProviderKey entity.
+func (m *ProviderMutation) RemovedKeysIDs() (ids []uuid.UUID) {
+	for id := range m.removedkeys {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// KeysIDs returns the "keys" edge IDs in the mutation.
+func (m *ProviderMutation) KeysIDs() (ids []uuid.UUID) {
+	for id := range m.keys {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetKeys resets all changes to the "keys" edge.
+func (m *ProviderMutation) ResetKeys() {
+	m.keys = nil
+	m.clearedkeys = false
+	m.removedkeys = nil
+}
+
+// Where appends a list predicates to the ProviderMutation builder.
+func (m *ProviderMutation) Where(ps ...predicate.Provider) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the SettingMutation builder. Using this method,
+// WhereP appends storage-level predicates to the ProviderMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *SettingMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.Setting, len(ps))
+func (m *ProviderMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Provider, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -226,30 +536,48 @@ func (m *SettingMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *SettingMutation) Op() Op {
+func (m *ProviderMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *SettingMutation) SetOp(op Op) {
+func (m *ProviderMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (Setting).
-func (m *SettingMutation) Type() string {
+// Type returns the node type of this mutation (Provider).
+func (m *ProviderMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *SettingMutation) Fields() []string {
-	fields := make([]string, 0, 2)
-	if m.key != nil {
-		fields = append(fields, setting.FieldKey)
+func (m *ProviderMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.name != nil {
+		fields = append(fields, provider.FieldName)
 	}
-	if m.value != nil {
-		fields = append(fields, setting.FieldValue)
+	if m.kind != nil {
+		fields = append(fields, provider.FieldKind)
+	}
+	if m.base_url != nil {
+		fields = append(fields, provider.FieldBaseURL)
+	}
+	if m.enabled != nil {
+		fields = append(fields, provider.FieldEnabled)
+	}
+	if m.rotation != nil {
+		fields = append(fields, provider.FieldRotation)
+	}
+	if m.cache_affinity_seconds != nil {
+		fields = append(fields, provider.FieldCacheAffinitySeconds)
+	}
+	if m.created_at != nil {
+		fields = append(fields, provider.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, provider.FieldUpdatedAt)
 	}
 	return fields
 }
@@ -257,12 +585,24 @@ func (m *SettingMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *SettingMutation) Field(name string) (ent.Value, bool) {
+func (m *ProviderMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case setting.FieldKey:
-		return m.Key()
-	case setting.FieldValue:
-		return m.Value()
+	case provider.FieldName:
+		return m.Name()
+	case provider.FieldKind:
+		return m.Kind()
+	case provider.FieldBaseURL:
+		return m.BaseURL()
+	case provider.FieldEnabled:
+		return m.Enabled()
+	case provider.FieldRotation:
+		return m.Rotation()
+	case provider.FieldCacheAffinitySeconds:
+		return m.CacheAffinitySeconds()
+	case provider.FieldCreatedAt:
+		return m.CreatedAt()
+	case provider.FieldUpdatedAt:
+		return m.UpdatedAt()
 	}
 	return nil, false
 }
@@ -270,138 +610,1194 @@ func (m *SettingMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *SettingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *ProviderMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case setting.FieldKey:
-		return m.OldKey(ctx)
-	case setting.FieldValue:
-		return m.OldValue(ctx)
+	case provider.FieldName:
+		return m.OldName(ctx)
+	case provider.FieldKind:
+		return m.OldKind(ctx)
+	case provider.FieldBaseURL:
+		return m.OldBaseURL(ctx)
+	case provider.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case provider.FieldRotation:
+		return m.OldRotation(ctx)
+	case provider.FieldCacheAffinitySeconds:
+		return m.OldCacheAffinitySeconds(ctx)
+	case provider.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case provider.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
 	}
-	return nil, fmt.Errorf("unknown Setting field %s", name)
+	return nil, fmt.Errorf("unknown Provider field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *SettingMutation) SetField(name string, value ent.Value) error {
+func (m *ProviderMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case setting.FieldKey:
+	case provider.FieldName:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetKey(v)
+		m.SetName(v)
 		return nil
-	case setting.FieldValue:
+	case provider.FieldKind:
+		v, ok := value.(provider.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case provider.FieldBaseURL:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetValue(v)
+		m.SetBaseURL(v)
+		return nil
+	case provider.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case provider.FieldRotation:
+		v, ok := value.(provider.Rotation)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRotation(v)
+		return nil
+	case provider.FieldCacheAffinitySeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheAffinitySeconds(v)
+		return nil
+	case provider.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case provider.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
 		return nil
 	}
-	return fmt.Errorf("unknown Setting field %s", name)
+	return fmt.Errorf("unknown Provider field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *SettingMutation) AddedFields() []string {
-	return nil
+func (m *ProviderMutation) AddedFields() []string {
+	var fields []string
+	if m.addcache_affinity_seconds != nil {
+		fields = append(fields, provider.FieldCacheAffinitySeconds)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *SettingMutation) AddedField(name string) (ent.Value, bool) {
+func (m *ProviderMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case provider.FieldCacheAffinitySeconds:
+		return m.AddedCacheAffinitySeconds()
+	}
 	return nil, false
 }
 
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *SettingMutation) AddField(name string, value ent.Value) error {
+func (m *ProviderMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case provider.FieldCacheAffinitySeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheAffinitySeconds(v)
+		return nil
 	}
-	return fmt.Errorf("unknown Setting numeric field %s", name)
+	return fmt.Errorf("unknown Provider numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *SettingMutation) ClearedFields() []string {
+func (m *ProviderMutation) ClearedFields() []string {
 	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *SettingMutation) FieldCleared(name string) bool {
+func (m *ProviderMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *SettingMutation) ClearField(name string) error {
-	return fmt.Errorf("unknown Setting nullable field %s", name)
+func (m *ProviderMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Provider nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *SettingMutation) ResetField(name string) error {
+func (m *ProviderMutation) ResetField(name string) error {
 	switch name {
-	case setting.FieldKey:
-		m.ResetKey()
+	case provider.FieldName:
+		m.ResetName()
 		return nil
-	case setting.FieldValue:
-		m.ResetValue()
+	case provider.FieldKind:
+		m.ResetKind()
+		return nil
+	case provider.FieldBaseURL:
+		m.ResetBaseURL()
+		return nil
+	case provider.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case provider.FieldRotation:
+		m.ResetRotation()
+		return nil
+	case provider.FieldCacheAffinitySeconds:
+		m.ResetCacheAffinitySeconds()
+		return nil
+	case provider.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case provider.FieldUpdatedAt:
+		m.ResetUpdatedAt()
 		return nil
 	}
-	return fmt.Errorf("unknown Setting field %s", name)
+	return fmt.Errorf("unknown Provider field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *SettingMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *ProviderMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.keys != nil {
+		edges = append(edges, provider.EdgeKeys)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *SettingMutation) AddedIDs(name string) []ent.Value {
+func (m *ProviderMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case provider.EdgeKeys:
+		ids := make([]ent.Value, 0, len(m.keys))
+		for id := range m.keys {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *SettingMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *ProviderMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedkeys != nil {
+		edges = append(edges, provider.EdgeKeys)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *SettingMutation) RemovedIDs(name string) []ent.Value {
+func (m *ProviderMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case provider.EdgeKeys:
+		ids := make([]ent.Value, 0, len(m.removedkeys))
+		for id := range m.removedkeys {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *SettingMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *ProviderMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedkeys {
+		edges = append(edges, provider.EdgeKeys)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *SettingMutation) EdgeCleared(name string) bool {
+func (m *ProviderMutation) EdgeCleared(name string) bool {
+	switch name {
+	case provider.EdgeKeys:
+		return m.clearedkeys
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *SettingMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown Setting unique edge %s", name)
+func (m *ProviderMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Provider unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *SettingMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown Setting edge %s", name)
+func (m *ProviderMutation) ResetEdge(name string) error {
+	switch name {
+	case provider.EdgeKeys:
+		m.ResetKeys()
+		return nil
+	}
+	return fmt.Errorf("unknown Provider edge %s", name)
+}
+
+// ProviderKeyMutation represents an operation that mutates the ProviderKey nodes in the graph.
+type ProviderKeyMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	name             *string
+	ciphertext       *[]byte
+	last4            *string
+	enabled          *bool
+	max_in_flight    *int
+	addmax_in_flight *int
+	weight           *int
+	addweight        *int
+	priority         *int
+	addpriority      *int
+	created_at       *time.Time
+	updated_at       *time.Time
+	clearedFields    map[string]struct{}
+	provider         *uuid.UUID
+	clearedprovider  bool
+	done             bool
+	oldValue         func(context.Context) (*ProviderKey, error)
+	predicates       []predicate.ProviderKey
+}
+
+var _ ent.Mutation = (*ProviderKeyMutation)(nil)
+
+// providerkeyOption allows management of the mutation configuration using functional options.
+type providerkeyOption func(*ProviderKeyMutation)
+
+// newProviderKeyMutation creates new mutation for the ProviderKey entity.
+func newProviderKeyMutation(c config, op Op, opts ...providerkeyOption) *ProviderKeyMutation {
+	m := &ProviderKeyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeProviderKey,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withProviderKeyID sets the ID field of the mutation.
+func withProviderKeyID(id uuid.UUID) providerkeyOption {
+	return func(m *ProviderKeyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ProviderKey
+		)
+		m.oldValue = func(ctx context.Context) (*ProviderKey, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ProviderKey.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withProviderKey sets the old ProviderKey of the mutation.
+func withProviderKey(node *ProviderKey) providerkeyOption {
+	return func(m *ProviderKeyMutation) {
+		m.oldValue = func(context.Context) (*ProviderKey, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ProviderKeyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ProviderKeyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ProviderKey entities.
+func (m *ProviderKeyMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ProviderKeyMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ProviderKeyMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ProviderKey.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *ProviderKeyMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *ProviderKeyMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *ProviderKeyMutation) ResetName() {
+	m.name = nil
+}
+
+// SetCiphertext sets the "ciphertext" field.
+func (m *ProviderKeyMutation) SetCiphertext(b []byte) {
+	m.ciphertext = &b
+}
+
+// Ciphertext returns the value of the "ciphertext" field in the mutation.
+func (m *ProviderKeyMutation) Ciphertext() (r []byte, exists bool) {
+	v := m.ciphertext
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCiphertext returns the old "ciphertext" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldCiphertext(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCiphertext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCiphertext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCiphertext: %w", err)
+	}
+	return oldValue.Ciphertext, nil
+}
+
+// ResetCiphertext resets all changes to the "ciphertext" field.
+func (m *ProviderKeyMutation) ResetCiphertext() {
+	m.ciphertext = nil
+}
+
+// SetLast4 sets the "last4" field.
+func (m *ProviderKeyMutation) SetLast4(s string) {
+	m.last4 = &s
+}
+
+// Last4 returns the value of the "last4" field in the mutation.
+func (m *ProviderKeyMutation) Last4() (r string, exists bool) {
+	v := m.last4
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLast4 returns the old "last4" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldLast4(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLast4 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLast4 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLast4: %w", err)
+	}
+	return oldValue.Last4, nil
+}
+
+// ResetLast4 resets all changes to the "last4" field.
+func (m *ProviderKeyMutation) ResetLast4() {
+	m.last4 = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *ProviderKeyMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *ProviderKeyMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *ProviderKeyMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetMaxInFlight sets the "max_in_flight" field.
+func (m *ProviderKeyMutation) SetMaxInFlight(i int) {
+	m.max_in_flight = &i
+	m.addmax_in_flight = nil
+}
+
+// MaxInFlight returns the value of the "max_in_flight" field in the mutation.
+func (m *ProviderKeyMutation) MaxInFlight() (r int, exists bool) {
+	v := m.max_in_flight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxInFlight returns the old "max_in_flight" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldMaxInFlight(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxInFlight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxInFlight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxInFlight: %w", err)
+	}
+	return oldValue.MaxInFlight, nil
+}
+
+// AddMaxInFlight adds i to the "max_in_flight" field.
+func (m *ProviderKeyMutation) AddMaxInFlight(i int) {
+	if m.addmax_in_flight != nil {
+		*m.addmax_in_flight += i
+	} else {
+		m.addmax_in_flight = &i
+	}
+}
+
+// AddedMaxInFlight returns the value that was added to the "max_in_flight" field in this mutation.
+func (m *ProviderKeyMutation) AddedMaxInFlight() (r int, exists bool) {
+	v := m.addmax_in_flight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxInFlight resets all changes to the "max_in_flight" field.
+func (m *ProviderKeyMutation) ResetMaxInFlight() {
+	m.max_in_flight = nil
+	m.addmax_in_flight = nil
+}
+
+// SetWeight sets the "weight" field.
+func (m *ProviderKeyMutation) SetWeight(i int) {
+	m.weight = &i
+	m.addweight = nil
+}
+
+// Weight returns the value of the "weight" field in the mutation.
+func (m *ProviderKeyMutation) Weight() (r int, exists bool) {
+	v := m.weight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeight returns the old "weight" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldWeight(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeight: %w", err)
+	}
+	return oldValue.Weight, nil
+}
+
+// AddWeight adds i to the "weight" field.
+func (m *ProviderKeyMutation) AddWeight(i int) {
+	if m.addweight != nil {
+		*m.addweight += i
+	} else {
+		m.addweight = &i
+	}
+}
+
+// AddedWeight returns the value that was added to the "weight" field in this mutation.
+func (m *ProviderKeyMutation) AddedWeight() (r int, exists bool) {
+	v := m.addweight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWeight resets all changes to the "weight" field.
+func (m *ProviderKeyMutation) ResetWeight() {
+	m.weight = nil
+	m.addweight = nil
+}
+
+// SetPriority sets the "priority" field.
+func (m *ProviderKeyMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *ProviderKeyMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *ProviderKeyMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *ProviderKeyMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *ProviderKeyMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ProviderKeyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ProviderKeyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ProviderKeyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ProviderKeyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ProviderKeyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ProviderKeyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProviderID sets the "provider" edge to the Provider entity by id.
+func (m *ProviderKeyMutation) SetProviderID(id uuid.UUID) {
+	m.provider = &id
+}
+
+// ClearProvider clears the "provider" edge to the Provider entity.
+func (m *ProviderKeyMutation) ClearProvider() {
+	m.clearedprovider = true
+}
+
+// ProviderCleared reports if the "provider" edge to the Provider entity was cleared.
+func (m *ProviderKeyMutation) ProviderCleared() bool {
+	return m.clearedprovider
+}
+
+// ProviderID returns the "provider" edge ID in the mutation.
+func (m *ProviderKeyMutation) ProviderID() (id uuid.UUID, exists bool) {
+	if m.provider != nil {
+		return *m.provider, true
+	}
+	return
+}
+
+// ProviderIDs returns the "provider" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProviderID instead. It exists only for internal usage by the builders.
+func (m *ProviderKeyMutation) ProviderIDs() (ids []uuid.UUID) {
+	if id := m.provider; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProvider resets all changes to the "provider" edge.
+func (m *ProviderKeyMutation) ResetProvider() {
+	m.provider = nil
+	m.clearedprovider = false
+}
+
+// Where appends a list predicates to the ProviderKeyMutation builder.
+func (m *ProviderKeyMutation) Where(ps ...predicate.ProviderKey) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ProviderKeyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ProviderKeyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ProviderKey, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ProviderKeyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ProviderKeyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ProviderKey).
+func (m *ProviderKeyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ProviderKeyMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.name != nil {
+		fields = append(fields, providerkey.FieldName)
+	}
+	if m.ciphertext != nil {
+		fields = append(fields, providerkey.FieldCiphertext)
+	}
+	if m.last4 != nil {
+		fields = append(fields, providerkey.FieldLast4)
+	}
+	if m.enabled != nil {
+		fields = append(fields, providerkey.FieldEnabled)
+	}
+	if m.max_in_flight != nil {
+		fields = append(fields, providerkey.FieldMaxInFlight)
+	}
+	if m.weight != nil {
+		fields = append(fields, providerkey.FieldWeight)
+	}
+	if m.priority != nil {
+		fields = append(fields, providerkey.FieldPriority)
+	}
+	if m.created_at != nil {
+		fields = append(fields, providerkey.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, providerkey.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ProviderKeyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case providerkey.FieldName:
+		return m.Name()
+	case providerkey.FieldCiphertext:
+		return m.Ciphertext()
+	case providerkey.FieldLast4:
+		return m.Last4()
+	case providerkey.FieldEnabled:
+		return m.Enabled()
+	case providerkey.FieldMaxInFlight:
+		return m.MaxInFlight()
+	case providerkey.FieldWeight:
+		return m.Weight()
+	case providerkey.FieldPriority:
+		return m.Priority()
+	case providerkey.FieldCreatedAt:
+		return m.CreatedAt()
+	case providerkey.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ProviderKeyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case providerkey.FieldName:
+		return m.OldName(ctx)
+	case providerkey.FieldCiphertext:
+		return m.OldCiphertext(ctx)
+	case providerkey.FieldLast4:
+		return m.OldLast4(ctx)
+	case providerkey.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case providerkey.FieldMaxInFlight:
+		return m.OldMaxInFlight(ctx)
+	case providerkey.FieldWeight:
+		return m.OldWeight(ctx)
+	case providerkey.FieldPriority:
+		return m.OldPriority(ctx)
+	case providerkey.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case providerkey.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ProviderKey field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProviderKeyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case providerkey.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case providerkey.FieldCiphertext:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCiphertext(v)
+		return nil
+	case providerkey.FieldLast4:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLast4(v)
+		return nil
+	case providerkey.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case providerkey.FieldMaxInFlight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxInFlight(v)
+		return nil
+	case providerkey.FieldWeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeight(v)
+		return nil
+	case providerkey.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	case providerkey.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case providerkey.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProviderKey field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ProviderKeyMutation) AddedFields() []string {
+	var fields []string
+	if m.addmax_in_flight != nil {
+		fields = append(fields, providerkey.FieldMaxInFlight)
+	}
+	if m.addweight != nil {
+		fields = append(fields, providerkey.FieldWeight)
+	}
+	if m.addpriority != nil {
+		fields = append(fields, providerkey.FieldPriority)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ProviderKeyMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case providerkey.FieldMaxInFlight:
+		return m.AddedMaxInFlight()
+	case providerkey.FieldWeight:
+		return m.AddedWeight()
+	case providerkey.FieldPriority:
+		return m.AddedPriority()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProviderKeyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case providerkey.FieldMaxInFlight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxInFlight(v)
+		return nil
+	case providerkey.FieldWeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWeight(v)
+		return nil
+	case providerkey.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProviderKey numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ProviderKeyMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ProviderKeyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ProviderKeyMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ProviderKey nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ProviderKeyMutation) ResetField(name string) error {
+	switch name {
+	case providerkey.FieldName:
+		m.ResetName()
+		return nil
+	case providerkey.FieldCiphertext:
+		m.ResetCiphertext()
+		return nil
+	case providerkey.FieldLast4:
+		m.ResetLast4()
+		return nil
+	case providerkey.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case providerkey.FieldMaxInFlight:
+		m.ResetMaxInFlight()
+		return nil
+	case providerkey.FieldWeight:
+		m.ResetWeight()
+		return nil
+	case providerkey.FieldPriority:
+		m.ResetPriority()
+		return nil
+	case providerkey.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case providerkey.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ProviderKey field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ProviderKeyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.provider != nil {
+		edges = append(edges, providerkey.EdgeProvider)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ProviderKeyMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case providerkey.EdgeProvider:
+		if id := m.provider; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ProviderKeyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ProviderKeyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ProviderKeyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedprovider {
+		edges = append(edges, providerkey.EdgeProvider)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ProviderKeyMutation) EdgeCleared(name string) bool {
+	switch name {
+	case providerkey.EdgeProvider:
+		return m.clearedprovider
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ProviderKeyMutation) ClearEdge(name string) error {
+	switch name {
+	case providerkey.EdgeProvider:
+		m.ClearProvider()
+		return nil
+	}
+	return fmt.Errorf("unknown ProviderKey unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ProviderKeyMutation) ResetEdge(name string) error {
+	switch name {
+	case providerkey.EdgeProvider:
+		m.ResetProvider()
+		return nil
+	}
+	return fmt.Errorf("unknown ProviderKey edge %s", name)
 }

@@ -2,12 +2,15 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 )
+
+const masterKeyBytes = 32
 
 type Config struct {
 	Port        string
@@ -20,9 +23,13 @@ type Config struct {
 	WorkOSIssuer   string
 	OwnerEmail     string
 	WorkOSDevMode  bool
+
+	// MasterKey seals provider API keys at rest: 32 raw bytes from base64 MASTER_KEY.
+	MasterKey []byte
 }
 
 func Load() (Config, error) {
+	var err error
 	debug, _ := strconv.ParseBool(os.Getenv("DEBUG"))
 	devMode, _ := strconv.ParseBool(os.Getenv("WORKOS_DEV_MODE"))
 	cfg := Config{
@@ -39,13 +46,27 @@ func Load() (Config, error) {
 	if origins := os.Getenv("CORS_ORIGINS"); origins != "" {
 		cfg.CORSOrigins = strings.Split(origins, ",")
 	}
-	return cfg, requireEnv(map[string]string{
+	masterKey := trimmedEnv("MASTER_KEY")
+	if err := requireEnv(map[string]string{
 		"DATABASE_URL":     cfg.DatabaseURL,
 		"WORKOS_CLIENT_ID": cfg.WorkOSClientID,
 		"WORKOS_API_KEY":   cfg.WorkOSAPIKey,
 		"WORKOS_ISSUER":    cfg.WorkOSIssuer,
 		"OWNER_EMAIL":      cfg.OwnerEmail,
-	})
+		"MASTER_KEY":       masterKey,
+	}); err != nil {
+		return cfg, err
+	}
+	cfg.MasterKey, err = decodeMasterKey(masterKey)
+	return cfg, err
+}
+
+func decodeMasterKey(value string) ([]byte, error) {
+	key, err := base64.StdEncoding.DecodeString(value)
+	if err != nil || len(key) != masterKeyBytes {
+		return nil, errors.New("MASTER_KEY must be base64 of exactly 32 bytes (generate with: openssl rand -base64 32)")
+	}
+	return key, nil
 }
 
 func trimmedEnv(key string) string { return strings.TrimSpace(os.Getenv(key)) }

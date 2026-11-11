@@ -50,10 +50,18 @@ func TestMakeMigrateCreatesMissingDatabaseAndIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = conn.Close() }()
-	var name string
-	err = conn.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='settings'`).Scan(&name)
-	if err != nil {
-		t.Fatalf("settings table missing after migrate: %v", err)
+	tableExists := func(name string) bool {
+		var found string
+		err := conn.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, name).Scan(&found)
+		return err == nil
+	}
+	for _, table := range []string{"providers_providers", "providers_keys"} {
+		if !tableExists(table) {
+			t.Errorf("%s table missing after migrate", table)
+		}
+	}
+	if tableExists("settings") {
+		t.Error("placeholder settings table must be dropped")
 	}
 
 	if out := migrate(t, dbFile); !strings.Contains(out, "No migration files to execute") {
