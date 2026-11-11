@@ -18,5 +18,3 @@ Routes: `/healthz` (JSON, 503 when the db is unreachable), `/graphql` (`health {
 | `test` | `go test -race` (migration test needs the atlas CLI) |
 | `check` | lint, fmt diff, tidy diff, regenerate with no diff, test, govulncheck, build |
 | `build` | `bin/api` |
-
-`ent` needs at least one entity: `Setting` in `internal/ent/schema` is a placeholder to replace.
