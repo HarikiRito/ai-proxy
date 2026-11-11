@@ -7,13 +7,17 @@ require (
 	entgo.io/ent v0.14.6
 	github.com/99designs/gqlgen v0.17.98
 	github.com/HarikiRito/ai-proxy/web v0.0.0-00010101000000-000000000000
+	github.com/MicahParks/keyfunc/v3 v3.9.1
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-chi/cors v1.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/vektah/gqlparser/v2 v2.5.64
+	golang.org/x/time v0.15.0
 	modernc.org/sqlite v1.62.0
 )
 
 require (
+	github.com/MicahParks/jwkset v0.11.4 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/agnivade/levenshtein v1.2.2 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect

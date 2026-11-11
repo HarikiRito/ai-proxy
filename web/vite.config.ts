@@ -18,6 +18,7 @@ export default defineConfig({
 	server: {
 		proxy: {
 			'/healthz': 'http://localhost:8080',
+			'/config.json': 'http://localhost:8080',
 			'/graphql': 'http://localhost:8080'
 		}
 	},

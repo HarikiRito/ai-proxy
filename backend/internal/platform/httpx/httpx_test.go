@@ -29,7 +29,11 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 }
 
 func newTestRouter(ready func(context.Context) error) http.Handler {
-	r := NewRouter(Options{Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Ready: ready, Static: spa})
+	r := NewRouter(Options{
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Ready: ready, Static: spa,
+		WorkOSClientID: "client_test", DevMode: true,
+	})
+	r.Post("/v1/x", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("v1")) })
 	r.Post("/graphql", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("gql")) })
 	return r
 }
@@ -96,5 +100,25 @@ func TestHealthzReportsDatabase(t *testing.T) {
 	rec = get(t, h, "/healthz")
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("closed db: got %d", rec.Code)
+	}
+}
+
+func TestConfigJSONIsPublic(t *testing.T) {
+	rec := get(t, newTestRouter(func(context.Context) error { return nil }), "/config.json")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Header().Get("Content-Type"), "application/json") {
+		t.Fatalf("got %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || len(body) != 2 ||
+		body["workosClientId"] != "client_test" || body["devMode"] != true {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestV1RoutesStayOutsideAuth(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newTestRouter(func(context.Context) error { return nil }).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/v1/x", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "v1" {
+		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
 }

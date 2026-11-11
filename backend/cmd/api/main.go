@@ -12,6 +12,7 @@ import (
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
+	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/config"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/db"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/httpx"
@@ -55,8 +56,21 @@ func run() error {
 		return err
 	}
 
-	router := httpx.NewRouter(httpx.Options{Log: log, AllowedOrigins: cfg.CORSOrigins, Ready: healthSvc.Check, Static: spa})
-	router.Handle("/graphql", graph.NewHandler(resolver, cfg.Debug))
+	authn, err := auth.New(ctx, auth.Config{
+		ClientID:   cfg.WorkOSClientID,
+		APIKey:     cfg.WorkOSAPIKey,
+		Issuer:     cfg.WorkOSIssuer,
+		OwnerEmail: cfg.OwnerEmail,
+	})
+	if err != nil {
+		return err
+	}
+
+	router := httpx.NewRouter(httpx.Options{
+		Log: log, AllowedOrigins: cfg.CORSOrigins, Ready: healthSvc.Check, Static: spa,
+		WorkOSClientID: cfg.WorkOSClientID, DevMode: cfg.WorkOSDevMode,
+	})
+	router.Handle("/graphql", authn.Middleware(graph.NewHandler(resolver, cfg.Debug)))
 	if cfg.Debug {
 		router.Get("/playground", playground.ApolloSandboxHandler("GraphQL", "/graphql"))
 	}
