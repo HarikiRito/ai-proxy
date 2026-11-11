@@ -1,0 +1,9 @@
+pre-commit:
+  commands:
+    fmt:
+      glob: "*.go"
+      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 fmt {staged_files}
+      stage_fixed: true
+    lint:
+      glob: "*.go"
+      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run --new-from-rev=HEAD ./...
