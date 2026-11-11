@@ -16,6 +16,12 @@ Folder layout and import conventions. See also [naming.md](naming.md).
 ```
 src/
   components/ui/         # shadcn-svelte button, sonner + AppSonner, AppThemeToggle
+  features/auth/
+    auth.svelte.ts       # createAuthStore(): WorkOS AuthKit session, owner check via GraphQL viewer, authFetch
+    auth.svelte.test.ts
+    index.svelte         # guard: sign-in / refused / error screens, admin shell (email + sign-out)
+    login.svelte         # /auth/login: starts sign-in
+    callback.svelte      # /auth/callback: completes the code exchange
   features/home/
     health.svelte.ts     # createHealthStore(): GET /healthz probe
     health.svelte.test.ts
@@ -24,6 +30,8 @@ src/
   routes/
     +layout.svelte       # app shell
     +layout.ts           # SPA config (ssr=false, prerender=true)
-    +page.svelte         # delegates to features/home
+    (app)/+layout.svelte # wraps pages in the features/auth guard
+    (app)/+page.svelte   # delegates to features/home
+    auth/login, auth/callback  # delegate to features/auth
   app.css                # Tailwind v4 CSS-first config + shadcn tokens
 ```
