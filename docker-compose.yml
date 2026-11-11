@@ -21,8 +21,6 @@ services:
     environment:
       PORT: "8080"
       DATABASE_URL: file:/data/app.db?_pragma=foreign_keys(1)
-    ports:
-      - "8080:8080"
     volumes:
       - data:/data
     depends_on:
