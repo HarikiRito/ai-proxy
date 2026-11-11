@@ -20,7 +20,7 @@ services:
     build: .
     environment:
       PORT: "8080"
-      DATABASE_URL: file:/data/app.db?_pragma=foreign_keys(1)
+      DATABASE_URL: file:/data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_txlock=immediate
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
       WORKOS_API_KEY: ${WORKOS_API_KEY:-}
       WORKOS_ISSUER: ${WORKOS_ISSUER:-}

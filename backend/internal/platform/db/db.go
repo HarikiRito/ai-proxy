@@ -17,7 +17,7 @@ import (
 const pingTimeout = 5 * time.Second
 
 // Open returns the ent client and its pool; closing the client closes the pool.
-// databaseURL looks like file:/path/app.db?_pragma=foreign_keys(1).
+// databaseURL looks like file:/path/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_txlock=immediate.
 func Open(ctx context.Context, databaseURL string) (*ent.Client, *sql.DB, error) {
 	conn, err := sql.Open("sqlite", databaseURL)
 	if err != nil {
