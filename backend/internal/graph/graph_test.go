@@ -57,15 +57,12 @@ func TestViewerQueryReturnsOwnerEmailFromContext(t *testing.T) {
 
 func TestSchemaHasNoAuthOperations(t *testing.T) {
 	schema := NewExecutableSchema(Config{}).Schema()
-	for _, name := range []string{"register", "login", "me"} {
-		if schema.Query.Fields.ForName(name) != nil {
-			t.Errorf("Query.%s must not exist", name)
+	for _, name := range []string{"register", "login", "me", "signUp", "signIn"} {
+		if schema.Query.Fields.ForName(name) != nil || schema.Mutation.Fields.ForName(name) != nil {
+			t.Errorf("operation %s must not exist", name)
 		}
 	}
 	if schema.Query.Fields.ForName("viewer") == nil {
 		t.Error("Query.viewer must exist")
-	}
-	if schema.Mutation != nil {
-		t.Error("no mutations expected")
 	}
 }

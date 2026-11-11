@@ -12,7 +12,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -73,7 +74,8 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			setting.Table: setting.ValidColumn,
+			provider.Table:    provider.ValidColumn,
+			providerkey.Table: providerkey.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -10,11 +10,14 @@ import (
 	"reflect"
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/migrate"
+	"github.com/google/uuid"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
-	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 )
 
 // Client is the client that holds all ent builders.
@@ -22,8 +25,10 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
-	// Setting is the client for interacting with the Setting builders.
-	Setting *SettingClient
+	// Provider is the client for interacting with the Provider builders.
+	Provider *ProviderClient
+	// ProviderKey is the client for interacting with the ProviderKey builders.
+	ProviderKey *ProviderKeyClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -35,7 +40,8 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
-	c.Setting = NewSettingClient(c.config)
+	c.Provider = NewProviderClient(c.config)
+	c.ProviderKey = NewProviderKeyClient(c.config)
 }
 
 type (
@@ -126,9 +132,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:     ctx,
-		config:  cfg,
-		Setting: NewSettingClient(cfg),
+		ctx:         ctx,
+		config:      cfg,
+		Provider:    NewProviderClient(cfg),
+		ProviderKey: NewProviderKeyClient(cfg),
 	}, nil
 }
 
@@ -146,16 +153,17 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:     ctx,
-		config:  cfg,
-		Setting: NewSettingClient(cfg),
+		ctx:         ctx,
+		config:      cfg,
+		Provider:    NewProviderClient(cfg),
+		ProviderKey: NewProviderKeyClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Setting.
+//		Provider.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -177,126 +185,130 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Setting.Use(hooks...)
+	c.Provider.Use(hooks...)
+	c.ProviderKey.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Setting.Intercept(interceptors...)
+	c.Provider.Intercept(interceptors...)
+	c.ProviderKey.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
-	case *SettingMutation:
-		return c.Setting.mutate(ctx, m)
+	case *ProviderMutation:
+		return c.Provider.mutate(ctx, m)
+	case *ProviderKeyMutation:
+		return c.ProviderKey.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
 }
 
-// SettingClient is a client for the Setting schema.
-type SettingClient struct {
+// ProviderClient is a client for the Provider schema.
+type ProviderClient struct {
 	config
 }
 
-// NewSettingClient returns a client for the Setting from the given config.
-func NewSettingClient(c config) *SettingClient {
-	return &SettingClient{config: c}
+// NewProviderClient returns a client for the Provider from the given config.
+func NewProviderClient(c config) *ProviderClient {
+	return &ProviderClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `setting.Hooks(f(g(h())))`.
-func (c *SettingClient) Use(hooks ...Hook) {
-	c.hooks.Setting = append(c.hooks.Setting, hooks...)
+// A call to `Use(f, g, h)` equals to `provider.Hooks(f(g(h())))`.
+func (c *ProviderClient) Use(hooks ...Hook) {
+	c.hooks.Provider = append(c.hooks.Provider, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `setting.Intercept(f(g(h())))`.
-func (c *SettingClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Setting = append(c.inters.Setting, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `provider.Intercept(f(g(h())))`.
+func (c *ProviderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Provider = append(c.inters.Provider, interceptors...)
 }
 
-// Create returns a builder for creating a Setting entity.
-func (c *SettingClient) Create() *SettingCreate {
-	mutation := newSettingMutation(c.config, OpCreate)
-	return &SettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a Provider entity.
+func (c *ProviderClient) Create() *ProviderCreate {
+	mutation := newProviderMutation(c.config, OpCreate)
+	return &ProviderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of Setting entities.
-func (c *SettingClient) CreateBulk(builders ...*SettingCreate) *SettingCreateBulk {
-	return &SettingCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of Provider entities.
+func (c *ProviderClient) CreateBulk(builders ...*ProviderCreate) *ProviderCreateBulk {
+	return &ProviderCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *SettingClient) MapCreateBulk(slice any, setFunc func(*SettingCreate, int)) *SettingCreateBulk {
+func (c *ProviderClient) MapCreateBulk(slice any, setFunc func(*ProviderCreate, int)) *ProviderCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &SettingCreateBulk{err: fmt.Errorf("calling to SettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &ProviderCreateBulk{err: fmt.Errorf("calling to ProviderClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*SettingCreate, rv.Len())
+	builders := make([]*ProviderCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &SettingCreateBulk{config: c.config, builders: builders}
+	return &ProviderCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for Setting.
-func (c *SettingClient) Update() *SettingUpdate {
-	mutation := newSettingMutation(c.config, OpUpdate)
-	return &SettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for Provider.
+func (c *ProviderClient) Update() *ProviderUpdate {
+	mutation := newProviderMutation(c.config, OpUpdate)
+	return &ProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *SettingClient) UpdateOne(_m *Setting) *SettingUpdateOne {
-	mutation := newSettingMutation(c.config, OpUpdateOne, withSetting(_m))
-	return &SettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *ProviderClient) UpdateOne(_m *Provider) *ProviderUpdateOne {
+	mutation := newProviderMutation(c.config, OpUpdateOne, withProvider(_m))
+	return &ProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *SettingClient) UpdateOneID(id int) *SettingUpdateOne {
-	mutation := newSettingMutation(c.config, OpUpdateOne, withSettingID(id))
-	return &SettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *ProviderClient) UpdateOneID(id uuid.UUID) *ProviderUpdateOne {
+	mutation := newProviderMutation(c.config, OpUpdateOne, withProviderID(id))
+	return &ProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for Setting.
-func (c *SettingClient) Delete() *SettingDelete {
-	mutation := newSettingMutation(c.config, OpDelete)
-	return &SettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for Provider.
+func (c *ProviderClient) Delete() *ProviderDelete {
+	mutation := newProviderMutation(c.config, OpDelete)
+	return &ProviderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *SettingClient) DeleteOne(_m *Setting) *SettingDeleteOne {
+func (c *ProviderClient) DeleteOne(_m *Provider) *ProviderDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *SettingClient) DeleteOneID(id int) *SettingDeleteOne {
-	builder := c.Delete().Where(setting.ID(id))
+func (c *ProviderClient) DeleteOneID(id uuid.UUID) *ProviderDeleteOne {
+	builder := c.Delete().Where(provider.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &SettingDeleteOne{builder}
+	return &ProviderDeleteOne{builder}
 }
 
-// Query returns a query builder for Setting.
-func (c *SettingClient) Query() *SettingQuery {
-	return &SettingQuery{
+// Query returns a query builder for Provider.
+func (c *ProviderClient) Query() *ProviderQuery {
+	return &ProviderQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeSetting},
+		ctx:    &QueryContext{Type: TypeProvider},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a Setting entity by its id.
-func (c *SettingClient) Get(ctx context.Context, id int) (*Setting, error) {
-	return c.Query().Where(setting.ID(id)).Only(ctx)
+// Get returns a Provider entity by its id.
+func (c *ProviderClient) Get(ctx context.Context, id uuid.UUID) (*Provider, error) {
+	return c.Query().Where(provider.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *SettingClient) GetX(ctx context.Context, id int) *Setting {
+func (c *ProviderClient) GetX(ctx context.Context, id uuid.UUID) *Provider {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -304,37 +316,202 @@ func (c *SettingClient) GetX(ctx context.Context, id int) *Setting {
 	return obj
 }
 
+// QueryKeys queries the keys edge of a Provider.
+func (c *ProviderClient) QueryKeys(_m *Provider) *ProviderKeyQuery {
+	query := (&ProviderKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(provider.Table, provider.FieldID, id),
+			sqlgraph.To(providerkey.Table, providerkey.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, provider.KeysTable, provider.KeysColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
-func (c *SettingClient) Hooks() []Hook {
-	return c.hooks.Setting
+func (c *ProviderClient) Hooks() []Hook {
+	return c.hooks.Provider
 }
 
 // Interceptors returns the client interceptors.
-func (c *SettingClient) Interceptors() []Interceptor {
-	return c.inters.Setting
+func (c *ProviderClient) Interceptors() []Interceptor {
+	return c.inters.Provider
 }
 
-func (c *SettingClient) mutate(ctx context.Context, m *SettingMutation) (Value, error) {
+func (c *ProviderClient) mutate(ctx context.Context, m *ProviderMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&SettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ProviderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&SettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&SettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&SettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&ProviderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown Setting mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown Provider mutation op: %q", m.Op())
+	}
+}
+
+// ProviderKeyClient is a client for the ProviderKey schema.
+type ProviderKeyClient struct {
+	config
+}
+
+// NewProviderKeyClient returns a client for the ProviderKey from the given config.
+func NewProviderKeyClient(c config) *ProviderKeyClient {
+	return &ProviderKeyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `providerkey.Hooks(f(g(h())))`.
+func (c *ProviderKeyClient) Use(hooks ...Hook) {
+	c.hooks.ProviderKey = append(c.hooks.ProviderKey, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `providerkey.Intercept(f(g(h())))`.
+func (c *ProviderKeyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProviderKey = append(c.inters.ProviderKey, interceptors...)
+}
+
+// Create returns a builder for creating a ProviderKey entity.
+func (c *ProviderKeyClient) Create() *ProviderKeyCreate {
+	mutation := newProviderKeyMutation(c.config, OpCreate)
+	return &ProviderKeyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProviderKey entities.
+func (c *ProviderKeyClient) CreateBulk(builders ...*ProviderKeyCreate) *ProviderKeyCreateBulk {
+	return &ProviderKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProviderKeyClient) MapCreateBulk(slice any, setFunc func(*ProviderKeyCreate, int)) *ProviderKeyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProviderKeyCreateBulk{err: fmt.Errorf("calling to ProviderKeyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProviderKeyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProviderKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProviderKey.
+func (c *ProviderKeyClient) Update() *ProviderKeyUpdate {
+	mutation := newProviderKeyMutation(c.config, OpUpdate)
+	return &ProviderKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProviderKeyClient) UpdateOne(_m *ProviderKey) *ProviderKeyUpdateOne {
+	mutation := newProviderKeyMutation(c.config, OpUpdateOne, withProviderKey(_m))
+	return &ProviderKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProviderKeyClient) UpdateOneID(id uuid.UUID) *ProviderKeyUpdateOne {
+	mutation := newProviderKeyMutation(c.config, OpUpdateOne, withProviderKeyID(id))
+	return &ProviderKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProviderKey.
+func (c *ProviderKeyClient) Delete() *ProviderKeyDelete {
+	mutation := newProviderKeyMutation(c.config, OpDelete)
+	return &ProviderKeyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProviderKeyClient) DeleteOne(_m *ProviderKey) *ProviderKeyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProviderKeyClient) DeleteOneID(id uuid.UUID) *ProviderKeyDeleteOne {
+	builder := c.Delete().Where(providerkey.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProviderKeyDeleteOne{builder}
+}
+
+// Query returns a query builder for ProviderKey.
+func (c *ProviderKeyClient) Query() *ProviderKeyQuery {
+	return &ProviderKeyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProviderKey},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProviderKey entity by its id.
+func (c *ProviderKeyClient) Get(ctx context.Context, id uuid.UUID) (*ProviderKey, error) {
+	return c.Query().Where(providerkey.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProviderKeyClient) GetX(ctx context.Context, id uuid.UUID) *ProviderKey {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProvider queries the provider edge of a ProviderKey.
+func (c *ProviderKeyClient) QueryProvider(_m *ProviderKey) *ProviderQuery {
+	query := (&ProviderClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(providerkey.Table, providerkey.FieldID, id),
+			sqlgraph.To(provider.Table, provider.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, providerkey.ProviderTable, providerkey.ProviderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ProviderKeyClient) Hooks() []Hook {
+	return c.hooks.ProviderKey
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProviderKeyClient) Interceptors() []Interceptor {
+	return c.inters.ProviderKey
+}
+
+func (c *ProviderKeyClient) mutate(ctx context.Context, m *ProviderKeyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProviderKeyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProviderKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProviderKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProviderKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProviderKey mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Setting []ent.Hook
+		Provider, ProviderKey []ent.Hook
 	}
 	inters struct {
-		Setting []ent.Interceptor
+		Provider, ProviderKey []ent.Interceptor
 	}
 )

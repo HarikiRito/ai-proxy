@@ -26,6 +26,7 @@ services:
       WORKOS_ISSUER: ${WORKOS_ISSUER:-}
       OWNER_EMAIL: ${OWNER_EMAIL:-}
       WORKOS_DEV_MODE: ${WORKOS_DEV_MODE:-false}
+      MASTER_KEY: ${MASTER_KEY:-}
     volumes:
       - data:/data
     depends_on:

@@ -9,29 +9,29 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/predicate"
-	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 )
 
-// SettingDelete is the builder for deleting a Setting entity.
-type SettingDelete struct {
+// ProviderKeyDelete is the builder for deleting a ProviderKey entity.
+type ProviderKeyDelete struct {
 	config
 	hooks    []Hook
-	mutation *SettingMutation
+	mutation *ProviderKeyMutation
 }
 
-// Where appends a list predicates to the SettingDelete builder.
-func (_d *SettingDelete) Where(ps ...predicate.Setting) *SettingDelete {
+// Where appends a list predicates to the ProviderKeyDelete builder.
+func (_d *ProviderKeyDelete) Where(ps ...predicate.ProviderKey) *ProviderKeyDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *SettingDelete) Exec(ctx context.Context) (int, error) {
+func (_d *ProviderKeyDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *SettingDelete) ExecX(ctx context.Context) int {
+func (_d *ProviderKeyDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *SettingDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *SettingDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(setting.Table, sqlgraph.NewFieldSpec(setting.FieldID, field.TypeInt))
+func (_d *ProviderKeyDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(providerkey.Table, sqlgraph.NewFieldSpec(providerkey.FieldID, field.TypeUUID))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *SettingDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// SettingDeleteOne is the builder for deleting a single Setting entity.
-type SettingDeleteOne struct {
-	_d *SettingDelete
+// ProviderKeyDeleteOne is the builder for deleting a single ProviderKey entity.
+type ProviderKeyDeleteOne struct {
+	_d *ProviderKeyDelete
 }
 
-// Where appends a list predicates to the SettingDelete builder.
-func (_d *SettingDeleteOne) Where(ps ...predicate.Setting) *SettingDeleteOne {
+// Where appends a list predicates to the ProviderKeyDelete builder.
+func (_d *ProviderKeyDeleteOne) Where(ps ...predicate.ProviderKey) *ProviderKeyDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *SettingDeleteOne) Exec(ctx context.Context) error {
+func (_d *ProviderKeyDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{setting.Label}
+		return &NotFoundError{providerkey.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *SettingDeleteOne) ExecX(ctx context.Context) {
+func (_d *ProviderKeyDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

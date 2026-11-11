@@ -6,6 +6,9 @@ type Health struct {
 	Ok bool `json:"ok"`
 }
 
+type Mutation struct {
+}
+
 type Query struct {
 }
 

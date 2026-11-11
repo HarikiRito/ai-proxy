@@ -39,13 +39,14 @@ The standalone image (`docker build .`) does not migrate itself: run `atlas migr
 
 ## Admin login (WorkOS AuthKit, owner only)
 
-`/graphql` requires a WorkOS access token whose user is the owner. `/healthz`, `/config.json`, the SPA and future `/v1/*` stay public. The api refuses to start without the first four vars.
+`/graphql` requires a WorkOS access token whose user is the owner. `/healthz`, `/config.json`, the SPA and future `/v1/*` stay public. The api refuses to start without any variable in the table below except `WORKOS_DEV_MODE`.
 
 | Env | Meaning |
 | --- | --- |
 | `WORKOS_CLIENT_ID` | WorkOS client id (`client_...`); also selects the JWKS (`https://api.workos.com/sso/jwks/<id>`) |
 | `WORKOS_API_KEY` | WorkOS secret key (`sk_...`), used server side to look up the token's user; never sent to the browser |
 | `WORKOS_ISSUER` | exact `iss` of the access tokens (copy from a decoded token or the dashboard; typically `https://api.workos.com/user_management/<client_id>`, or your custom auth domain) |
+| `MASTER_KEY` | base64 of 32 random bytes (`openssl rand -base64 32`); encrypts provider API keys at rest. Losing or changing it makes saved keys unreadable |
 | `OWNER_EMAIL` | the only email allowed in; must be verified in WorkOS (case-insensitive match) |
 | `WORKOS_DEV_MODE` | `true` keeps the refresh token in localStorage. Needed on local `http` and on staging: the WorkOS-hosted auth domain is cross-site, so cookie mode breaks on reload. Use `false` only once a same-site custom auth domain exists; default `false` |
 
@@ -64,7 +65,7 @@ WorkOS dashboard (per origin; add the `http://localhost:5173` ones for local dev
 - URL: https://ai-proxy.harikidev.win (`/healthz` for status)
 - Dokploy compose app `ai-proxy`, built from `docker-compose.yml` on `main`
 - Every push to `main` auto-deploys via Dokploy
-- Dokploy env must define `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_ISSUER`, `OWNER_EMAIL`, `WORKOS_DEV_MODE=true` (see Admin login)
+- Dokploy env must define `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_ISSUER`, `OWNER_EMAIL`, `MASTER_KEY`, `WORKOS_DEV_MODE=true` (see Admin login; back up `MASTER_KEY`)
 
 ## Checks
 

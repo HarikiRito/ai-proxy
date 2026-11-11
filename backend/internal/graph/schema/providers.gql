@@ -1,0 +1,69 @@
+enum ProviderKind {
+  openai_compatible
+  anthropic
+  claude_subscription
+}
+
+enum RotationStrategy {
+  round_robin
+  weighted_round_robin
+  priority_overflow
+  least_in_flight
+}
+
+type Provider {
+  id: ID!
+  name: String!
+  kind: ProviderKind!
+  baseUrl: String!
+  enabled: Boolean!
+  rotation: RotationStrategy!
+  cacheAffinitySeconds: Int!
+  "Sum of max in flight over enabled keys."
+  capacity: Int!
+  keys: [ProviderKey!]!
+}
+
+type ProviderKey {
+  id: ID!
+  name: String!
+  enabled: Boolean!
+  maxInFlight: Int!
+  weight: Int!
+  priority: Int!
+  "Never the secret: bullets plus the last 4 characters when the key is long enough."
+  maskedKey: String!
+}
+
+"Create needs name, kind and baseUrl; update changes only the fields given."
+input ProviderInput {
+  name: String
+  kind: ProviderKind
+  baseUrl: String
+  enabled: Boolean
+  rotation: RotationStrategy
+  cacheAffinitySeconds: Int
+}
+
+"Add needs name, secret and maxInFlight; update changes only the fields given (secret replaces the key)."
+input ProviderKeyInput {
+  name: String
+  secret: String
+  enabled: Boolean
+  maxInFlight: Int
+  weight: Int
+  priority: Int
+}
+
+extend type Query {
+  providers: [Provider!]!
+}
+
+extend type Mutation {
+  createProvider(input: ProviderInput!): Provider!
+  updateProvider(id: ID!, input: ProviderInput!): Provider!
+  deleteProvider(id: ID!): Boolean!
+  addProviderKey(providerId: ID!, input: ProviderKeyInput!): ProviderKey!
+  updateProviderKey(id: ID!, input: ProviderKeyInput!): ProviderKey!
+  deleteProviderKey(id: ID!): Boolean!
+}

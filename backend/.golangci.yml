@@ -94,6 +94,13 @@ linters:
           deny:
             - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent
               desc: health owns no tables, and must not read other modules' entities
+        providers-tables:
+          files: ["**/internal/modules/**", "!**/internal/modules/providers/**"]
+          deny:
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/provider
+              desc: providers owns these tables; use its facade
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey
+              desc: providers owns these tables; use its facade
         graph:
           files: ["**/internal/graph/**", "!**/internal/graph/generated.go"]
           deny:

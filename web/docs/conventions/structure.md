@@ -26,12 +26,18 @@ src/
     health.svelte.ts     # createHealthStore(): GET /healthz probe
     health.svelte.test.ts
     index.svelte         # app home + health indicator
+  features/providers/
+    presets.ts           # 8 provider presets (prefill only)
+    providers.svelte.ts  # createProvidersStore(authFetch): providers/keys CRUD via GraphQL, draft form state
+    providers.svelte.test.ts
+    index.svelte         # providers page (list, keys, capacity); provider-form/key-form dialogs
   utils.ts               # re-export facade (cn, bits-ui types)
   routes/
     +layout.svelte       # app shell
     +layout.ts           # SPA config (ssr=false, prerender=true)
     (app)/+layout.svelte # wraps pages in the features/auth guard
     (app)/+page.svelte   # delegates to features/home
+    (app)/providers/+page.svelte  # delegates to features/providers
     auth/login, auth/callback  # delegate to features/auth
   app.css                # Tailwind v4 CSS-first config + shadcn tokens
 ```
