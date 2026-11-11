@@ -8,3 +8,7 @@ type Health struct {
 
 type Query struct {
 }
+
+type Viewer struct {
+	Email string `json:"email"`
+}

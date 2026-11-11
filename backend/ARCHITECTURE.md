@@ -4,7 +4,7 @@ Modular monolith, one binary, split-ready. `cmd/api/main.go` is the composition 
 
 ## Layout
 
-- `internal/platform/` config, db (ent client on SQLite), httpx (chi + SPA fallback), logging (slog). No domain imports.
+- `internal/platform/` auth (WorkOS JWT verify + owner-check middleware), config, db (ent client on SQLite), httpx (chi + SPA fallback), logging (slog). No domain imports.
 - `internal/events/` in-process sync bus: `Publish(ctx, evt)`, `Subscribe(name, handler)`. Handlers run in the publisher's ctx; first error aborts and returns to the publisher.
 - `internal/modules/<module>/` domain modules; each `service.go` is the public facade (types + `Service`, built by `New(Deps)`); `store.go` is the unexported ent adapter. Sample: `health`.
 - `internal/graph/` gqlgen, follow-schema layout, `schema/<module>.gql`, flat resolvers that call facades only. Add a dataloader package when cross-module reads appear.

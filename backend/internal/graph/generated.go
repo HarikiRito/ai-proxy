@@ -41,6 +41,11 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Health func(childComplexity int) int
+		Viewer func(childComplexity int) int
+	}
+
+	Viewer struct {
+		Email func(childComplexity int) int
 	}
 }
 
@@ -50,6 +55,7 @@ type ComplexityRoot struct {
 
 type QueryResolver interface {
 	Health(ctx context.Context) (*model.Health, error)
+	Viewer(ctx context.Context) (*model.Viewer, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -83,6 +89,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Health(childComplexity), true
+
+	case "Query.viewer":
+		if e.ComplexityRoot.Query.Viewer == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Viewer(childComplexity), true
+
+	case "Viewer.email":
+		if e.ComplexityRoot.Viewer.Email == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Viewer.Email(childComplexity), true
 
 	}
 	return 0, false
@@ -152,7 +172,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/health.gql"
+//go:embed "schema/health.gql" "schema/viewer.gql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -165,6 +185,7 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "schema/health.gql", Input: sourceData("schema/health.gql"), BuiltIn: false},
+	{Name: "schema/viewer.gql", Input: sourceData("schema/viewer.gql"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -178,6 +199,14 @@ func (ec *executionContext) childFields_Health(ctx context.Context, field graphq
 		return ec.fieldContext_Health_ok(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Health", field.Name)
+}
+
+func (ec *executionContext) childFields_Viewer(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "email":
+		return ec.fieldContext_Viewer_email(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Viewer", field.Name)
 }
 
 func (ec *executionContext) childFields___Directive(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -439,6 +468,38 @@ func (ec *executionContext) fieldContext_Query_health(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_viewer(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_viewer(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Viewer(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
+			return ec.marshalNViewer2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐViewer(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Viewer(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -513,6 +574,29 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Viewer_email(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Viewer_email(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Email, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Viewer_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Viewer", field, false, false, "String")
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -1654,6 +1738,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_health(ctx, field)
 				})
+		case "viewer":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_viewer(ctx, field)
+				})
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -1667,6 +1757,39 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			})
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var viewerImplementors = []string{"Viewer"}
+
+func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, obj *model.Viewer) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, viewerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Viewer")
+		case "email":
+			out.Values[i] = ec._Viewer_email(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -2081,6 +2204,14 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		graphql.AddInvalidNullFromMarshaler(ctx, "String!")
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNViewer2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐViewer(ctx context.Context, sel ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "Viewer!")
+		return graphql.Null
+	}
+	return ec._Viewer(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

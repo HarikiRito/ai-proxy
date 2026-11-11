@@ -4,6 +4,7 @@ package httpx
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -23,6 +24,9 @@ type Options struct {
 	Ready func(context.Context) error
 	// Static is the SPA served for every non-API path.
 	Static fs.FS
+	// WorkOSClientID and DevMode are served publicly at GET /config.json for the SPA.
+	WorkOSClientID string
+	DevMode        bool
 }
 
 func NewRouter(o Options) *chi.Mux {
@@ -43,6 +47,10 @@ func NewRouter(o Options) *chi.Mux {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
+	})
+	r.Get("/config.json", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"workosClientId": o.WorkOSClientID, "devMode": o.DevMode})
 	})
 	if o.Static != nil {
 		r.NotFound(spaHandler(o.Static))
