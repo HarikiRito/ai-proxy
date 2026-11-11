@@ -74,7 +74,11 @@ func TestSchemaExposesNoSecretField(t *testing.T) {
 			continue
 		}
 		for _, f := range def.Fields {
-			if n := strings.ToLower(f.Name); strings.Contains(n, "secret") || strings.Contains(n, "ciphertext") {
+			if name == "CreatedProxyKey" && f.Name == "secret" { // the one-time reveal of a new proxy key
+				continue
+			}
+			n := strings.ToLower(f.Name)
+			if strings.Contains(n, "secret") || strings.Contains(n, "ciphertext") || strings.Contains(n, "hash") {
 				t.Errorf("%s.%s exposes a secret", name, f.Name)
 			}
 		}

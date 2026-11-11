@@ -15,6 +15,7 @@ import (
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 )
 
 func NewHandler(r *Resolver, debug bool) http.Handler {
@@ -34,6 +35,11 @@ func presentError(ctx context.Context, err error) *gqlerror.Error {
 	var userErr *providers.UserError
 	if errors.As(err, &userErr) {
 		gqlErr.Message = userErr.Msg
+		return gqlErr
+	}
+	var keyErr *proxykeys.UserError
+	if errors.As(err, &keyErr) {
+		gqlErr.Message = keyErr.Msg
 		return gqlErr
 	}
 	if gqlErr.Err != nil { // parse and validation errors carry no wrapped error and are safe to show

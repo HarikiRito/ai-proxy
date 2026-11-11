@@ -2,6 +2,16 @@
 
 package model
 
+import (
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+)
+
+// The only place a proxy key secret is ever returned; it cannot be retrieved again.
+type CreatedProxyKey struct {
+	Key    *proxykeys.Key `json:"key"`
+	Secret string         `json:"secret"`
+}
+
 type Health struct {
 	Ok bool `json:"ok"`
 }
