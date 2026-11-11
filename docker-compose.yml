@@ -21,6 +21,11 @@ services:
     environment:
       PORT: "8080"
       DATABASE_URL: file:/data/app.db?_pragma=foreign_keys(1)
+      WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
+      WORKOS_API_KEY: ${WORKOS_API_KEY:-}
+      WORKOS_ISSUER: ${WORKOS_ISSUER:-}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      WORKOS_DEV_MODE: ${WORKOS_DEV_MODE:-false}
     volumes:
       - data:/data
     depends_on:
