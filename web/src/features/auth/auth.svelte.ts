@@ -15,6 +15,9 @@ interface PublicConfig {
 	devMode: boolean;
 }
 
+// Context key under which the signed-in shell shares authFetch with pages.
+export const AUTH_FETCH_KEY = Symbol('authFetch');
+
 const VIEWER_QUERY = JSON.stringify({ query: '{ viewer { email } }' });
 
 export function createAuthStore({

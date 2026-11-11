@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount, setContext, type Snippet } from 'svelte';
 	import { Button } from '#src/components/ui/button/index.js';
-	import { createAuthStore } from './auth.svelte';
+	import { AUTH_FETCH_KEY, createAuthStore } from './auth.svelte';
 
 	const { children }: { children: Snippet } = $props();
 
 	const auth = createAuthStore();
+	setContext(AUTH_FETCH_KEY, auth.authFetch);
 
 	onMount(() => {
 		void auth.init();
@@ -16,7 +17,12 @@
 	<p class="text-sm text-muted-foreground">Loading...</p>
 {:else if auth.status === 'signedIn'}
 	<div class="flex flex-col gap-8">
-		<div class="flex items-center justify-end gap-3 text-sm">
+		<div class="flex items-center gap-3 text-sm">
+			<nav class="flex gap-4">
+				<a href="/" class="hover:underline">Home</a>
+				<a href="/providers" class="hover:underline">Providers</a>
+			</nav>
+			<span class="ml-auto"></span>
 			<span data-testid="viewer-email" class="text-muted-foreground">{auth.email}</span>
 			<Button variant="outline" size="sm" onclick={() => auth.signOut()}>Sign out</Button>
 		</div>

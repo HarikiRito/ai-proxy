@@ -33,4 +33,4 @@ Icons come from `@lucide/svelte` - no hand-rolled icon components.
 
 ## Installed components
 
-button, sonner. Add more with the command above.
+button, sonner, badge, card, dialog, input, label, select, separator, switch, table, textarea. Add more with the command above.
