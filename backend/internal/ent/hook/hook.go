@@ -45,6 +45,42 @@ func (f ProxyKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProxyKeyMutation", m)
 }
 
+// The VirtualModelFunc type is an adapter to allow the use of ordinary
+// function as VirtualModel mutator.
+type VirtualModelFunc func(context.Context, *ent.VirtualModelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VirtualModelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VirtualModelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VirtualModelMutation", m)
+}
+
+// The VirtualModelEntryFunc type is an adapter to allow the use of ordinary
+// function as VirtualModelEntry mutator.
+type VirtualModelEntryFunc func(context.Context, *ent.VirtualModelEntryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VirtualModelEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VirtualModelEntryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VirtualModelEntryMutation", m)
+}
+
+// The VirtualModelTierFunc type is an adapter to allow the use of ordinary
+// function as VirtualModelTier mutator.
+type VirtualModelTierFunc func(context.Context, *ent.VirtualModelTierMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VirtualModelTierFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VirtualModelTierMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VirtualModelTierMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

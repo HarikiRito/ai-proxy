@@ -19,7 +19,7 @@ RUN cd backend && CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api
 FROM alpine:3.23
 RUN adduser -D -u 10001 app && mkdir /data && chown app /data
 USER app
-ENV DATABASE_URL="file:/data/app.db?_pragma=foreign_keys(1)"
+ENV DATABASE_URL="file:/data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_txlock=immediate"
 VOLUME /data
 COPY --from=builder /out/api /usr/local/bin/api
 EXPOSE 8080

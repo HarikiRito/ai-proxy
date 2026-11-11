@@ -9,6 +9,9 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/schema"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
 	"github.com/google/uuid"
 )
 
@@ -114,4 +117,54 @@ func init() {
 	proxykeyDescID := proxykeyFields[0].Descriptor()
 	// proxykey.DefaultID holds the default value on creation for the id field.
 	proxykey.DefaultID = proxykeyDescID.Default.(func() uuid.UUID)
+	virtualmodelFields := schema.VirtualModel{}.Fields()
+	_ = virtualmodelFields
+	// virtualmodelDescName is the schema descriptor for name field.
+	virtualmodelDescName := virtualmodelFields[1].Descriptor()
+	// virtualmodel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	virtualmodel.NameValidator = virtualmodelDescName.Validators[0].(func(string) error)
+	// virtualmodelDescCacheAffinity is the schema descriptor for cache_affinity field.
+	virtualmodelDescCacheAffinity := virtualmodelFields[4].Descriptor()
+	// virtualmodel.DefaultCacheAffinity holds the default value on creation for the cache_affinity field.
+	virtualmodel.DefaultCacheAffinity = virtualmodelDescCacheAffinity.Default.(bool)
+	// virtualmodelDescCreatedAt is the schema descriptor for created_at field.
+	virtualmodelDescCreatedAt := virtualmodelFields[5].Descriptor()
+	// virtualmodel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	virtualmodel.DefaultCreatedAt = virtualmodelDescCreatedAt.Default.(func() time.Time)
+	// virtualmodelDescUpdatedAt is the schema descriptor for updated_at field.
+	virtualmodelDescUpdatedAt := virtualmodelFields[6].Descriptor()
+	// virtualmodel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	virtualmodel.DefaultUpdatedAt = virtualmodelDescUpdatedAt.Default.(func() time.Time)
+	// virtualmodel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	virtualmodel.UpdateDefaultUpdatedAt = virtualmodelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// virtualmodelDescID is the schema descriptor for id field.
+	virtualmodelDescID := virtualmodelFields[0].Descriptor()
+	// virtualmodel.DefaultID holds the default value on creation for the id field.
+	virtualmodel.DefaultID = virtualmodelDescID.Default.(func() uuid.UUID)
+	virtualmodelentryFields := schema.VirtualModelEntry{}.Fields()
+	_ = virtualmodelentryFields
+	// virtualmodelentryDescModel is the schema descriptor for model field.
+	virtualmodelentryDescModel := virtualmodelentryFields[2].Descriptor()
+	// virtualmodelentry.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	virtualmodelentry.ModelValidator = virtualmodelentryDescModel.Validators[0].(func(string) error)
+	// virtualmodelentryDescWeight is the schema descriptor for weight field.
+	virtualmodelentryDescWeight := virtualmodelentryFields[3].Descriptor()
+	// virtualmodelentry.DefaultWeight holds the default value on creation for the weight field.
+	virtualmodelentry.DefaultWeight = virtualmodelentryDescWeight.Default.(int)
+	// virtualmodelentry.WeightValidator is a validator for the "weight" field. It is called by the builders before save.
+	virtualmodelentry.WeightValidator = virtualmodelentryDescWeight.Validators[0].(func(int) error)
+	// virtualmodelentryDescID is the schema descriptor for id field.
+	virtualmodelentryDescID := virtualmodelentryFields[0].Descriptor()
+	// virtualmodelentry.DefaultID holds the default value on creation for the id field.
+	virtualmodelentry.DefaultID = virtualmodelentryDescID.Default.(func() uuid.UUID)
+	virtualmodeltierFields := schema.VirtualModelTier{}.Fields()
+	_ = virtualmodeltierFields
+	// virtualmodeltierDescPriority is the schema descriptor for priority field.
+	virtualmodeltierDescPriority := virtualmodeltierFields[1].Descriptor()
+	// virtualmodeltier.PriorityValidator is a validator for the "priority" field. It is called by the builders before save.
+	virtualmodeltier.PriorityValidator = virtualmodeltierDescPriority.Validators[0].(func(int) error)
+	// virtualmodeltierDescID is the schema descriptor for id field.
+	virtualmodeltierDescID := virtualmodeltierFields[0].Descriptor()
+	// virtualmodeltier.DefaultID holds the default value on creation for the id field.
+	virtualmodeltier.DefaultID = virtualmodeltierDescID.Default.(func() uuid.UUID)
 }

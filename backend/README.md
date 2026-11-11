@@ -3,7 +3,9 @@
 Go GraphQL backend: modular monolith, split-ready. chi, gqlgen, ent + Atlas migrations, SQLite (`modernc.org/sqlite`, no cgo).
 Rules and the path to microservices: [ARCHITECTURE.md](ARCHITECTURE.md). Run from this directory; see the root README for start-up.
 
-Routes: `/healthz` (JSON, 503 when the db is unreachable), `/graphql` (health, viewer, providers, proxy keys), `/playground` when `DEBUG=true`, everything else serves the embedded SPA (`200.html` fallback).
+Routes: `/healthz` (JSON, 503 when the db is unreachable), `/graphql` (health, viewer, providers, proxy keys, virtual models), `/playground` when `DEBUG=true`, everything else serves the embedded SPA (`200.html` fallback).
+
+The SQLite DSN carries `_pragma=busy_timeout(5000)` and `_txlock=immediate`: writers queue for up to 5s and transactions take the write lock on begin, so concurrent writes never fail with `SQLITE_BUSY`.
 
 ## Make targets
 

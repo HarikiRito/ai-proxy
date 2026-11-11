@@ -22,6 +22,7 @@
 				<a href="/" class="hover:underline">Home</a>
 				<a href="/providers" class="hover:underline">Providers</a>
 				<a href="/proxy-keys" class="hover:underline">Proxy keys</a>
+				<a href="/virtual-models" class="hover:underline">Virtual models</a>
 			</nav>
 			<span class="ml-auto"></span>
 			<span data-testid="viewer-email" class="text-muted-foreground">{auth.email}</span>

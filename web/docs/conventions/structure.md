@@ -35,6 +35,11 @@ src/
     proxykeys.svelte.ts  # createProxyKeysStore(authFetch, clipboard): proxy keys via GraphQL, one-time secret reveal, parseModels
     proxykeys.svelte.test.ts
     index.svelte         # proxy keys page (create, table, reveal dialog, allow-list edit, revoke)
+  features/virtualmodels/
+    virtualmodels.svelte.ts  # createVirtualModelsStore(authFetch): virtual models + provider options via GraphQL, draft tier editor, pure tier helpers
+    virtualmodels.svelte.test.ts
+    index.svelte         # virtual models page (cards with tiers, entry status badges, delete)
+    model-form.svelte    # create/edit dialog (kind, strategy, cache affinity, tier editor)
   utils.ts               # re-export facade (cn, bits-ui types)
   routes/
     +layout.svelte       # app shell
@@ -43,6 +48,7 @@ src/
     (app)/+page.svelte   # delegates to features/home
     (app)/providers/+page.svelte  # delegates to features/providers
     (app)/proxy-keys/+page.svelte # delegates to features/proxykeys
+    (app)/virtual-models/+page.svelte # delegates to features/virtualmodels
     auth/login, auth/callback  # delegate to features/auth
   app.css                # Tailwind v4 CSS-first config + shadcn tokens
 ```

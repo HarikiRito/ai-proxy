@@ -14,3 +14,12 @@ type ProviderKey func(*sql.Selector)
 
 // ProxyKey is the predicate function for proxykey builders.
 type ProxyKey func(*sql.Selector)
+
+// VirtualModel is the predicate function for virtualmodel builders.
+type VirtualModel func(*sql.Selector)
+
+// VirtualModelEntry is the predicate function for virtualmodelentry builders.
+type VirtualModelEntry func(*sql.Selector)
+
+// VirtualModelTier is the predicate function for virtualmodeltier builders.
+type VirtualModelTier func(*sql.Selector)

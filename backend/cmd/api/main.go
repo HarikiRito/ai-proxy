@@ -11,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent"
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/config"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/crypto"
@@ -56,11 +58,7 @@ func run() error {
 	defer func() { _ = client.Close() }()
 
 	healthSvc := health.New(health.Deps{DB: pool})
-	resolver := &graph.Resolver{
-		Health:    healthSvc,
-		Providers: providers.New(providers.Deps{DB: client, Cipher: cipher}),
-		ProxyKeys: proxykeys.New(proxykeys.Deps{DB: client}),
-	}
+	resolver := newResolver(client, healthSvc, cipher)
 
 	spa, err := web.Build()
 	if err != nil {
@@ -95,6 +93,31 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+func newResolver(client *ent.Client, healthSvc *health.Service, cipher providers.Cipher) *graph.Resolver {
+	providerSvc := providers.New(providers.Deps{DB: client, Cipher: cipher})
+	return &graph.Resolver{
+		Health:        healthSvc,
+		Providers:     providerSvc,
+		ProxyKeys:     proxykeys.New(proxykeys.Deps{DB: client}),
+		VirtualModels: virtualmodels.New(virtualmodels.Deps{DB: client, Providers: providerDirectory{providerSvc}}),
+	}
+}
+
+// providerDirectory adapts providers.Service to the interface virtualmodels consumes.
+type providerDirectory struct{ svc *providers.Service }
+
+func (d providerDirectory) ProviderInfo(ctx context.Context, ids []string) (map[string]virtualmodels.ProviderInfo, error) {
+	found, err := d.svc.ByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]virtualmodels.ProviderInfo, len(found))
+	for id, p := range found {
+		out[id] = virtualmodels.ProviderInfo{Name: p.Name, Kind: string(p.Kind), Enabled: p.Enabled}
+	}
+	return out, nil
 }
 
 func newRouter(cfg config.Config, log *slog.Logger, authn *auth.Authenticator, spa fs.FS, resolver *graph.Resolver, healthSvc *health.Service) http.Handler {

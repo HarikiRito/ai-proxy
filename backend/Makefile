@@ -4,7 +4,7 @@ GOVULNCHECK = go run golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
 -include .env
 DB_FILE ?= data/app.db
-DATABASE_URL ?= file:$(DB_FILE)?_pragma=foreign_keys(1)
+DATABASE_URL ?= file:$(DB_FILE)?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_txlock=immediate
 export
 
 .PHONY: run generate migrate migrate-diff lint fmt test generate-check check build web

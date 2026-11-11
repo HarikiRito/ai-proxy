@@ -18,6 +18,12 @@ type Tx struct {
 	ProviderKey *ProviderKeyClient
 	// ProxyKey is the client for interacting with the ProxyKey builders.
 	ProxyKey *ProxyKeyClient
+	// VirtualModel is the client for interacting with the VirtualModel builders.
+	VirtualModel *VirtualModelClient
+	// VirtualModelEntry is the client for interacting with the VirtualModelEntry builders.
+	VirtualModelEntry *VirtualModelEntryClient
+	// VirtualModelTier is the client for interacting with the VirtualModelTier builders.
+	VirtualModelTier *VirtualModelTierClient
 
 	// lazily loaded.
 	client     *Client
@@ -152,6 +158,9 @@ func (tx *Tx) init() {
 	tx.Provider = NewProviderClient(tx.config)
 	tx.ProviderKey = NewProviderKeyClient(tx.config)
 	tx.ProxyKey = NewProxyKeyClient(tx.config)
+	tx.VirtualModel = NewVirtualModelClient(tx.config)
+	tx.VirtualModelEntry = NewVirtualModelEntryClient(tx.config)
+	tx.VirtualModelTier = NewVirtualModelTierClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

@@ -106,6 +106,15 @@ linters:
           deny:
             - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey
               desc: proxykeys owns this table; use its facade
+        virtualmodels-tables:
+          files: ["**/internal/modules/**", "!**/internal/modules/virtualmodels/**"]
+          deny:
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel
+              desc: virtualmodels owns these tables; use its facade
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier
+              desc: virtualmodels owns these tables; use its facade
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry
+              desc: virtualmodels owns these tables; use its facade
         graph:
           files: ["**/internal/graph/**", "!**/internal/graph/generated.go"]
           deny:
