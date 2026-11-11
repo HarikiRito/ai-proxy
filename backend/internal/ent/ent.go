@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -76,6 +77,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			provider.Table:    provider.ValidColumn,
 			providerkey.Table: providerkey.ValidColumn,
+			proxykey.Table:    proxykey.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)
