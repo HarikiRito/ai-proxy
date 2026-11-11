@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,8 +13,10 @@ import (
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/config"
+	"github.com/HarikiRito/ai-proxy/backend/internal/platform/crypto"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/db"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/httpx"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/logging"
@@ -40,6 +43,11 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	cipher, err := crypto.New(cfg.MasterKey)
+	if err != nil {
+		return err
+	}
+
 	client, pool, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
@@ -48,7 +56,8 @@ func run() error {
 
 	healthSvc := health.New(health.Deps{DB: pool})
 	resolver := &graph.Resolver{
-		Health: healthSvc,
+		Health:    healthSvc,
+		Providers: providers.New(providers.Deps{DB: client, Cipher: cipher}),
 	}
 
 	spa, err := web.Build()
@@ -66,14 +75,7 @@ func run() error {
 		return err
 	}
 
-	router := httpx.NewRouter(httpx.Options{
-		Log: log, AllowedOrigins: cfg.CORSOrigins, Ready: healthSvc.Check, Static: spa,
-		WorkOSClientID: cfg.WorkOSClientID, DevMode: cfg.WorkOSDevMode,
-	})
-	router.Handle("/graphql", authn.Middleware(graph.NewHandler(resolver, cfg.Debug)))
-	if cfg.Debug {
-		router.Get("/playground", playground.ApolloSandboxHandler("GraphQL", "/graphql"))
-	}
+	router := newRouter(cfg, log, authn, spa, resolver, healthSvc)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: 10 * time.Second}
 	serveErr := make(chan error, 1)
@@ -91,4 +93,16 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+func newRouter(cfg config.Config, log *slog.Logger, authn *auth.Authenticator, spa fs.FS, resolver *graph.Resolver, healthSvc *health.Service) http.Handler {
+	router := httpx.NewRouter(httpx.Options{
+		Log: log, AllowedOrigins: cfg.CORSOrigins, Ready: healthSvc.Check, Static: spa,
+		WorkOSClientID: cfg.WorkOSClientID, DevMode: cfg.WorkOSDevMode,
+	})
+	router.Handle("/graphql", authn.Middleware(graph.NewHandler(resolver, cfg.Debug)))
+	if cfg.Debug {
+		router.Get("/playground", playground.ApolloSandboxHandler("GraphQL", "/graphql"))
+	}
+	return router
 }

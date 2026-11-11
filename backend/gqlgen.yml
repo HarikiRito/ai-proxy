@@ -14,3 +14,17 @@ resolver:
   dir: internal/graph
   package: graph
   filename_template: "{name}.resolvers.go"
+
+models:
+  Provider:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Provider
+  ProviderKey:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Key
+  ProviderInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.ProviderInput
+  ProviderKeyInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.KeyInput
+  ProviderKind:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Kind
+  RotationStrategy:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Rotation
