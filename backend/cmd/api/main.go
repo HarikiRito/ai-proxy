@@ -14,6 +14,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/config"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/crypto"
@@ -58,6 +59,7 @@ func run() error {
 	resolver := &graph.Resolver{
 		Health:    healthSvc,
 		Providers: providers.New(providers.Deps{DB: client, Cipher: cipher}),
+		ProxyKeys: proxykeys.New(proxykeys.Deps{DB: client}),
 	}
 
 	spa, err := web.Build()

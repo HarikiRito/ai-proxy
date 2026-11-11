@@ -3,6 +3,7 @@ package graph
 import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 )
 
 //go:generate go tool gqlgen generate
@@ -11,4 +12,5 @@ import (
 type Resolver struct {
 	Health    *health.Service
 	Providers *providers.Service
+	ProxyKeys *proxykeys.Service
 }

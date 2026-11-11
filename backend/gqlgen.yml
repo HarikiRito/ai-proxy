@@ -28,3 +28,11 @@ models:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Kind
   RotationStrategy:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Rotation
+  Time:
+    model: github.com/99designs/gqlgen/graphql.Time
+  ProxyKey:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys.Key
+  ProxyKeyStatus:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys.Status
+  CreateProxyKeyInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys.CreateInput

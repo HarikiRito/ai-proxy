@@ -1,0 +1,38 @@
+scalar Time
+
+enum ProxyKeyStatus {
+  active
+  revoked
+}
+
+type ProxyKey {
+  id: ID!
+  name: String!
+  "Virtual model names this key may call; empty means every model."
+  allowedModels: [String!]!
+  createdAt: Time!
+  lastUsedAt: Time
+  revokedAt: Time
+  status: ProxyKeyStatus!
+}
+
+"The only place a proxy key secret is ever returned; it cannot be retrieved again."
+type CreatedProxyKey {
+  key: ProxyKey!
+  secret: String!
+}
+
+input CreateProxyKeyInput {
+  name: String!
+  allowedModels: [String!]
+}
+
+extend type Query {
+  proxyKeys: [ProxyKey!]!
+}
+
+extend type Mutation {
+  createProxyKey(input: CreateProxyKeyInput!): CreatedProxyKey!
+  setProxyKeyAllowedModels(id: ID!, models: [String!]!): ProxyKey!
+  revokeProxyKey(id: ID!): ProxyKey!
+}

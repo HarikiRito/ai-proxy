@@ -7,6 +7,7 @@ import (
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/schema"
 	"github.com/google/uuid"
 )
@@ -91,4 +92,26 @@ func init() {
 	providerkeyDescID := providerkeyFields[0].Descriptor()
 	// providerkey.DefaultID holds the default value on creation for the id field.
 	providerkey.DefaultID = providerkeyDescID.Default.(func() uuid.UUID)
+	proxykeyFields := schema.ProxyKey{}.Fields()
+	_ = proxykeyFields
+	// proxykeyDescName is the schema descriptor for name field.
+	proxykeyDescName := proxykeyFields[1].Descriptor()
+	// proxykey.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	proxykey.NameValidator = proxykeyDescName.Validators[0].(func(string) error)
+	// proxykeyDescKeyHash is the schema descriptor for key_hash field.
+	proxykeyDescKeyHash := proxykeyFields[2].Descriptor()
+	// proxykey.KeyHashValidator is a validator for the "key_hash" field. It is called by the builders before save.
+	proxykey.KeyHashValidator = proxykeyDescKeyHash.Validators[0].(func(string) error)
+	// proxykeyDescAllowedModels is the schema descriptor for allowed_models field.
+	proxykeyDescAllowedModels := proxykeyFields[3].Descriptor()
+	// proxykey.DefaultAllowedModels holds the default value on creation for the allowed_models field.
+	proxykey.DefaultAllowedModels = proxykeyDescAllowedModels.Default.(func() []string)
+	// proxykeyDescCreatedAt is the schema descriptor for created_at field.
+	proxykeyDescCreatedAt := proxykeyFields[4].Descriptor()
+	// proxykey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	proxykey.DefaultCreatedAt = proxykeyDescCreatedAt.Default.(func() time.Time)
+	// proxykeyDescID is the schema descriptor for id field.
+	proxykeyDescID := proxykeyFields[0].Descriptor()
+	// proxykey.DefaultID holds the default value on creation for the id field.
+	proxykey.DefaultID = proxykeyDescID.Default.(func() uuid.UUID)
 }

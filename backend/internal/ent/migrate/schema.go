@@ -62,10 +62,27 @@ var (
 			},
 		},
 	}
+	// ProxykeysKeysColumns holds the columns for the "proxykeys_keys" table.
+	ProxykeysKeysColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "key_hash", Type: field.TypeString, Unique: true},
+		{Name: "allowed_models", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ProxykeysKeysTable holds the schema information for the "proxykeys_keys" table.
+	ProxykeysKeysTable = &schema.Table{
+		Name:       "proxykeys_keys",
+		Columns:    ProxykeysKeysColumns,
+		PrimaryKey: []*schema.Column{ProxykeysKeysColumns[0]},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ProvidersProvidersTable,
 		ProvidersKeysTable,
+		ProxykeysKeysTable,
 	}
 )
 
@@ -76,5 +93,8 @@ func init() {
 	ProvidersKeysTable.ForeignKeys[0].RefTable = ProvidersProvidersTable
 	ProvidersKeysTable.Annotation = &entsql.Annotation{
 		Table: "providers_keys",
+	}
+	ProxykeysKeysTable.Annotation = &entsql.Annotation{
+		Table: "proxykeys_keys",
 	}
 }

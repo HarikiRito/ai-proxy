@@ -11,3 +11,6 @@ type Provider func(*sql.Selector)
 
 // ProviderKey is the predicate function for providerkey builders.
 type ProviderKey func(*sql.Selector)
+
+// ProxyKey is the predicate function for proxykey builders.
+type ProxyKey func(*sql.Selector)

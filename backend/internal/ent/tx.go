@@ -16,6 +16,8 @@ type Tx struct {
 	Provider *ProviderClient
 	// ProviderKey is the client for interacting with the ProviderKey builders.
 	ProviderKey *ProviderKeyClient
+	// ProxyKey is the client for interacting with the ProxyKey builders.
+	ProxyKey *ProxyKeyClient
 
 	// lazily loaded.
 	client     *Client
@@ -149,6 +151,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Provider = NewProviderClient(tx.config)
 	tx.ProviderKey = NewProviderKeyClient(tx.config)
+	tx.ProxyKey = NewProxyKeyClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

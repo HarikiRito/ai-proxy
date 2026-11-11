@@ -31,6 +31,10 @@ src/
     providers.svelte.ts  # createProvidersStore(authFetch): providers/keys CRUD via GraphQL, draft form state
     providers.svelte.test.ts
     index.svelte         # providers page (list, keys, capacity); provider-form/key-form dialogs
+  features/proxykeys/
+    proxykeys.svelte.ts  # createProxyKeysStore(authFetch, clipboard): proxy keys via GraphQL, one-time secret reveal, parseModels
+    proxykeys.svelte.test.ts
+    index.svelte         # proxy keys page (create, table, reveal dialog, allow-list edit, revoke)
   utils.ts               # re-export facade (cn, bits-ui types)
   routes/
     +layout.svelte       # app shell
@@ -38,6 +42,7 @@ src/
     (app)/+layout.svelte # wraps pages in the features/auth guard
     (app)/+page.svelte   # delegates to features/home
     (app)/providers/+page.svelte  # delegates to features/providers
+    (app)/proxy-keys/+page.svelte # delegates to features/proxykeys
     auth/login, auth/callback  # delegate to features/auth
   app.css                # Tailwind v4 CSS-first config + shadcn tokens
 ```

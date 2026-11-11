@@ -11,11 +11,13 @@ import (
 	"math"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph/model"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -38,17 +40,25 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	CreatedProxyKey struct {
+		Key    func(childComplexity int) int
+		Secret func(childComplexity int) int
+	}
+
 	Health struct {
 		Ok func(childComplexity int) int
 	}
 
 	Mutation struct {
-		AddProviderKey    func(childComplexity int, providerID string, input providers.KeyInput) int
-		CreateProvider    func(childComplexity int, input providers.ProviderInput) int
-		DeleteProvider    func(childComplexity int, id string) int
-		DeleteProviderKey func(childComplexity int, id string) int
-		UpdateProvider    func(childComplexity int, id string, input providers.ProviderInput) int
-		UpdateProviderKey func(childComplexity int, id string, input providers.KeyInput) int
+		AddProviderKey           func(childComplexity int, providerID string, input providers.KeyInput) int
+		CreateProvider           func(childComplexity int, input providers.ProviderInput) int
+		CreateProxyKey           func(childComplexity int, input proxykeys.CreateInput) int
+		DeleteProvider           func(childComplexity int, id string) int
+		DeleteProviderKey        func(childComplexity int, id string) int
+		RevokeProxyKey           func(childComplexity int, id string) int
+		SetProxyKeyAllowedModels func(childComplexity int, id string, models []string) int
+		UpdateProvider           func(childComplexity int, id string, input providers.ProviderInput) int
+		UpdateProviderKey        func(childComplexity int, id string, input providers.KeyInput) int
 	}
 
 	Provider struct {
@@ -73,9 +83,20 @@ type ComplexityRoot struct {
 		Weight      func(childComplexity int) int
 	}
 
+	ProxyKey struct {
+		AllowedModels func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		ID            func(childComplexity int) int
+		LastUsedAt    func(childComplexity int) int
+		Name          func(childComplexity int) int
+		RevokedAt     func(childComplexity int) int
+		Status        func(childComplexity int) int
+	}
+
 	Query struct {
 		Health    func(childComplexity int) int
 		Providers func(childComplexity int) int
+		ProxyKeys func(childComplexity int) int
 		Viewer    func(childComplexity int) int
 	}
 
@@ -95,10 +116,14 @@ type MutationResolver interface {
 	AddProviderKey(ctx context.Context, providerID string, input providers.KeyInput) (*providers.Key, error)
 	UpdateProviderKey(ctx context.Context, id string, input providers.KeyInput) (*providers.Key, error)
 	DeleteProviderKey(ctx context.Context, id string) (bool, error)
+	CreateProxyKey(ctx context.Context, input proxykeys.CreateInput) (*model.CreatedProxyKey, error)
+	SetProxyKeyAllowedModels(ctx context.Context, id string, models []string) (*proxykeys.Key, error)
+	RevokeProxyKey(ctx context.Context, id string) (*proxykeys.Key, error)
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (*model.Health, error)
 	Providers(ctx context.Context) ([]*providers.Provider, error)
+	ProxyKeys(ctx context.Context) ([]*proxykeys.Key, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
 }
 
@@ -119,6 +144,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "CreatedProxyKey.key":
+		if e.ComplexityRoot.CreatedProxyKey.Key == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CreatedProxyKey.Key(childComplexity), true
+	case "CreatedProxyKey.secret":
+		if e.ComplexityRoot.CreatedProxyKey.Secret == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CreatedProxyKey.Secret(childComplexity), true
 
 	case "Health.ok":
 		if e.ComplexityRoot.Health.Ok == nil {
@@ -149,6 +187,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateProvider(childComplexity, args["input"].(providers.ProviderInput)), true
+	case "Mutation.createProxyKey":
+		if e.ComplexityRoot.Mutation.CreateProxyKey == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createProxyKey_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateProxyKey(childComplexity, args["input"].(proxykeys.CreateInput)), true
 	case "Mutation.deleteProvider":
 		if e.ComplexityRoot.Mutation.DeleteProvider == nil {
 			break
@@ -171,6 +220,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteProviderKey(childComplexity, args["id"].(string)), true
+	case "Mutation.revokeProxyKey":
+		if e.ComplexityRoot.Mutation.RevokeProxyKey == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_revokeProxyKey_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RevokeProxyKey(childComplexity, args["id"].(string)), true
+	case "Mutation.setProxyKeyAllowedModels":
+		if e.ComplexityRoot.Mutation.SetProxyKeyAllowedModels == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setProxyKeyAllowedModels_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetProxyKeyAllowedModels(childComplexity, args["id"].(string), args["models"].([]string)), true
 	case "Mutation.updateProvider":
 		if e.ComplexityRoot.Mutation.UpdateProvider == nil {
 			break
@@ -292,6 +363,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ProviderKey.Weight(childComplexity), true
 
+	case "ProxyKey.allowedModels":
+		if e.ComplexityRoot.ProxyKey.AllowedModels == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.AllowedModels(childComplexity), true
+	case "ProxyKey.createdAt":
+		if e.ComplexityRoot.ProxyKey.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.CreatedAt(childComplexity), true
+	case "ProxyKey.id":
+		if e.ComplexityRoot.ProxyKey.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.ID(childComplexity), true
+	case "ProxyKey.lastUsedAt":
+		if e.ComplexityRoot.ProxyKey.LastUsedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.LastUsedAt(childComplexity), true
+	case "ProxyKey.name":
+		if e.ComplexityRoot.ProxyKey.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.Name(childComplexity), true
+	case "ProxyKey.revokedAt":
+		if e.ComplexityRoot.ProxyKey.RevokedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.RevokedAt(childComplexity), true
+	case "ProxyKey.status":
+		if e.ComplexityRoot.ProxyKey.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProxyKey.Status(childComplexity), true
+
 	case "Query.health":
 		if e.ComplexityRoot.Query.Health == nil {
 			break
@@ -305,6 +419,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Providers(childComplexity), true
+	case "Query.proxyKeys":
+		if e.ComplexityRoot.Query.ProxyKeys == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ProxyKeys(childComplexity), true
 	case "Query.viewer":
 		if e.ComplexityRoot.Query.Viewer == nil {
 			break
@@ -328,6 +448,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalers := func() *graphql.InputUnmarshalerIndex {
 		return graphql.NewInputUnmarshalerIndex(
+			graphql.NewInputUnmarshaler("CreateProxyKeyInput", ec.unmarshalInputCreateProxyKeyInput),
 			graphql.NewInputUnmarshaler("ProviderInput", ec.unmarshalInputProviderInput),
 			graphql.NewInputUnmarshaler("ProviderKeyInput", ec.unmarshalInputProviderKeyInput),
 		)
@@ -405,7 +526,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/health.gql" "schema/providers.gql" "schema/viewer.gql"
+//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/viewer.gql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -419,6 +540,7 @@ func sourceData(filename string) string {
 var sources = []*ast.Source{
 	{Name: "schema/health.gql", Input: sourceData("schema/health.gql"), BuiltIn: false},
 	{Name: "schema/providers.gql", Input: sourceData("schema/providers.gql"), BuiltIn: false},
+	{Name: "schema/proxykeys.gql", Input: sourceData("schema/proxykeys.gql"), BuiltIn: false},
 	{Name: "schema/viewer.gql", Input: sourceData("schema/viewer.gql"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -426,6 +548,16 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // childFields_* functions provide shared child field context lookups.
 // Each function is generated once per unique object type, deduplicating the
 // switch statements that were previously inlined in every fieldContext_* function.
+
+func (ec *executionContext) childFields_CreatedProxyKey(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "key":
+		return ec.fieldContext_CreatedProxyKey_key(ctx, field)
+	case "secret":
+		return ec.fieldContext_CreatedProxyKey_secret(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CreatedProxyKey", field.Name)
+}
 
 func (ec *executionContext) childFields_Health(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
@@ -477,6 +609,26 @@ func (ec *executionContext) childFields_ProviderKey(ctx context.Context, field g
 		return ec.fieldContext_ProviderKey_maskedKey(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ProviderKey", field.Name)
+}
+
+func (ec *executionContext) childFields_ProxyKey(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ProxyKey_id(ctx, field)
+	case "name":
+		return ec.fieldContext_ProxyKey_name(ctx, field)
+	case "allowedModels":
+		return ec.fieldContext_ProxyKey_allowedModels(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_ProxyKey_createdAt(ctx, field)
+	case "lastUsedAt":
+		return ec.fieldContext_ProxyKey_lastUsedAt(ctx, field)
+	case "revokedAt":
+		return ec.fieldContext_ProxyKey_revokedAt(ctx, field)
+	case "status":
+		return ec.fieldContext_ProxyKey_status(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ProxyKey", field.Name)
 }
 
 func (ec *executionContext) childFields_Viewer(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -639,6 +791,20 @@ func (ec *executionContext) field_Mutation_createProvider_args(ctx context.Conte
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createProxyKey_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (proxykeys.CreateInput, error) {
+			return ec.unmarshalNCreateProxyKeyInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐCreateInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteProviderKey_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -664,6 +830,42 @@ func (ec *executionContext) field_Mutation_deleteProvider_args(ctx context.Conte
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_revokeProxyKey_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setProxyKeyAllowedModels_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "models",
+		func(ctx context.Context, v any) ([]string, error) {
+			return ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["models"] = arg1
 	return args, nil
 }
 
@@ -798,6 +1000,61 @@ func (ec *executionContext) field___Type_inputFields_args(ctx context.Context, r
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _CreatedProxyKey_key(ctx context.Context, field graphql.CollectedField, obj *model.CreatedProxyKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CreatedProxyKey_key(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *proxykeys.Key) graphql.Marshaler {
+			return ec.marshalNProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKey(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CreatedProxyKey_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CreatedProxyKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ProxyKey(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CreatedProxyKey_secret(ctx context.Context, field graphql.CollectedField, obj *model.CreatedProxyKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CreatedProxyKey_secret(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Secret, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CreatedProxyKey_secret(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CreatedProxyKey", field, false, false, "String")
+}
 
 func (ec *executionContext) _Health_ok(ctx context.Context, field graphql.CollectedField, obj *model.Health) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -1080,6 +1337,138 @@ func (ec *executionContext) fieldContext_Mutation_deleteProviderKey(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteProviderKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createProxyKey(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createProxyKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateProxyKey(ctx, fc.Args["input"].(proxykeys.CreateInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CreatedProxyKey) graphql.Marshaler {
+			return ec.marshalNCreatedProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐCreatedProxyKey(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createProxyKey(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CreatedProxyKey(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createProxyKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setProxyKeyAllowedModels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setProxyKeyAllowedModels(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetProxyKeyAllowedModels(ctx, fc.Args["id"].(string), fc.Args["models"].([]string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *proxykeys.Key) graphql.Marshaler {
+			return ec.marshalNProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKey(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setProxyKeyAllowedModels(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ProxyKey(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setProxyKeyAllowedModels_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_revokeProxyKey(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_revokeProxyKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RevokeProxyKey(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *proxykeys.Key) graphql.Marshaler {
+			return ec.marshalNProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKey(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_revokeProxyKey(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ProxyKey(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_revokeProxyKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1463,6 +1852,167 @@ func (ec *executionContext) fieldContext_ProviderKey_maskedKey(_ context.Context
 	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "String")
 }
 
+func (ec *executionContext) _ProxyKey_id(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "ID")
+}
+
+func (ec *executionContext) _ProxyKey_name(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "String")
+}
+
+func (ec *executionContext) _ProxyKey_allowedModels(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_allowedModels(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AllowedModels, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_allowedModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "String")
+}
+
+func (ec *executionContext) _ProxyKey_createdAt(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "Time")
+}
+
+func (ec *executionContext) _ProxyKey_lastUsedAt(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_lastUsedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastUsedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_lastUsedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "Time")
+}
+
+func (ec *executionContext) _ProxyKey_revokedAt(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_revokedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RevokedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_revokedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "Time")
+}
+
+func (ec *executionContext) _ProxyKey_status(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProxyKey_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v proxykeys.Status) graphql.Marshaler {
+			return ec.marshalNProxyKeyStatus2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProxyKey_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProxyKey", field, false, false, "ProxyKeyStatus")
+}
+
 func (ec *executionContext) _Query_health(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1522,6 +2072,38 @@ func (ec *executionContext) fieldContext_Query_providers(_ context.Context, fiel
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Provider(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_proxyKeys(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_proxyKeys(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ProxyKeys(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*proxykeys.Key) graphql.Marshaler {
+			return ec.marshalNProxyKey2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKeyᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_proxyKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ProxyKey(ctx, field)
 		},
 	}
 	return fc, nil
@@ -2731,6 +3313,55 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputCreateProxyKeyInput(ctx context.Context, obj any) (proxykeys.CreateInput, error) {
+	var it proxykeys.CreateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "allowedModels"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "allowedModels":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowedModels"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowedModels = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalCreateProxyKeyInput unmarshals raw into the CreateProxyKeyInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalCreateProxyKeyInput(ctx context.Context, raw any) (proxykeys.CreateInput, error) {
+	var out proxykeys.CreateInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "CreateProxyKeyInput", raw, &out)
+	return out, err
+}
+
 func (ec *executionContext) unmarshalInputProviderInput(ctx context.Context, obj any) (providers.ProviderInput, error) {
 	var it providers.ProviderInput
 	if obj == nil {
@@ -2893,6 +3524,44 @@ func UnmarshalProviderKeyInput(ctx context.Context, raw any) (providers.KeyInput
 
 // region    **************************** object.gotpl ****************************
 
+var createdProxyKeyImplementors = []string{"CreatedProxyKey"}
+
+func (ec *executionContext) _CreatedProxyKey(ctx context.Context, sel ast.SelectionSet, obj *model.CreatedProxyKey) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, createdProxyKeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CreatedProxyKey")
+		case "key":
+			out.Values[i] = ec._CreatedProxyKey_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "secret":
+			out.Values[i] = ec._CreatedProxyKey_secret(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var healthImplementors = []string{"Health"}
 
 func (ec *executionContext) _Health(ctx context.Context, sel ast.SelectionSet, obj *model.Health) graphql.Marshaler {
@@ -2983,6 +3652,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteProviderKey":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteProviderKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createProxyKey":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createProxyKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setProxyKeyAllowedModels":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setProxyKeyAllowedModels(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revokeProxyKey":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_revokeProxyKey(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -3140,6 +3830,69 @@ func (ec *executionContext) _ProviderKey(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var proxyKeyImplementors = []string{"ProxyKey"}
+
+func (ec *executionContext) _ProxyKey(ctx context.Context, sel ast.SelectionSet, obj *proxykeys.Key) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, proxyKeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProxyKey")
+		case "id":
+			out.Values[i] = ec._ProxyKey_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ProxyKey_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "allowedModels":
+			out.Values[i] = ec._ProxyKey_allowedModels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._ProxyKey_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastUsedAt":
+			out.Values[i] = ec._ProxyKey_lastUsedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "revokedAt":
+			out.Values[i] = ec._ProxyKey_revokedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._ProxyKey_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -3170,6 +3923,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_providers(ctx, field)
+				})
+		case "proxyKeys":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_proxyKeys(ctx, field)
 				})
 		case "viewer":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
@@ -3617,6 +4376,19 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNCreateProxyKeyInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐCreateInput(ctx context.Context, v any) (proxykeys.CreateInput, error) {
+	res, err := ec.unmarshalInputCreateProxyKeyInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCreatedProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐCreatedProxyKey(ctx context.Context, sel ast.SelectionSet, v *model.CreatedProxyKey) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "CreatedProxyKey!")
+		return graphql.Null
+	}
+	return ec._CreatedProxyKey(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNHealth2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐHealth(ctx context.Context, sel ast.SelectionSet, v *model.Health) graphql.Marshaler {
 	if v == nil {
 		graphql.AddInvalidNullError(ctx, "Health!")
@@ -3730,6 +4502,45 @@ func (ec *executionContext) marshalNProviderKind2githubᚗcomᚋHarikiRitoᚋai�
 	return res
 }
 
+func (ec *executionContext) marshalNProxyKey2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []*proxykeys.Key) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKey(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐKey(ctx context.Context, sel ast.SelectionSet, v *proxykeys.Key) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "ProxyKey!")
+		return graphql.Null
+	}
+	return ec._ProxyKey(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNProxyKeyStatus2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐStatus(ctx context.Context, v any) (proxykeys.Status, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := proxykeys.Status(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNProxyKeyStatus2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋproxykeysᚐStatus(ctx context.Context, sel ast.SelectionSet, v proxykeys.Status) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "ProxyKeyStatus!")
+	}
+	return res
+}
+
 func (ec *executionContext) unmarshalNRotationStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx context.Context, v any) (providers.Rotation, error) {
 	tmp, err := graphql.UnmarshalString(v)
 	res := providers.Rotation(tmp)
@@ -3755,6 +4566,49 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	res := graphql.MarshalString(v)
 	if res == graphql.Null {
 		graphql.AddInvalidNullFromMarshaler(ctx, "String!")
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
+	res, err := graphql.UnmarshalTime(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel ast.SelectionSet, v time.Time) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalTime(v)
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "Time!")
 	}
 	return res
 }
@@ -3995,6 +4849,41 @@ func (ec *executionContext) marshalORotationStrategy2ᚖgithubᚗcomᚋHarikiRit
 	return res
 }
 
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -4010,6 +4899,24 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalString(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalTime(*v)
 	return res
 }
 

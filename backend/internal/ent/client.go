@@ -18,6 +18,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 )
 
 // Client is the client that holds all ent builders.
@@ -29,6 +30,8 @@ type Client struct {
 	Provider *ProviderClient
 	// ProviderKey is the client for interacting with the ProviderKey builders.
 	ProviderKey *ProviderKeyClient
+	// ProxyKey is the client for interacting with the ProxyKey builders.
+	ProxyKey *ProxyKeyClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -42,6 +45,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Provider = NewProviderClient(c.config)
 	c.ProviderKey = NewProviderKeyClient(c.config)
+	c.ProxyKey = NewProxyKeyClient(c.config)
 }
 
 type (
@@ -136,6 +140,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:      cfg,
 		Provider:    NewProviderClient(cfg),
 		ProviderKey: NewProviderKeyClient(cfg),
+		ProxyKey:    NewProxyKeyClient(cfg),
 	}, nil
 }
 
@@ -157,6 +162,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:      cfg,
 		Provider:    NewProviderClient(cfg),
 		ProviderKey: NewProviderKeyClient(cfg),
+		ProxyKey:    NewProxyKeyClient(cfg),
 	}, nil
 }
 
@@ -187,6 +193,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.Provider.Use(hooks...)
 	c.ProviderKey.Use(hooks...)
+	c.ProxyKey.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
@@ -194,6 +201,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Provider.Intercept(interceptors...)
 	c.ProviderKey.Intercept(interceptors...)
+	c.ProxyKey.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -203,6 +211,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Provider.mutate(ctx, m)
 	case *ProviderKeyMutation:
 		return c.ProviderKey.mutate(ctx, m)
+	case *ProxyKeyMutation:
+		return c.ProxyKey.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -506,12 +516,145 @@ func (c *ProviderKeyClient) mutate(ctx context.Context, m *ProviderKeyMutation) 
 	}
 }
 
+// ProxyKeyClient is a client for the ProxyKey schema.
+type ProxyKeyClient struct {
+	config
+}
+
+// NewProxyKeyClient returns a client for the ProxyKey from the given config.
+func NewProxyKeyClient(c config) *ProxyKeyClient {
+	return &ProxyKeyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `proxykey.Hooks(f(g(h())))`.
+func (c *ProxyKeyClient) Use(hooks ...Hook) {
+	c.hooks.ProxyKey = append(c.hooks.ProxyKey, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `proxykey.Intercept(f(g(h())))`.
+func (c *ProxyKeyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProxyKey = append(c.inters.ProxyKey, interceptors...)
+}
+
+// Create returns a builder for creating a ProxyKey entity.
+func (c *ProxyKeyClient) Create() *ProxyKeyCreate {
+	mutation := newProxyKeyMutation(c.config, OpCreate)
+	return &ProxyKeyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProxyKey entities.
+func (c *ProxyKeyClient) CreateBulk(builders ...*ProxyKeyCreate) *ProxyKeyCreateBulk {
+	return &ProxyKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProxyKeyClient) MapCreateBulk(slice any, setFunc func(*ProxyKeyCreate, int)) *ProxyKeyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProxyKeyCreateBulk{err: fmt.Errorf("calling to ProxyKeyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProxyKeyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProxyKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProxyKey.
+func (c *ProxyKeyClient) Update() *ProxyKeyUpdate {
+	mutation := newProxyKeyMutation(c.config, OpUpdate)
+	return &ProxyKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProxyKeyClient) UpdateOne(_m *ProxyKey) *ProxyKeyUpdateOne {
+	mutation := newProxyKeyMutation(c.config, OpUpdateOne, withProxyKey(_m))
+	return &ProxyKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProxyKeyClient) UpdateOneID(id uuid.UUID) *ProxyKeyUpdateOne {
+	mutation := newProxyKeyMutation(c.config, OpUpdateOne, withProxyKeyID(id))
+	return &ProxyKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProxyKey.
+func (c *ProxyKeyClient) Delete() *ProxyKeyDelete {
+	mutation := newProxyKeyMutation(c.config, OpDelete)
+	return &ProxyKeyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProxyKeyClient) DeleteOne(_m *ProxyKey) *ProxyKeyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProxyKeyClient) DeleteOneID(id uuid.UUID) *ProxyKeyDeleteOne {
+	builder := c.Delete().Where(proxykey.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProxyKeyDeleteOne{builder}
+}
+
+// Query returns a query builder for ProxyKey.
+func (c *ProxyKeyClient) Query() *ProxyKeyQuery {
+	return &ProxyKeyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProxyKey},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProxyKey entity by its id.
+func (c *ProxyKeyClient) Get(ctx context.Context, id uuid.UUID) (*ProxyKey, error) {
+	return c.Query().Where(proxykey.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProxyKeyClient) GetX(ctx context.Context, id uuid.UUID) *ProxyKey {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ProxyKeyClient) Hooks() []Hook {
+	return c.hooks.ProxyKey
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProxyKeyClient) Interceptors() []Interceptor {
+	return c.inters.ProxyKey
+}
+
+func (c *ProxyKeyClient) mutate(ctx context.Context, m *ProxyKeyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProxyKeyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProxyKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProxyKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProxyKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProxyKey mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Provider, ProviderKey []ent.Hook
+		Provider, ProviderKey, ProxyKey []ent.Hook
 	}
 	inters struct {
-		Provider, ProviderKey []ent.Interceptor
+		Provider, ProviderKey, ProxyKey []ent.Interceptor
 	}
 )
