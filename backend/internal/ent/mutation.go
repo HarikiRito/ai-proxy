@@ -15,6 +15,9 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
 	"github.com/google/uuid"
 )
 
@@ -27,9 +30,12 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeProvider    = "Provider"
-	TypeProviderKey = "ProviderKey"
-	TypeProxyKey    = "ProxyKey"
+	TypeProvider          = "Provider"
+	TypeProviderKey       = "ProviderKey"
+	TypeProxyKey          = "ProxyKey"
+	TypeVirtualModel      = "VirtualModel"
+	TypeVirtualModelEntry = "VirtualModelEntry"
+	TypeVirtualModelTier  = "VirtualModelTier"
 )
 
 // ProviderMutation represents an operation that mutates the Provider nodes in the graph.
@@ -2461,4 +2467,1762 @@ func (m *ProxyKeyMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ProxyKeyMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ProxyKey edge %s", name)
+}
+
+// VirtualModelMutation represents an operation that mutates the VirtualModel nodes in the graph.
+type VirtualModelMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	name           *string
+	kind           *virtualmodel.Kind
+	strategy       *virtualmodel.Strategy
+	cache_affinity *bool
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	tiers          map[uuid.UUID]struct{}
+	removedtiers   map[uuid.UUID]struct{}
+	clearedtiers   bool
+	done           bool
+	oldValue       func(context.Context) (*VirtualModel, error)
+	predicates     []predicate.VirtualModel
+}
+
+var _ ent.Mutation = (*VirtualModelMutation)(nil)
+
+// virtualmodelOption allows management of the mutation configuration using functional options.
+type virtualmodelOption func(*VirtualModelMutation)
+
+// newVirtualModelMutation creates new mutation for the VirtualModel entity.
+func newVirtualModelMutation(c config, op Op, opts ...virtualmodelOption) *VirtualModelMutation {
+	m := &VirtualModelMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeVirtualModel,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withVirtualModelID sets the ID field of the mutation.
+func withVirtualModelID(id uuid.UUID) virtualmodelOption {
+	return func(m *VirtualModelMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *VirtualModel
+		)
+		m.oldValue = func(ctx context.Context) (*VirtualModel, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().VirtualModel.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withVirtualModel sets the old VirtualModel of the mutation.
+func withVirtualModel(node *VirtualModel) virtualmodelOption {
+	return func(m *VirtualModelMutation) {
+		m.oldValue = func(context.Context) (*VirtualModel, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m VirtualModelMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m VirtualModelMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of VirtualModel entities.
+func (m *VirtualModelMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *VirtualModelMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *VirtualModelMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().VirtualModel.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *VirtualModelMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *VirtualModelMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the VirtualModel entity.
+// If the VirtualModel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *VirtualModelMutation) ResetName() {
+	m.name = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *VirtualModelMutation) SetKind(v virtualmodel.Kind) {
+	m.kind = &v
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *VirtualModelMutation) Kind() (r virtualmodel.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the VirtualModel entity.
+// If the VirtualModel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelMutation) OldKind(ctx context.Context) (v virtualmodel.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *VirtualModelMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetStrategy sets the "strategy" field.
+func (m *VirtualModelMutation) SetStrategy(v virtualmodel.Strategy) {
+	m.strategy = &v
+}
+
+// Strategy returns the value of the "strategy" field in the mutation.
+func (m *VirtualModelMutation) Strategy() (r virtualmodel.Strategy, exists bool) {
+	v := m.strategy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStrategy returns the old "strategy" field's value of the VirtualModel entity.
+// If the VirtualModel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelMutation) OldStrategy(ctx context.Context) (v virtualmodel.Strategy, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStrategy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStrategy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStrategy: %w", err)
+	}
+	return oldValue.Strategy, nil
+}
+
+// ResetStrategy resets all changes to the "strategy" field.
+func (m *VirtualModelMutation) ResetStrategy() {
+	m.strategy = nil
+}
+
+// SetCacheAffinity sets the "cache_affinity" field.
+func (m *VirtualModelMutation) SetCacheAffinity(b bool) {
+	m.cache_affinity = &b
+}
+
+// CacheAffinity returns the value of the "cache_affinity" field in the mutation.
+func (m *VirtualModelMutation) CacheAffinity() (r bool, exists bool) {
+	v := m.cache_affinity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheAffinity returns the old "cache_affinity" field's value of the VirtualModel entity.
+// If the VirtualModel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelMutation) OldCacheAffinity(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheAffinity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheAffinity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheAffinity: %w", err)
+	}
+	return oldValue.CacheAffinity, nil
+}
+
+// ResetCacheAffinity resets all changes to the "cache_affinity" field.
+func (m *VirtualModelMutation) ResetCacheAffinity() {
+	m.cache_affinity = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *VirtualModelMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *VirtualModelMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the VirtualModel entity.
+// If the VirtualModel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *VirtualModelMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *VirtualModelMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *VirtualModelMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the VirtualModel entity.
+// If the VirtualModel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *VirtualModelMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddTierIDs adds the "tiers" edge to the VirtualModelTier entity by ids.
+func (m *VirtualModelMutation) AddTierIDs(ids ...uuid.UUID) {
+	if m.tiers == nil {
+		m.tiers = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.tiers[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTiers clears the "tiers" edge to the VirtualModelTier entity.
+func (m *VirtualModelMutation) ClearTiers() {
+	m.clearedtiers = true
+}
+
+// TiersCleared reports if the "tiers" edge to the VirtualModelTier entity was cleared.
+func (m *VirtualModelMutation) TiersCleared() bool {
+	return m.clearedtiers
+}
+
+// RemoveTierIDs removes the "tiers" edge to the VirtualModelTier entity by IDs.
+func (m *VirtualModelMutation) RemoveTierIDs(ids ...uuid.UUID) {
+	if m.removedtiers == nil {
+		m.removedtiers = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.tiers, ids[i])
+		m.removedtiers[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTiers returns the removed IDs of the "tiers" edge to the VirtualModelTier entity.
+func (m *VirtualModelMutation) RemovedTiersIDs() (ids []uuid.UUID) {
+	for id := range m.removedtiers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TiersIDs returns the "tiers" edge IDs in the mutation.
+func (m *VirtualModelMutation) TiersIDs() (ids []uuid.UUID) {
+	for id := range m.tiers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTiers resets all changes to the "tiers" edge.
+func (m *VirtualModelMutation) ResetTiers() {
+	m.tiers = nil
+	m.clearedtiers = false
+	m.removedtiers = nil
+}
+
+// Where appends a list predicates to the VirtualModelMutation builder.
+func (m *VirtualModelMutation) Where(ps ...predicate.VirtualModel) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the VirtualModelMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *VirtualModelMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.VirtualModel, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *VirtualModelMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *VirtualModelMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (VirtualModel).
+func (m *VirtualModelMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *VirtualModelMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.name != nil {
+		fields = append(fields, virtualmodel.FieldName)
+	}
+	if m.kind != nil {
+		fields = append(fields, virtualmodel.FieldKind)
+	}
+	if m.strategy != nil {
+		fields = append(fields, virtualmodel.FieldStrategy)
+	}
+	if m.cache_affinity != nil {
+		fields = append(fields, virtualmodel.FieldCacheAffinity)
+	}
+	if m.created_at != nil {
+		fields = append(fields, virtualmodel.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, virtualmodel.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *VirtualModelMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case virtualmodel.FieldName:
+		return m.Name()
+	case virtualmodel.FieldKind:
+		return m.Kind()
+	case virtualmodel.FieldStrategy:
+		return m.Strategy()
+	case virtualmodel.FieldCacheAffinity:
+		return m.CacheAffinity()
+	case virtualmodel.FieldCreatedAt:
+		return m.CreatedAt()
+	case virtualmodel.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *VirtualModelMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case virtualmodel.FieldName:
+		return m.OldName(ctx)
+	case virtualmodel.FieldKind:
+		return m.OldKind(ctx)
+	case virtualmodel.FieldStrategy:
+		return m.OldStrategy(ctx)
+	case virtualmodel.FieldCacheAffinity:
+		return m.OldCacheAffinity(ctx)
+	case virtualmodel.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case virtualmodel.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown VirtualModel field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualModelMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case virtualmodel.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case virtualmodel.FieldKind:
+		v, ok := value.(virtualmodel.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case virtualmodel.FieldStrategy:
+		v, ok := value.(virtualmodel.Strategy)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStrategy(v)
+		return nil
+	case virtualmodel.FieldCacheAffinity:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheAffinity(v)
+		return nil
+	case virtualmodel.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case virtualmodel.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModel field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *VirtualModelMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *VirtualModelMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualModelMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown VirtualModel numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *VirtualModelMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *VirtualModelMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *VirtualModelMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown VirtualModel nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *VirtualModelMutation) ResetField(name string) error {
+	switch name {
+	case virtualmodel.FieldName:
+		m.ResetName()
+		return nil
+	case virtualmodel.FieldKind:
+		m.ResetKind()
+		return nil
+	case virtualmodel.FieldStrategy:
+		m.ResetStrategy()
+		return nil
+	case virtualmodel.FieldCacheAffinity:
+		m.ResetCacheAffinity()
+		return nil
+	case virtualmodel.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case virtualmodel.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModel field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *VirtualModelMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.tiers != nil {
+		edges = append(edges, virtualmodel.EdgeTiers)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *VirtualModelMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case virtualmodel.EdgeTiers:
+		ids := make([]ent.Value, 0, len(m.tiers))
+		for id := range m.tiers {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *VirtualModelMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedtiers != nil {
+		edges = append(edges, virtualmodel.EdgeTiers)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *VirtualModelMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case virtualmodel.EdgeTiers:
+		ids := make([]ent.Value, 0, len(m.removedtiers))
+		for id := range m.removedtiers {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *VirtualModelMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtiers {
+		edges = append(edges, virtualmodel.EdgeTiers)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *VirtualModelMutation) EdgeCleared(name string) bool {
+	switch name {
+	case virtualmodel.EdgeTiers:
+		return m.clearedtiers
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *VirtualModelMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown VirtualModel unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *VirtualModelMutation) ResetEdge(name string) error {
+	switch name {
+	case virtualmodel.EdgeTiers:
+		m.ResetTiers()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModel edge %s", name)
+}
+
+// VirtualModelEntryMutation represents an operation that mutates the VirtualModelEntry nodes in the graph.
+type VirtualModelEntryMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	provider_id   *uuid.UUID
+	model         *string
+	weight        *int
+	addweight     *int
+	clearedFields map[string]struct{}
+	tier          *uuid.UUID
+	clearedtier   bool
+	done          bool
+	oldValue      func(context.Context) (*VirtualModelEntry, error)
+	predicates    []predicate.VirtualModelEntry
+}
+
+var _ ent.Mutation = (*VirtualModelEntryMutation)(nil)
+
+// virtualmodelentryOption allows management of the mutation configuration using functional options.
+type virtualmodelentryOption func(*VirtualModelEntryMutation)
+
+// newVirtualModelEntryMutation creates new mutation for the VirtualModelEntry entity.
+func newVirtualModelEntryMutation(c config, op Op, opts ...virtualmodelentryOption) *VirtualModelEntryMutation {
+	m := &VirtualModelEntryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeVirtualModelEntry,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withVirtualModelEntryID sets the ID field of the mutation.
+func withVirtualModelEntryID(id uuid.UUID) virtualmodelentryOption {
+	return func(m *VirtualModelEntryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *VirtualModelEntry
+		)
+		m.oldValue = func(ctx context.Context) (*VirtualModelEntry, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().VirtualModelEntry.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withVirtualModelEntry sets the old VirtualModelEntry of the mutation.
+func withVirtualModelEntry(node *VirtualModelEntry) virtualmodelentryOption {
+	return func(m *VirtualModelEntryMutation) {
+		m.oldValue = func(context.Context) (*VirtualModelEntry, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m VirtualModelEntryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m VirtualModelEntryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of VirtualModelEntry entities.
+func (m *VirtualModelEntryMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *VirtualModelEntryMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *VirtualModelEntryMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().VirtualModelEntry.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProviderID sets the "provider_id" field.
+func (m *VirtualModelEntryMutation) SetProviderID(u uuid.UUID) {
+	m.provider_id = &u
+}
+
+// ProviderID returns the value of the "provider_id" field in the mutation.
+func (m *VirtualModelEntryMutation) ProviderID() (r uuid.UUID, exists bool) {
+	v := m.provider_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderID returns the old "provider_id" field's value of the VirtualModelEntry entity.
+// If the VirtualModelEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelEntryMutation) OldProviderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderID: %w", err)
+	}
+	return oldValue.ProviderID, nil
+}
+
+// ResetProviderID resets all changes to the "provider_id" field.
+func (m *VirtualModelEntryMutation) ResetProviderID() {
+	m.provider_id = nil
+}
+
+// SetModel sets the "model" field.
+func (m *VirtualModelEntryMutation) SetModel(s string) {
+	m.model = &s
+}
+
+// Model returns the value of the "model" field in the mutation.
+func (m *VirtualModelEntryMutation) Model() (r string, exists bool) {
+	v := m.model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel returns the old "model" field's value of the VirtualModelEntry entity.
+// If the VirtualModelEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelEntryMutation) OldModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel: %w", err)
+	}
+	return oldValue.Model, nil
+}
+
+// ResetModel resets all changes to the "model" field.
+func (m *VirtualModelEntryMutation) ResetModel() {
+	m.model = nil
+}
+
+// SetWeight sets the "weight" field.
+func (m *VirtualModelEntryMutation) SetWeight(i int) {
+	m.weight = &i
+	m.addweight = nil
+}
+
+// Weight returns the value of the "weight" field in the mutation.
+func (m *VirtualModelEntryMutation) Weight() (r int, exists bool) {
+	v := m.weight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeight returns the old "weight" field's value of the VirtualModelEntry entity.
+// If the VirtualModelEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelEntryMutation) OldWeight(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeight: %w", err)
+	}
+	return oldValue.Weight, nil
+}
+
+// AddWeight adds i to the "weight" field.
+func (m *VirtualModelEntryMutation) AddWeight(i int) {
+	if m.addweight != nil {
+		*m.addweight += i
+	} else {
+		m.addweight = &i
+	}
+}
+
+// AddedWeight returns the value that was added to the "weight" field in this mutation.
+func (m *VirtualModelEntryMutation) AddedWeight() (r int, exists bool) {
+	v := m.addweight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWeight resets all changes to the "weight" field.
+func (m *VirtualModelEntryMutation) ResetWeight() {
+	m.weight = nil
+	m.addweight = nil
+}
+
+// SetTierID sets the "tier" edge to the VirtualModelTier entity by id.
+func (m *VirtualModelEntryMutation) SetTierID(id uuid.UUID) {
+	m.tier = &id
+}
+
+// ClearTier clears the "tier" edge to the VirtualModelTier entity.
+func (m *VirtualModelEntryMutation) ClearTier() {
+	m.clearedtier = true
+}
+
+// TierCleared reports if the "tier" edge to the VirtualModelTier entity was cleared.
+func (m *VirtualModelEntryMutation) TierCleared() bool {
+	return m.clearedtier
+}
+
+// TierID returns the "tier" edge ID in the mutation.
+func (m *VirtualModelEntryMutation) TierID() (id uuid.UUID, exists bool) {
+	if m.tier != nil {
+		return *m.tier, true
+	}
+	return
+}
+
+// TierIDs returns the "tier" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TierID instead. It exists only for internal usage by the builders.
+func (m *VirtualModelEntryMutation) TierIDs() (ids []uuid.UUID) {
+	if id := m.tier; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTier resets all changes to the "tier" edge.
+func (m *VirtualModelEntryMutation) ResetTier() {
+	m.tier = nil
+	m.clearedtier = false
+}
+
+// Where appends a list predicates to the VirtualModelEntryMutation builder.
+func (m *VirtualModelEntryMutation) Where(ps ...predicate.VirtualModelEntry) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the VirtualModelEntryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *VirtualModelEntryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.VirtualModelEntry, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *VirtualModelEntryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *VirtualModelEntryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (VirtualModelEntry).
+func (m *VirtualModelEntryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *VirtualModelEntryMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.provider_id != nil {
+		fields = append(fields, virtualmodelentry.FieldProviderID)
+	}
+	if m.model != nil {
+		fields = append(fields, virtualmodelentry.FieldModel)
+	}
+	if m.weight != nil {
+		fields = append(fields, virtualmodelentry.FieldWeight)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *VirtualModelEntryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case virtualmodelentry.FieldProviderID:
+		return m.ProviderID()
+	case virtualmodelentry.FieldModel:
+		return m.Model()
+	case virtualmodelentry.FieldWeight:
+		return m.Weight()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *VirtualModelEntryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case virtualmodelentry.FieldProviderID:
+		return m.OldProviderID(ctx)
+	case virtualmodelentry.FieldModel:
+		return m.OldModel(ctx)
+	case virtualmodelentry.FieldWeight:
+		return m.OldWeight(ctx)
+	}
+	return nil, fmt.Errorf("unknown VirtualModelEntry field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualModelEntryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case virtualmodelentry.FieldProviderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderID(v)
+		return nil
+	case virtualmodelentry.FieldModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel(v)
+		return nil
+	case virtualmodelentry.FieldWeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeight(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelEntry field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *VirtualModelEntryMutation) AddedFields() []string {
+	var fields []string
+	if m.addweight != nil {
+		fields = append(fields, virtualmodelentry.FieldWeight)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *VirtualModelEntryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case virtualmodelentry.FieldWeight:
+		return m.AddedWeight()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualModelEntryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case virtualmodelentry.FieldWeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWeight(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelEntry numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *VirtualModelEntryMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *VirtualModelEntryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *VirtualModelEntryMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown VirtualModelEntry nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *VirtualModelEntryMutation) ResetField(name string) error {
+	switch name {
+	case virtualmodelentry.FieldProviderID:
+		m.ResetProviderID()
+		return nil
+	case virtualmodelentry.FieldModel:
+		m.ResetModel()
+		return nil
+	case virtualmodelentry.FieldWeight:
+		m.ResetWeight()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelEntry field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *VirtualModelEntryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.tier != nil {
+		edges = append(edges, virtualmodelentry.EdgeTier)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *VirtualModelEntryMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case virtualmodelentry.EdgeTier:
+		if id := m.tier; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *VirtualModelEntryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *VirtualModelEntryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *VirtualModelEntryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtier {
+		edges = append(edges, virtualmodelentry.EdgeTier)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *VirtualModelEntryMutation) EdgeCleared(name string) bool {
+	switch name {
+	case virtualmodelentry.EdgeTier:
+		return m.clearedtier
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *VirtualModelEntryMutation) ClearEdge(name string) error {
+	switch name {
+	case virtualmodelentry.EdgeTier:
+		m.ClearTier()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelEntry unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *VirtualModelEntryMutation) ResetEdge(name string) error {
+	switch name {
+	case virtualmodelentry.EdgeTier:
+		m.ResetTier()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelEntry edge %s", name)
+}
+
+// VirtualModelTierMutation represents an operation that mutates the VirtualModelTier nodes in the graph.
+type VirtualModelTierMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	priority       *int
+	addpriority    *int
+	clearedFields  map[string]struct{}
+	model          *uuid.UUID
+	clearedmodel   bool
+	entries        map[uuid.UUID]struct{}
+	removedentries map[uuid.UUID]struct{}
+	clearedentries bool
+	done           bool
+	oldValue       func(context.Context) (*VirtualModelTier, error)
+	predicates     []predicate.VirtualModelTier
+}
+
+var _ ent.Mutation = (*VirtualModelTierMutation)(nil)
+
+// virtualmodeltierOption allows management of the mutation configuration using functional options.
+type virtualmodeltierOption func(*VirtualModelTierMutation)
+
+// newVirtualModelTierMutation creates new mutation for the VirtualModelTier entity.
+func newVirtualModelTierMutation(c config, op Op, opts ...virtualmodeltierOption) *VirtualModelTierMutation {
+	m := &VirtualModelTierMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeVirtualModelTier,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withVirtualModelTierID sets the ID field of the mutation.
+func withVirtualModelTierID(id uuid.UUID) virtualmodeltierOption {
+	return func(m *VirtualModelTierMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *VirtualModelTier
+		)
+		m.oldValue = func(ctx context.Context) (*VirtualModelTier, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().VirtualModelTier.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withVirtualModelTier sets the old VirtualModelTier of the mutation.
+func withVirtualModelTier(node *VirtualModelTier) virtualmodeltierOption {
+	return func(m *VirtualModelTierMutation) {
+		m.oldValue = func(context.Context) (*VirtualModelTier, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m VirtualModelTierMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m VirtualModelTierMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of VirtualModelTier entities.
+func (m *VirtualModelTierMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *VirtualModelTierMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *VirtualModelTierMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().VirtualModelTier.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPriority sets the "priority" field.
+func (m *VirtualModelTierMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *VirtualModelTierMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the VirtualModelTier entity.
+// If the VirtualModelTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualModelTierMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *VirtualModelTierMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *VirtualModelTierMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *VirtualModelTierMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
+// SetModelID sets the "model" edge to the VirtualModel entity by id.
+func (m *VirtualModelTierMutation) SetModelID(id uuid.UUID) {
+	m.model = &id
+}
+
+// ClearModel clears the "model" edge to the VirtualModel entity.
+func (m *VirtualModelTierMutation) ClearModel() {
+	m.clearedmodel = true
+}
+
+// ModelCleared reports if the "model" edge to the VirtualModel entity was cleared.
+func (m *VirtualModelTierMutation) ModelCleared() bool {
+	return m.clearedmodel
+}
+
+// ModelID returns the "model" edge ID in the mutation.
+func (m *VirtualModelTierMutation) ModelID() (id uuid.UUID, exists bool) {
+	if m.model != nil {
+		return *m.model, true
+	}
+	return
+}
+
+// ModelIDs returns the "model" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ModelID instead. It exists only for internal usage by the builders.
+func (m *VirtualModelTierMutation) ModelIDs() (ids []uuid.UUID) {
+	if id := m.model; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetModel resets all changes to the "model" edge.
+func (m *VirtualModelTierMutation) ResetModel() {
+	m.model = nil
+	m.clearedmodel = false
+}
+
+// AddEntryIDs adds the "entries" edge to the VirtualModelEntry entity by ids.
+func (m *VirtualModelTierMutation) AddEntryIDs(ids ...uuid.UUID) {
+	if m.entries == nil {
+		m.entries = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.entries[ids[i]] = struct{}{}
+	}
+}
+
+// ClearEntries clears the "entries" edge to the VirtualModelEntry entity.
+func (m *VirtualModelTierMutation) ClearEntries() {
+	m.clearedentries = true
+}
+
+// EntriesCleared reports if the "entries" edge to the VirtualModelEntry entity was cleared.
+func (m *VirtualModelTierMutation) EntriesCleared() bool {
+	return m.clearedentries
+}
+
+// RemoveEntryIDs removes the "entries" edge to the VirtualModelEntry entity by IDs.
+func (m *VirtualModelTierMutation) RemoveEntryIDs(ids ...uuid.UUID) {
+	if m.removedentries == nil {
+		m.removedentries = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.entries, ids[i])
+		m.removedentries[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedEntries returns the removed IDs of the "entries" edge to the VirtualModelEntry entity.
+func (m *VirtualModelTierMutation) RemovedEntriesIDs() (ids []uuid.UUID) {
+	for id := range m.removedentries {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// EntriesIDs returns the "entries" edge IDs in the mutation.
+func (m *VirtualModelTierMutation) EntriesIDs() (ids []uuid.UUID) {
+	for id := range m.entries {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetEntries resets all changes to the "entries" edge.
+func (m *VirtualModelTierMutation) ResetEntries() {
+	m.entries = nil
+	m.clearedentries = false
+	m.removedentries = nil
+}
+
+// Where appends a list predicates to the VirtualModelTierMutation builder.
+func (m *VirtualModelTierMutation) Where(ps ...predicate.VirtualModelTier) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the VirtualModelTierMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *VirtualModelTierMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.VirtualModelTier, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *VirtualModelTierMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *VirtualModelTierMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (VirtualModelTier).
+func (m *VirtualModelTierMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *VirtualModelTierMutation) Fields() []string {
+	fields := make([]string, 0, 1)
+	if m.priority != nil {
+		fields = append(fields, virtualmodeltier.FieldPriority)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *VirtualModelTierMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case virtualmodeltier.FieldPriority:
+		return m.Priority()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *VirtualModelTierMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case virtualmodeltier.FieldPriority:
+		return m.OldPriority(ctx)
+	}
+	return nil, fmt.Errorf("unknown VirtualModelTier field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualModelTierMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case virtualmodeltier.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelTier field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *VirtualModelTierMutation) AddedFields() []string {
+	var fields []string
+	if m.addpriority != nil {
+		fields = append(fields, virtualmodeltier.FieldPriority)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *VirtualModelTierMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case virtualmodeltier.FieldPriority:
+		return m.AddedPriority()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualModelTierMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case virtualmodeltier.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelTier numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *VirtualModelTierMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *VirtualModelTierMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *VirtualModelTierMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown VirtualModelTier nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *VirtualModelTierMutation) ResetField(name string) error {
+	switch name {
+	case virtualmodeltier.FieldPriority:
+		m.ResetPriority()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelTier field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *VirtualModelTierMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.model != nil {
+		edges = append(edges, virtualmodeltier.EdgeModel)
+	}
+	if m.entries != nil {
+		edges = append(edges, virtualmodeltier.EdgeEntries)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *VirtualModelTierMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case virtualmodeltier.EdgeModel:
+		if id := m.model; id != nil {
+			return []ent.Value{*id}
+		}
+	case virtualmodeltier.EdgeEntries:
+		ids := make([]ent.Value, 0, len(m.entries))
+		for id := range m.entries {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *VirtualModelTierMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedentries != nil {
+		edges = append(edges, virtualmodeltier.EdgeEntries)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *VirtualModelTierMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case virtualmodeltier.EdgeEntries:
+		ids := make([]ent.Value, 0, len(m.removedentries))
+		for id := range m.removedentries {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *VirtualModelTierMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedmodel {
+		edges = append(edges, virtualmodeltier.EdgeModel)
+	}
+	if m.clearedentries {
+		edges = append(edges, virtualmodeltier.EdgeEntries)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *VirtualModelTierMutation) EdgeCleared(name string) bool {
+	switch name {
+	case virtualmodeltier.EdgeModel:
+		return m.clearedmodel
+	case virtualmodeltier.EdgeEntries:
+		return m.clearedentries
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *VirtualModelTierMutation) ClearEdge(name string) error {
+	switch name {
+	case virtualmodeltier.EdgeModel:
+		m.ClearModel()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelTier unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *VirtualModelTierMutation) ResetEdge(name string) error {
+	switch name {
+	case virtualmodeltier.EdgeModel:
+		m.ResetModel()
+		return nil
+	case virtualmodeltier.EdgeEntries:
+		m.ResetEntries()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualModelTier edge %s", name)
 }

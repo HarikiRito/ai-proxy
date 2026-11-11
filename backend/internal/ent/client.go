@@ -19,6 +19,9 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
 )
 
 // Client is the client that holds all ent builders.
@@ -32,6 +35,12 @@ type Client struct {
 	ProviderKey *ProviderKeyClient
 	// ProxyKey is the client for interacting with the ProxyKey builders.
 	ProxyKey *ProxyKeyClient
+	// VirtualModel is the client for interacting with the VirtualModel builders.
+	VirtualModel *VirtualModelClient
+	// VirtualModelEntry is the client for interacting with the VirtualModelEntry builders.
+	VirtualModelEntry *VirtualModelEntryClient
+	// VirtualModelTier is the client for interacting with the VirtualModelTier builders.
+	VirtualModelTier *VirtualModelTierClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -46,6 +55,9 @@ func (c *Client) init() {
 	c.Provider = NewProviderClient(c.config)
 	c.ProviderKey = NewProviderKeyClient(c.config)
 	c.ProxyKey = NewProxyKeyClient(c.config)
+	c.VirtualModel = NewVirtualModelClient(c.config)
+	c.VirtualModelEntry = NewVirtualModelEntryClient(c.config)
+	c.VirtualModelTier = NewVirtualModelTierClient(c.config)
 }
 
 type (
@@ -136,11 +148,14 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		Provider:    NewProviderClient(cfg),
-		ProviderKey: NewProviderKeyClient(cfg),
-		ProxyKey:    NewProxyKeyClient(cfg),
+		ctx:               ctx,
+		config:            cfg,
+		Provider:          NewProviderClient(cfg),
+		ProviderKey:       NewProviderKeyClient(cfg),
+		ProxyKey:          NewProxyKeyClient(cfg),
+		VirtualModel:      NewVirtualModelClient(cfg),
+		VirtualModelEntry: NewVirtualModelEntryClient(cfg),
+		VirtualModelTier:  NewVirtualModelTierClient(cfg),
 	}, nil
 }
 
@@ -158,11 +173,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		Provider:    NewProviderClient(cfg),
-		ProviderKey: NewProviderKeyClient(cfg),
-		ProxyKey:    NewProxyKeyClient(cfg),
+		ctx:               ctx,
+		config:            cfg,
+		Provider:          NewProviderClient(cfg),
+		ProviderKey:       NewProviderKeyClient(cfg),
+		ProxyKey:          NewProxyKeyClient(cfg),
+		VirtualModel:      NewVirtualModelClient(cfg),
+		VirtualModelEntry: NewVirtualModelEntryClient(cfg),
+		VirtualModelTier:  NewVirtualModelTierClient(cfg),
 	}, nil
 }
 
@@ -191,17 +209,23 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Provider.Use(hooks...)
-	c.ProviderKey.Use(hooks...)
-	c.ProxyKey.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.Provider, c.ProviderKey, c.ProxyKey, c.VirtualModel, c.VirtualModelEntry,
+		c.VirtualModelTier,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Provider.Intercept(interceptors...)
-	c.ProviderKey.Intercept(interceptors...)
-	c.ProxyKey.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.Provider, c.ProviderKey, c.ProxyKey, c.VirtualModel, c.VirtualModelEntry,
+		c.VirtualModelTier,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -213,6 +237,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ProviderKey.mutate(ctx, m)
 	case *ProxyKeyMutation:
 		return c.ProxyKey.mutate(ctx, m)
+	case *VirtualModelMutation:
+		return c.VirtualModel.mutate(ctx, m)
+	case *VirtualModelEntryMutation:
+		return c.VirtualModelEntry.mutate(ctx, m)
+	case *VirtualModelTierMutation:
+		return c.VirtualModelTier.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -649,12 +679,477 @@ func (c *ProxyKeyClient) mutate(ctx context.Context, m *ProxyKeyMutation) (Value
 	}
 }
 
+// VirtualModelClient is a client for the VirtualModel schema.
+type VirtualModelClient struct {
+	config
+}
+
+// NewVirtualModelClient returns a client for the VirtualModel from the given config.
+func NewVirtualModelClient(c config) *VirtualModelClient {
+	return &VirtualModelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `virtualmodel.Hooks(f(g(h())))`.
+func (c *VirtualModelClient) Use(hooks ...Hook) {
+	c.hooks.VirtualModel = append(c.hooks.VirtualModel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `virtualmodel.Intercept(f(g(h())))`.
+func (c *VirtualModelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VirtualModel = append(c.inters.VirtualModel, interceptors...)
+}
+
+// Create returns a builder for creating a VirtualModel entity.
+func (c *VirtualModelClient) Create() *VirtualModelCreate {
+	mutation := newVirtualModelMutation(c.config, OpCreate)
+	return &VirtualModelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VirtualModel entities.
+func (c *VirtualModelClient) CreateBulk(builders ...*VirtualModelCreate) *VirtualModelCreateBulk {
+	return &VirtualModelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VirtualModelClient) MapCreateBulk(slice any, setFunc func(*VirtualModelCreate, int)) *VirtualModelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VirtualModelCreateBulk{err: fmt.Errorf("calling to VirtualModelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VirtualModelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VirtualModelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VirtualModel.
+func (c *VirtualModelClient) Update() *VirtualModelUpdate {
+	mutation := newVirtualModelMutation(c.config, OpUpdate)
+	return &VirtualModelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VirtualModelClient) UpdateOne(_m *VirtualModel) *VirtualModelUpdateOne {
+	mutation := newVirtualModelMutation(c.config, OpUpdateOne, withVirtualModel(_m))
+	return &VirtualModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VirtualModelClient) UpdateOneID(id uuid.UUID) *VirtualModelUpdateOne {
+	mutation := newVirtualModelMutation(c.config, OpUpdateOne, withVirtualModelID(id))
+	return &VirtualModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VirtualModel.
+func (c *VirtualModelClient) Delete() *VirtualModelDelete {
+	mutation := newVirtualModelMutation(c.config, OpDelete)
+	return &VirtualModelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VirtualModelClient) DeleteOne(_m *VirtualModel) *VirtualModelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VirtualModelClient) DeleteOneID(id uuid.UUID) *VirtualModelDeleteOne {
+	builder := c.Delete().Where(virtualmodel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VirtualModelDeleteOne{builder}
+}
+
+// Query returns a query builder for VirtualModel.
+func (c *VirtualModelClient) Query() *VirtualModelQuery {
+	return &VirtualModelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVirtualModel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VirtualModel entity by its id.
+func (c *VirtualModelClient) Get(ctx context.Context, id uuid.UUID) (*VirtualModel, error) {
+	return c.Query().Where(virtualmodel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VirtualModelClient) GetX(ctx context.Context, id uuid.UUID) *VirtualModel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTiers queries the tiers edge of a VirtualModel.
+func (c *VirtualModelClient) QueryTiers(_m *VirtualModel) *VirtualModelTierQuery {
+	query := (&VirtualModelTierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(virtualmodel.Table, virtualmodel.FieldID, id),
+			sqlgraph.To(virtualmodeltier.Table, virtualmodeltier.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, virtualmodel.TiersTable, virtualmodel.TiersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *VirtualModelClient) Hooks() []Hook {
+	return c.hooks.VirtualModel
+}
+
+// Interceptors returns the client interceptors.
+func (c *VirtualModelClient) Interceptors() []Interceptor {
+	return c.inters.VirtualModel
+}
+
+func (c *VirtualModelClient) mutate(ctx context.Context, m *VirtualModelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VirtualModelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VirtualModelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VirtualModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VirtualModelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VirtualModel mutation op: %q", m.Op())
+	}
+}
+
+// VirtualModelEntryClient is a client for the VirtualModelEntry schema.
+type VirtualModelEntryClient struct {
+	config
+}
+
+// NewVirtualModelEntryClient returns a client for the VirtualModelEntry from the given config.
+func NewVirtualModelEntryClient(c config) *VirtualModelEntryClient {
+	return &VirtualModelEntryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `virtualmodelentry.Hooks(f(g(h())))`.
+func (c *VirtualModelEntryClient) Use(hooks ...Hook) {
+	c.hooks.VirtualModelEntry = append(c.hooks.VirtualModelEntry, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `virtualmodelentry.Intercept(f(g(h())))`.
+func (c *VirtualModelEntryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VirtualModelEntry = append(c.inters.VirtualModelEntry, interceptors...)
+}
+
+// Create returns a builder for creating a VirtualModelEntry entity.
+func (c *VirtualModelEntryClient) Create() *VirtualModelEntryCreate {
+	mutation := newVirtualModelEntryMutation(c.config, OpCreate)
+	return &VirtualModelEntryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VirtualModelEntry entities.
+func (c *VirtualModelEntryClient) CreateBulk(builders ...*VirtualModelEntryCreate) *VirtualModelEntryCreateBulk {
+	return &VirtualModelEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VirtualModelEntryClient) MapCreateBulk(slice any, setFunc func(*VirtualModelEntryCreate, int)) *VirtualModelEntryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VirtualModelEntryCreateBulk{err: fmt.Errorf("calling to VirtualModelEntryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VirtualModelEntryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VirtualModelEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VirtualModelEntry.
+func (c *VirtualModelEntryClient) Update() *VirtualModelEntryUpdate {
+	mutation := newVirtualModelEntryMutation(c.config, OpUpdate)
+	return &VirtualModelEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VirtualModelEntryClient) UpdateOne(_m *VirtualModelEntry) *VirtualModelEntryUpdateOne {
+	mutation := newVirtualModelEntryMutation(c.config, OpUpdateOne, withVirtualModelEntry(_m))
+	return &VirtualModelEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VirtualModelEntryClient) UpdateOneID(id uuid.UUID) *VirtualModelEntryUpdateOne {
+	mutation := newVirtualModelEntryMutation(c.config, OpUpdateOne, withVirtualModelEntryID(id))
+	return &VirtualModelEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VirtualModelEntry.
+func (c *VirtualModelEntryClient) Delete() *VirtualModelEntryDelete {
+	mutation := newVirtualModelEntryMutation(c.config, OpDelete)
+	return &VirtualModelEntryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VirtualModelEntryClient) DeleteOne(_m *VirtualModelEntry) *VirtualModelEntryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VirtualModelEntryClient) DeleteOneID(id uuid.UUID) *VirtualModelEntryDeleteOne {
+	builder := c.Delete().Where(virtualmodelentry.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VirtualModelEntryDeleteOne{builder}
+}
+
+// Query returns a query builder for VirtualModelEntry.
+func (c *VirtualModelEntryClient) Query() *VirtualModelEntryQuery {
+	return &VirtualModelEntryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVirtualModelEntry},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VirtualModelEntry entity by its id.
+func (c *VirtualModelEntryClient) Get(ctx context.Context, id uuid.UUID) (*VirtualModelEntry, error) {
+	return c.Query().Where(virtualmodelentry.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VirtualModelEntryClient) GetX(ctx context.Context, id uuid.UUID) *VirtualModelEntry {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTier queries the tier edge of a VirtualModelEntry.
+func (c *VirtualModelEntryClient) QueryTier(_m *VirtualModelEntry) *VirtualModelTierQuery {
+	query := (&VirtualModelTierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(virtualmodelentry.Table, virtualmodelentry.FieldID, id),
+			sqlgraph.To(virtualmodeltier.Table, virtualmodeltier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, virtualmodelentry.TierTable, virtualmodelentry.TierColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *VirtualModelEntryClient) Hooks() []Hook {
+	return c.hooks.VirtualModelEntry
+}
+
+// Interceptors returns the client interceptors.
+func (c *VirtualModelEntryClient) Interceptors() []Interceptor {
+	return c.inters.VirtualModelEntry
+}
+
+func (c *VirtualModelEntryClient) mutate(ctx context.Context, m *VirtualModelEntryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VirtualModelEntryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VirtualModelEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VirtualModelEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VirtualModelEntryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VirtualModelEntry mutation op: %q", m.Op())
+	}
+}
+
+// VirtualModelTierClient is a client for the VirtualModelTier schema.
+type VirtualModelTierClient struct {
+	config
+}
+
+// NewVirtualModelTierClient returns a client for the VirtualModelTier from the given config.
+func NewVirtualModelTierClient(c config) *VirtualModelTierClient {
+	return &VirtualModelTierClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `virtualmodeltier.Hooks(f(g(h())))`.
+func (c *VirtualModelTierClient) Use(hooks ...Hook) {
+	c.hooks.VirtualModelTier = append(c.hooks.VirtualModelTier, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `virtualmodeltier.Intercept(f(g(h())))`.
+func (c *VirtualModelTierClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VirtualModelTier = append(c.inters.VirtualModelTier, interceptors...)
+}
+
+// Create returns a builder for creating a VirtualModelTier entity.
+func (c *VirtualModelTierClient) Create() *VirtualModelTierCreate {
+	mutation := newVirtualModelTierMutation(c.config, OpCreate)
+	return &VirtualModelTierCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VirtualModelTier entities.
+func (c *VirtualModelTierClient) CreateBulk(builders ...*VirtualModelTierCreate) *VirtualModelTierCreateBulk {
+	return &VirtualModelTierCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VirtualModelTierClient) MapCreateBulk(slice any, setFunc func(*VirtualModelTierCreate, int)) *VirtualModelTierCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VirtualModelTierCreateBulk{err: fmt.Errorf("calling to VirtualModelTierClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VirtualModelTierCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VirtualModelTierCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VirtualModelTier.
+func (c *VirtualModelTierClient) Update() *VirtualModelTierUpdate {
+	mutation := newVirtualModelTierMutation(c.config, OpUpdate)
+	return &VirtualModelTierUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VirtualModelTierClient) UpdateOne(_m *VirtualModelTier) *VirtualModelTierUpdateOne {
+	mutation := newVirtualModelTierMutation(c.config, OpUpdateOne, withVirtualModelTier(_m))
+	return &VirtualModelTierUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VirtualModelTierClient) UpdateOneID(id uuid.UUID) *VirtualModelTierUpdateOne {
+	mutation := newVirtualModelTierMutation(c.config, OpUpdateOne, withVirtualModelTierID(id))
+	return &VirtualModelTierUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VirtualModelTier.
+func (c *VirtualModelTierClient) Delete() *VirtualModelTierDelete {
+	mutation := newVirtualModelTierMutation(c.config, OpDelete)
+	return &VirtualModelTierDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VirtualModelTierClient) DeleteOne(_m *VirtualModelTier) *VirtualModelTierDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VirtualModelTierClient) DeleteOneID(id uuid.UUID) *VirtualModelTierDeleteOne {
+	builder := c.Delete().Where(virtualmodeltier.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VirtualModelTierDeleteOne{builder}
+}
+
+// Query returns a query builder for VirtualModelTier.
+func (c *VirtualModelTierClient) Query() *VirtualModelTierQuery {
+	return &VirtualModelTierQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVirtualModelTier},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VirtualModelTier entity by its id.
+func (c *VirtualModelTierClient) Get(ctx context.Context, id uuid.UUID) (*VirtualModelTier, error) {
+	return c.Query().Where(virtualmodeltier.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VirtualModelTierClient) GetX(ctx context.Context, id uuid.UUID) *VirtualModelTier {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryModel queries the model edge of a VirtualModelTier.
+func (c *VirtualModelTierClient) QueryModel(_m *VirtualModelTier) *VirtualModelQuery {
+	query := (&VirtualModelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(virtualmodeltier.Table, virtualmodeltier.FieldID, id),
+			sqlgraph.To(virtualmodel.Table, virtualmodel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, virtualmodeltier.ModelTable, virtualmodeltier.ModelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEntries queries the entries edge of a VirtualModelTier.
+func (c *VirtualModelTierClient) QueryEntries(_m *VirtualModelTier) *VirtualModelEntryQuery {
+	query := (&VirtualModelEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(virtualmodeltier.Table, virtualmodeltier.FieldID, id),
+			sqlgraph.To(virtualmodelentry.Table, virtualmodelentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, virtualmodeltier.EntriesTable, virtualmodeltier.EntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *VirtualModelTierClient) Hooks() []Hook {
+	return c.hooks.VirtualModelTier
+}
+
+// Interceptors returns the client interceptors.
+func (c *VirtualModelTierClient) Interceptors() []Interceptor {
+	return c.inters.VirtualModelTier
+}
+
+func (c *VirtualModelTierClient) mutate(ctx context.Context, m *VirtualModelTierMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VirtualModelTierCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VirtualModelTierUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VirtualModelTierUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VirtualModelTierDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VirtualModelTier mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Provider, ProviderKey, ProxyKey []ent.Hook
+		Provider, ProviderKey, ProxyKey, VirtualModel, VirtualModelEntry,
+		VirtualModelTier []ent.Hook
 	}
 	inters struct {
-		Provider, ProviderKey, ProxyKey []ent.Interceptor
+		Provider, ProviderKey, ProxyKey, VirtualModel, VirtualModelEntry,
+		VirtualModelTier []ent.Interceptor
 	}
 )

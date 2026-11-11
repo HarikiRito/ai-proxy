@@ -15,6 +15,9 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -75,9 +78,12 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			provider.Table:    provider.ValidColumn,
-			providerkey.Table: providerkey.ValidColumn,
-			proxykey.Table:    proxykey.ValidColumn,
+			provider.Table:          provider.ValidColumn,
+			providerkey.Table:       providerkey.ValidColumn,
+			proxykey.Table:          proxykey.ValidColumn,
+			virtualmodel.Table:      virtualmodel.ValidColumn,
+			virtualmodelentry.Table: virtualmodelentry.ValidColumn,
+			virtualmodeltier.Table:  virtualmodeltier.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

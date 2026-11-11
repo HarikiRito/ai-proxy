@@ -351,3 +351,22 @@ func TestWhitespaceOnlyNameAndSecretRejected(t *testing.T) {
 	_, err = s.AddKey(context.Background(), p.ID, validKey("k", " \n\t"))
 	requireUserError(t, err, "secret")
 }
+
+func TestByIDsReturnsKnownProvidersAndIgnoresUnknown(t *testing.T) {
+	s, _ := newService(t)
+	a := mustCreate(t, s, validProvider())
+	in := validProvider()
+	in.Name = ptr("second")
+	b := mustCreate(t, s, in)
+
+	got, err := s.ByIDs(context.Background(), []string{a.ID, b.ID, "00000000-0000-0000-0000-000000000000", "not-a-uuid"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[a.ID].Name != "openai" || got[b.ID].Name != "second" {
+		t.Fatalf("got %+v", got)
+	}
+	if empty, err := s.ByIDs(context.Background(), nil); err != nil || len(empty) != 0 {
+		t.Fatalf("empty: %v %v", empty, err)
+	}
+}

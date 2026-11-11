@@ -267,3 +267,8 @@ func last4Of(secret string) string {
 	}
 	return secret[len(secret)-4:]
 }
+
+// ByIDs is the batch lookup for other modules; unknown or malformed ids are ignored.
+func (s *Service) ByIDs(ctx context.Context, ids []string) (map[string]Provider, error) {
+	return s.store.byIDs(ctx, ids)
+}

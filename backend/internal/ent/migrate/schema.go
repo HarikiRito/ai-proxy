@@ -78,11 +78,91 @@ var (
 		Columns:    ProxykeysKeysColumns,
 		PrimaryKey: []*schema.Column{ProxykeysKeysColumns[0]},
 	}
+	// VirtualmodelsModelsColumns holds the columns for the "virtualmodels_models" table.
+	VirtualmodelsModelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"chat", "transcription"}},
+		{Name: "strategy", Type: field.TypeEnum, Enums: []string{"round_robin", "weighted_round_robin", "priority_overflow", "least_in_flight"}, Default: "round_robin"},
+		{Name: "cache_affinity", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// VirtualmodelsModelsTable holds the schema information for the "virtualmodels_models" table.
+	VirtualmodelsModelsTable = &schema.Table{
+		Name:       "virtualmodels_models",
+		Columns:    VirtualmodelsModelsColumns,
+		PrimaryKey: []*schema.Column{VirtualmodelsModelsColumns[0]},
+	}
+	// VirtualmodelsEntriesColumns holds the columns for the "virtualmodels_entries" table.
+	VirtualmodelsEntriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "provider_id", Type: field.TypeUUID},
+		{Name: "model", Type: field.TypeString},
+		{Name: "weight", Type: field.TypeInt, Default: 1},
+		{Name: "virtual_model_tier_entries", Type: field.TypeUUID},
+	}
+	// VirtualmodelsEntriesTable holds the schema information for the "virtualmodels_entries" table.
+	VirtualmodelsEntriesTable = &schema.Table{
+		Name:       "virtualmodels_entries",
+		Columns:    VirtualmodelsEntriesColumns,
+		PrimaryKey: []*schema.Column{VirtualmodelsEntriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "virtualmodels_entries_virtualmodels_tiers_entries",
+				Columns:    []*schema.Column{VirtualmodelsEntriesColumns[4]},
+				RefColumns: []*schema.Column{VirtualmodelsTiersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "virtualmodelentry_provider_id",
+				Unique:  false,
+				Columns: []*schema.Column{VirtualmodelsEntriesColumns[1]},
+			},
+			{
+				Name:    "virtualmodelentry_provider_id_model_virtual_model_tier_entries",
+				Unique:  true,
+				Columns: []*schema.Column{VirtualmodelsEntriesColumns[1], VirtualmodelsEntriesColumns[2], VirtualmodelsEntriesColumns[4]},
+			},
+		},
+	}
+	// VirtualmodelsTiersColumns holds the columns for the "virtualmodels_tiers" table.
+	VirtualmodelsTiersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "priority", Type: field.TypeInt},
+		{Name: "virtual_model_tiers", Type: field.TypeUUID},
+	}
+	// VirtualmodelsTiersTable holds the schema information for the "virtualmodels_tiers" table.
+	VirtualmodelsTiersTable = &schema.Table{
+		Name:       "virtualmodels_tiers",
+		Columns:    VirtualmodelsTiersColumns,
+		PrimaryKey: []*schema.Column{VirtualmodelsTiersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "virtualmodels_tiers_virtualmodels_models_tiers",
+				Columns:    []*schema.Column{VirtualmodelsTiersColumns[2]},
+				RefColumns: []*schema.Column{VirtualmodelsModelsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "virtualmodeltier_priority_virtual_model_tiers",
+				Unique:  true,
+				Columns: []*schema.Column{VirtualmodelsTiersColumns[1], VirtualmodelsTiersColumns[2]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ProvidersProvidersTable,
 		ProvidersKeysTable,
 		ProxykeysKeysTable,
+		VirtualmodelsModelsTable,
+		VirtualmodelsEntriesTable,
+		VirtualmodelsTiersTable,
 	}
 )
 
@@ -96,5 +176,16 @@ func init() {
 	}
 	ProxykeysKeysTable.Annotation = &entsql.Annotation{
 		Table: "proxykeys_keys",
+	}
+	VirtualmodelsModelsTable.Annotation = &entsql.Annotation{
+		Table: "virtualmodels_models",
+	}
+	VirtualmodelsEntriesTable.ForeignKeys[0].RefTable = VirtualmodelsTiersTable
+	VirtualmodelsEntriesTable.Annotation = &entsql.Annotation{
+		Table: "virtualmodels_entries",
+	}
+	VirtualmodelsTiersTable.ForeignKeys[0].RefTable = VirtualmodelsModelsTable
+	VirtualmodelsTiersTable.Annotation = &entsql.Annotation{
+		Table: "virtualmodels_tiers",
 	}
 }

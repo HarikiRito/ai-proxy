@@ -251,3 +251,24 @@ func toKey(row *ent.ProviderKey) Key {
 		MaskedKey:   maskedKey(row.Last4),
 	}
 }
+
+func (st *store) byIDs(ctx context.Context, ids []string) (map[string]Provider, error) {
+	uids := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if uid, err := uuid.Parse(id); err == nil {
+			uids = append(uids, uid)
+		}
+	}
+	rows, err := st.db.Provider.Query().Where(entprovider.IDIn(uids...)).
+		WithKeys(func(q *ent.ProviderKeyQuery) { q.Order(ent.Asc(providerkey.FieldCreatedAt)) }).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]Provider, len(rows))
+	for _, row := range rows {
+		p := toProvider(row)
+		out[p.ID] = p
+	}
+	return out, nil
+}
