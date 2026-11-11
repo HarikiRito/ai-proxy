@@ -18,6 +18,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph/model"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -53,12 +54,15 @@ type ComplexityRoot struct {
 		AddProviderKey           func(childComplexity int, providerID string, input providers.KeyInput) int
 		CreateProvider           func(childComplexity int, input providers.ProviderInput) int
 		CreateProxyKey           func(childComplexity int, input proxykeys.CreateInput) int
+		CreateVirtualModel       func(childComplexity int, input virtualmodels.CreateInput) int
 		DeleteProvider           func(childComplexity int, id string) int
 		DeleteProviderKey        func(childComplexity int, id string) int
+		DeleteVirtualModel       func(childComplexity int, id string) int
 		RevokeProxyKey           func(childComplexity int, id string) int
 		SetProxyKeyAllowedModels func(childComplexity int, id string, models []string) int
 		UpdateProvider           func(childComplexity int, id string, input providers.ProviderInput) int
 		UpdateProviderKey        func(childComplexity int, id string, input providers.KeyInput) int
+		UpdateVirtualModel       func(childComplexity int, id string, input virtualmodels.UpdateInput) int
 	}
 
 	Provider struct {
@@ -94,14 +98,40 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Health    func(childComplexity int) int
-		Providers func(childComplexity int) int
-		ProxyKeys func(childComplexity int) int
-		Viewer    func(childComplexity int) int
+		Health        func(childComplexity int) int
+		Providers     func(childComplexity int) int
+		ProxyKeys     func(childComplexity int) int
+		Viewer        func(childComplexity int) int
+		VirtualModels func(childComplexity int) int
 	}
 
 	Viewer struct {
 		Email func(childComplexity int) int
+	}
+
+	VirtualModel struct {
+		CacheAffinity func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Kind          func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Strategy      func(childComplexity int) int
+		Tiers         func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
+	}
+
+	VirtualModelEntry struct {
+		ID           func(childComplexity int) int
+		Model        func(childComplexity int) int
+		ProviderID   func(childComplexity int) int
+		ProviderName func(childComplexity int) int
+		Status       func(childComplexity int) int
+		Weight       func(childComplexity int) int
+	}
+
+	VirtualModelTier struct {
+		Entries  func(childComplexity int) int
+		Priority func(childComplexity int) int
 	}
 }
 
@@ -119,12 +149,16 @@ type MutationResolver interface {
 	CreateProxyKey(ctx context.Context, input proxykeys.CreateInput) (*model.CreatedProxyKey, error)
 	SetProxyKeyAllowedModels(ctx context.Context, id string, models []string) (*proxykeys.Key, error)
 	RevokeProxyKey(ctx context.Context, id string) (*proxykeys.Key, error)
+	CreateVirtualModel(ctx context.Context, input virtualmodels.CreateInput) (*virtualmodels.Model, error)
+	UpdateVirtualModel(ctx context.Context, id string, input virtualmodels.UpdateInput) (*virtualmodels.Model, error)
+	DeleteVirtualModel(ctx context.Context, id string) (bool, error)
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (*model.Health, error)
 	Providers(ctx context.Context) ([]*providers.Provider, error)
 	ProxyKeys(ctx context.Context) ([]*proxykeys.Key, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
+	VirtualModels(ctx context.Context) ([]*virtualmodels.Model, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -198,6 +232,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateProxyKey(childComplexity, args["input"].(proxykeys.CreateInput)), true
+	case "Mutation.createVirtualModel":
+		if e.ComplexityRoot.Mutation.CreateVirtualModel == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createVirtualModel_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateVirtualModel(childComplexity, args["input"].(virtualmodels.CreateInput)), true
 	case "Mutation.deleteProvider":
 		if e.ComplexityRoot.Mutation.DeleteProvider == nil {
 			break
@@ -220,6 +265,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteProviderKey(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteVirtualModel":
+		if e.ComplexityRoot.Mutation.DeleteVirtualModel == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteVirtualModel_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteVirtualModel(childComplexity, args["id"].(string)), true
 	case "Mutation.revokeProxyKey":
 		if e.ComplexityRoot.Mutation.RevokeProxyKey == nil {
 			break
@@ -264,6 +320,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateProviderKey(childComplexity, args["id"].(string), args["input"].(providers.KeyInput)), true
+	case "Mutation.updateVirtualModel":
+		if e.ComplexityRoot.Mutation.UpdateVirtualModel == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateVirtualModel_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateVirtualModel(childComplexity, args["id"].(string), args["input"].(virtualmodels.UpdateInput)), true
 
 	case "Provider.baseUrl":
 		if e.ComplexityRoot.Provider.BaseURL == nil {
@@ -431,6 +498,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Viewer(childComplexity), true
+	case "Query.virtualModels":
+		if e.ComplexityRoot.Query.VirtualModels == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.VirtualModels(childComplexity), true
 
 	case "Viewer.email":
 		if e.ComplexityRoot.Viewer.Email == nil {
@@ -438,6 +511,105 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Viewer.Email(childComplexity), true
+
+	case "VirtualModel.cacheAffinity":
+		if e.ComplexityRoot.VirtualModel.CacheAffinity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.CacheAffinity(childComplexity), true
+	case "VirtualModel.createdAt":
+		if e.ComplexityRoot.VirtualModel.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.CreatedAt(childComplexity), true
+	case "VirtualModel.id":
+		if e.ComplexityRoot.VirtualModel.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.ID(childComplexity), true
+	case "VirtualModel.kind":
+		if e.ComplexityRoot.VirtualModel.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.Kind(childComplexity), true
+	case "VirtualModel.name":
+		if e.ComplexityRoot.VirtualModel.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.Name(childComplexity), true
+	case "VirtualModel.strategy":
+		if e.ComplexityRoot.VirtualModel.Strategy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.Strategy(childComplexity), true
+	case "VirtualModel.tiers":
+		if e.ComplexityRoot.VirtualModel.Tiers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.Tiers(childComplexity), true
+	case "VirtualModel.updatedAt":
+		if e.ComplexityRoot.VirtualModel.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModel.UpdatedAt(childComplexity), true
+
+	case "VirtualModelEntry.id":
+		if e.ComplexityRoot.VirtualModelEntry.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelEntry.ID(childComplexity), true
+	case "VirtualModelEntry.model":
+		if e.ComplexityRoot.VirtualModelEntry.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelEntry.Model(childComplexity), true
+	case "VirtualModelEntry.providerId":
+		if e.ComplexityRoot.VirtualModelEntry.ProviderID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelEntry.ProviderID(childComplexity), true
+	case "VirtualModelEntry.providerName":
+		if e.ComplexityRoot.VirtualModelEntry.ProviderName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelEntry.ProviderName(childComplexity), true
+	case "VirtualModelEntry.status":
+		if e.ComplexityRoot.VirtualModelEntry.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelEntry.Status(childComplexity), true
+	case "VirtualModelEntry.weight":
+		if e.ComplexityRoot.VirtualModelEntry.Weight == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelEntry.Weight(childComplexity), true
+
+	case "VirtualModelTier.entries":
+		if e.ComplexityRoot.VirtualModelTier.Entries == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelTier.Entries(childComplexity), true
+	case "VirtualModelTier.priority":
+		if e.ComplexityRoot.VirtualModelTier.Priority == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VirtualModelTier.Priority(childComplexity), true
 
 	}
 	return 0, false
@@ -449,8 +621,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	inputUnmarshalers := func() *graphql.InputUnmarshalerIndex {
 		return graphql.NewInputUnmarshalerIndex(
 			graphql.NewInputUnmarshaler("CreateProxyKeyInput", ec.unmarshalInputCreateProxyKeyInput),
+			graphql.NewInputUnmarshaler("CreateVirtualModelInput", ec.unmarshalInputCreateVirtualModelInput),
+			graphql.NewInputUnmarshaler("EntryInput", ec.unmarshalInputEntryInput),
 			graphql.NewInputUnmarshaler("ProviderInput", ec.unmarshalInputProviderInput),
 			graphql.NewInputUnmarshaler("ProviderKeyInput", ec.unmarshalInputProviderKeyInput),
+			graphql.NewInputUnmarshaler("TierInput", ec.unmarshalInputTierInput),
+			graphql.NewInputUnmarshaler("UpdateVirtualModelInput", ec.unmarshalInputUpdateVirtualModelInput),
 		)
 	}
 	first := true
@@ -526,7 +702,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/viewer.gql"
+//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -542,6 +718,7 @@ var sources = []*ast.Source{
 	{Name: "schema/providers.gql", Input: sourceData("schema/providers.gql"), BuiltIn: false},
 	{Name: "schema/proxykeys.gql", Input: sourceData("schema/proxykeys.gql"), BuiltIn: false},
 	{Name: "schema/viewer.gql", Input: sourceData("schema/viewer.gql"), BuiltIn: false},
+	{Name: "schema/virtualmodels.gql", Input: sourceData("schema/virtualmodels.gql"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -637,6 +814,56 @@ func (ec *executionContext) childFields_Viewer(ctx context.Context, field graphq
 		return ec.fieldContext_Viewer_email(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Viewer", field.Name)
+}
+
+func (ec *executionContext) childFields_VirtualModel(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_VirtualModel_id(ctx, field)
+	case "name":
+		return ec.fieldContext_VirtualModel_name(ctx, field)
+	case "kind":
+		return ec.fieldContext_VirtualModel_kind(ctx, field)
+	case "strategy":
+		return ec.fieldContext_VirtualModel_strategy(ctx, field)
+	case "cacheAffinity":
+		return ec.fieldContext_VirtualModel_cacheAffinity(ctx, field)
+	case "tiers":
+		return ec.fieldContext_VirtualModel_tiers(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_VirtualModel_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_VirtualModel_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type VirtualModel", field.Name)
+}
+
+func (ec *executionContext) childFields_VirtualModelEntry(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_VirtualModelEntry_id(ctx, field)
+	case "providerId":
+		return ec.fieldContext_VirtualModelEntry_providerId(ctx, field)
+	case "providerName":
+		return ec.fieldContext_VirtualModelEntry_providerName(ctx, field)
+	case "model":
+		return ec.fieldContext_VirtualModelEntry_model(ctx, field)
+	case "weight":
+		return ec.fieldContext_VirtualModelEntry_weight(ctx, field)
+	case "status":
+		return ec.fieldContext_VirtualModelEntry_status(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type VirtualModelEntry", field.Name)
+}
+
+func (ec *executionContext) childFields_VirtualModelTier(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "priority":
+		return ec.fieldContext_VirtualModelTier_priority(ctx, field)
+	case "entries":
+		return ec.fieldContext_VirtualModelTier_entries(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type VirtualModelTier", field.Name)
 }
 
 func (ec *executionContext) childFields___Directive(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -805,6 +1032,20 @@ func (ec *executionContext) field_Mutation_createProxyKey_args(ctx context.Conte
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createVirtualModel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (virtualmodels.CreateInput, error) {
+			return ec.unmarshalNCreateVirtualModelInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐCreateInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteProviderKey_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -820,6 +1061,20 @@ func (ec *executionContext) field_Mutation_deleteProviderKey_args(ctx context.Co
 }
 
 func (ec *executionContext) field_Mutation_deleteProvider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteVirtualModel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
@@ -905,6 +1160,28 @@ func (ec *executionContext) field_Mutation_updateProvider_args(ctx context.Conte
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (providers.ProviderInput, error) {
 			return ec.unmarshalNProviderInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐProviderInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateVirtualModel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (virtualmodels.UpdateInput, error) {
+			return ec.unmarshalNUpdateVirtualModelInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐUpdateInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -1469,6 +1746,138 @@ func (ec *executionContext) fieldContext_Mutation_revokeProxyKey(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_revokeProxyKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createVirtualModel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createVirtualModel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateVirtualModel(ctx, fc.Args["input"].(virtualmodels.CreateInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *virtualmodels.Model) graphql.Marshaler {
+			return ec.marshalNVirtualModel2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐModel(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createVirtualModel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_VirtualModel(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createVirtualModel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateVirtualModel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateVirtualModel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateVirtualModel(ctx, fc.Args["id"].(string), fc.Args["input"].(virtualmodels.UpdateInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *virtualmodels.Model) graphql.Marshaler {
+			return ec.marshalNVirtualModel2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐModel(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateVirtualModel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_VirtualModel(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateVirtualModel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteVirtualModel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteVirtualModel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteVirtualModel(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteVirtualModel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteVirtualModel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2141,6 +2550,38 @@ func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_virtualModels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_virtualModels(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().VirtualModels(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*virtualmodels.Model) graphql.Marshaler {
+			return ec.marshalNVirtualModel2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐModelᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_virtualModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_VirtualModel(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2238,6 +2679,392 @@ func (ec *executionContext) _Viewer_email(ctx context.Context, field graphql.Col
 }
 func (ec *executionContext) fieldContext_Viewer_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Viewer", field, false, false, "String")
+}
+
+func (ec *executionContext) _VirtualModel_id(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "ID")
+}
+
+func (ec *executionContext) _VirtualModel_name(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "String")
+}
+
+func (ec *executionContext) _VirtualModel_kind(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_kind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v virtualmodels.Kind) graphql.Marshaler {
+			return ec.marshalNVirtualModelKind2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐKind(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "VirtualModelKind")
+}
+
+func (ec *executionContext) _VirtualModel_strategy(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_strategy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Strategy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v virtualmodels.Strategy) graphql.Marshaler {
+			return ec.marshalNDistributionStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStrategy(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_strategy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "DistributionStrategy")
+}
+
+func (ec *executionContext) _VirtualModel_cacheAffinity(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_cacheAffinity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CacheAffinity, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_cacheAffinity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "Boolean")
+}
+
+func (ec *executionContext) _VirtualModel_tiers(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_tiers(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Tiers, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []virtualmodels.Tier) graphql.Marshaler {
+			return ec.marshalNVirtualModelTier2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_tiers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VirtualModel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_VirtualModelTier(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VirtualModel_createdAt(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "Time")
+}
+
+func (ec *executionContext) _VirtualModel_updatedAt(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Model) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModel_updatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModel_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModel", field, false, false, "Time")
+}
+
+func (ec *executionContext) _VirtualModelEntry_id(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Entry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelEntry_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelEntry_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelEntry", field, false, false, "ID")
+}
+
+func (ec *executionContext) _VirtualModelEntry_providerId(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Entry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelEntry_providerId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProviderID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelEntry_providerId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelEntry", field, false, false, "ID")
+}
+
+func (ec *executionContext) _VirtualModelEntry_providerName(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Entry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelEntry_providerName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProviderName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelEntry_providerName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelEntry", field, false, false, "String")
+}
+
+func (ec *executionContext) _VirtualModelEntry_model(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Entry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelEntry_model(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelEntry_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelEntry", field, false, false, "String")
+}
+
+func (ec *executionContext) _VirtualModelEntry_weight(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Entry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelEntry_weight(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Weight, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelEntry_weight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelEntry", field, false, false, "Int")
+}
+
+func (ec *executionContext) _VirtualModelEntry_status(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Entry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelEntry_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v virtualmodels.Status) graphql.Marshaler {
+			return ec.marshalNEntryStatus2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelEntry_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelEntry", field, false, false, "EntryStatus")
+}
+
+func (ec *executionContext) _VirtualModelTier_priority(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Tier) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelTier_priority(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelTier_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VirtualModelTier", field, false, false, "Int")
+}
+
+func (ec *executionContext) _VirtualModelTier_entries(ctx context.Context, field graphql.CollectedField, obj *virtualmodels.Tier) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VirtualModelTier_entries(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Entries, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []virtualmodels.Entry) graphql.Marshaler {
+			return ec.marshalNVirtualModelEntry2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntryᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VirtualModelTier_entries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VirtualModelTier",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_VirtualModelEntry(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -3362,6 +4189,132 @@ func UnmarshalCreateProxyKeyInput(ctx context.Context, raw any) (proxykeys.Creat
 	return out, err
 }
 
+func (ec *executionContext) unmarshalInputCreateVirtualModelInput(ctx context.Context, obj any) (virtualmodels.CreateInput, error) {
+	var it virtualmodels.CreateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "kind", "strategy", "cacheAffinity", "tiers"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNVirtualModelKind2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "strategy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("strategy"))
+			data, err := ec.unmarshalNDistributionStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStrategy(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Strategy = data
+		case "cacheAffinity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheAffinity"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CacheAffinity = data
+		case "tiers":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tiers"))
+			data, err := ec.unmarshalNTierInput2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tiers = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalCreateVirtualModelInput unmarshals raw into the CreateVirtualModelInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalCreateVirtualModelInput(ctx context.Context, raw any) (virtualmodels.CreateInput, error) {
+	var out virtualmodels.CreateInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "CreateVirtualModelInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputEntryInput(ctx context.Context, obj any) (virtualmodels.EntryInput, error) {
+	var it virtualmodels.EntryInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"providerId", "model", "weight"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "providerId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("providerId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProviderID = data
+		case "model":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("model"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Model = data
+		case "weight":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("weight"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Weight = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalEntryInput unmarshals raw into the EntryInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalEntryInput(ctx context.Context, raw any) (virtualmodels.EntryInput, error) {
+	var out virtualmodels.EntryInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "EntryInput", raw, &out)
+	return out, err
+}
+
 func (ec *executionContext) unmarshalInputProviderInput(ctx context.Context, obj any) (providers.ProviderInput, error) {
 	var it providers.ProviderInput
 	if obj == nil {
@@ -3513,6 +4466,111 @@ func (ec *executionContext) unmarshalInputProviderKeyInput(ctx context.Context, 
 func UnmarshalProviderKeyInput(ctx context.Context, raw any) (providers.KeyInput, error) {
 	var out providers.KeyInput
 	err := graphql.UnmarshalNamedInputFromContext(ctx, "ProviderKeyInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputTierInput(ctx context.Context, obj any) (virtualmodels.TierInput, error) {
+	var it virtualmodels.TierInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"entries"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "entries":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entries"))
+			data, err := ec.unmarshalNEntryInput2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntryInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Entries = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalTierInput unmarshals raw into the TierInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalTierInput(ctx context.Context, raw any) (virtualmodels.TierInput, error) {
+	var out virtualmodels.TierInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "TierInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputUpdateVirtualModelInput(ctx context.Context, obj any) (virtualmodels.UpdateInput, error) {
+	var it virtualmodels.UpdateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"kind", "strategy", "cacheAffinity", "tiers"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNVirtualModelKind2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "strategy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("strategy"))
+			data, err := ec.unmarshalNDistributionStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStrategy(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Strategy = data
+		case "cacheAffinity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheAffinity"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CacheAffinity = data
+		case "tiers":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tiers"))
+			data, err := ec.unmarshalNTierInput2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tiers = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalUpdateVirtualModelInput unmarshals raw into the UpdateVirtualModelInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalUpdateVirtualModelInput(ctx context.Context, raw any) (virtualmodels.UpdateInput, error) {
+	var out virtualmodels.UpdateInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "UpdateVirtualModelInput", raw, &out)
 	return out, err
 }
 
@@ -3673,6 +4731,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "revokeProxyKey":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_revokeProxyKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createVirtualModel":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createVirtualModel(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateVirtualModel":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateVirtualModel(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteVirtualModel":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteVirtualModel(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -3936,6 +5015,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_viewer(ctx, field)
 				})
+		case "virtualModels":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_virtualModels(ctx, field)
+				})
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -3980,6 +5065,170 @@ func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = graphql.MarshalString("Viewer")
 		case "email":
 			out.Values[i] = ec._Viewer_email(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var virtualModelImplementors = []string{"VirtualModel"}
+
+func (ec *executionContext) _VirtualModel(ctx context.Context, sel ast.SelectionSet, obj *virtualmodels.Model) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, virtualModelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VirtualModel")
+		case "id":
+			out.Values[i] = ec._VirtualModel_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._VirtualModel_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._VirtualModel_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "strategy":
+			out.Values[i] = ec._VirtualModel_strategy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheAffinity":
+			out.Values[i] = ec._VirtualModel_cacheAffinity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tiers":
+			out.Values[i] = ec._VirtualModel_tiers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._VirtualModel_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._VirtualModel_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var virtualModelEntryImplementors = []string{"VirtualModelEntry"}
+
+func (ec *executionContext) _VirtualModelEntry(ctx context.Context, sel ast.SelectionSet, obj *virtualmodels.Entry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, virtualModelEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VirtualModelEntry")
+		case "id":
+			out.Values[i] = ec._VirtualModelEntry_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "providerId":
+			out.Values[i] = ec._VirtualModelEntry_providerId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "providerName":
+			out.Values[i] = ec._VirtualModelEntry_providerName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._VirtualModelEntry_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "weight":
+			out.Values[i] = ec._VirtualModelEntry_weight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._VirtualModelEntry_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var virtualModelTierImplementors = []string{"VirtualModelTier"}
+
+func (ec *executionContext) _VirtualModelTier(ctx context.Context, sel ast.SelectionSet, obj *virtualmodels.Tier) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, virtualModelTierImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VirtualModelTier")
+		case "priority":
+			out.Values[i] = ec._VirtualModelTier_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "entries":
+			out.Values[i] = ec._VirtualModelTier_entries(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4381,12 +5630,66 @@ func (ec *executionContext) unmarshalNCreateProxyKeyInput2githubᚗcomᚋHarikiR
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreateVirtualModelInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐCreateInput(ctx context.Context, v any) (virtualmodels.CreateInput, error) {
+	res, err := ec.unmarshalInputCreateVirtualModelInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNCreatedProxyKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐCreatedProxyKey(ctx context.Context, sel ast.SelectionSet, v *model.CreatedProxyKey) graphql.Marshaler {
 	if v == nil {
 		graphql.AddInvalidNullError(ctx, "CreatedProxyKey!")
 		return graphql.Null
 	}
 	return ec._CreatedProxyKey(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDistributionStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStrategy(ctx context.Context, v any) (virtualmodels.Strategy, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := virtualmodels.Strategy(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDistributionStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStrategy(ctx context.Context, sel ast.SelectionSet, v virtualmodels.Strategy) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "DistributionStrategy!")
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNEntryInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntryInput(ctx context.Context, v any) (virtualmodels.EntryInput, error) {
+	res, err := ec.unmarshalInputEntryInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNEntryInput2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntryInputᚄ(ctx context.Context, v any) ([]virtualmodels.EntryInput, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]virtualmodels.EntryInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNEntryInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntryInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNEntryStatus2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStatus(ctx context.Context, v any) (virtualmodels.Status, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := virtualmodels.Status(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEntryStatus2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐStatus(ctx context.Context, sel ast.SelectionSet, v virtualmodels.Status) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "EntryStatus!")
+	}
+	return res
 }
 
 func (ec *executionContext) marshalNHealth2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐHealth(ctx context.Context, sel ast.SelectionSet, v *model.Health) graphql.Marshaler {
@@ -4599,6 +5902,25 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	return ret
 }
 
+func (ec *executionContext) unmarshalNTierInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierInput(ctx context.Context, v any) (virtualmodels.TierInput, error) {
+	res, err := ec.unmarshalInputTierInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNTierInput2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierInputᚄ(ctx context.Context, v any) ([]virtualmodels.TierInput, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]virtualmodels.TierInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNTierInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
 	res, err := graphql.UnmarshalTime(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4613,12 +5935,96 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 	return res
 }
 
+func (ec *executionContext) unmarshalNUpdateVirtualModelInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐUpdateInput(ctx context.Context, v any) (virtualmodels.UpdateInput, error) {
+	res, err := ec.unmarshalInputUpdateVirtualModelInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNViewer2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐViewer(ctx context.Context, sel ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
 	if v == nil {
 		graphql.AddInvalidNullError(ctx, "Viewer!")
 		return graphql.Null
 	}
 	return ec._Viewer(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNVirtualModel2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐModelᚄ(ctx context.Context, sel ast.SelectionSet, v []*virtualmodels.Model) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVirtualModel2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐModel(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVirtualModel2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐModel(ctx context.Context, sel ast.SelectionSet, v *virtualmodels.Model) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "VirtualModel!")
+		return graphql.Null
+	}
+	return ec._VirtualModel(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNVirtualModelEntry2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntry(ctx context.Context, sel ast.SelectionSet, v virtualmodels.Entry) graphql.Marshaler {
+	return ec._VirtualModelEntry(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNVirtualModelEntry2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []virtualmodels.Entry) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVirtualModelEntry2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐEntry(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNVirtualModelKind2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐKind(ctx context.Context, v any) (virtualmodels.Kind, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := virtualmodels.Kind(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNVirtualModelKind2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐKind(ctx context.Context, sel ast.SelectionSet, v virtualmodels.Kind) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "VirtualModelKind!")
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNVirtualModelTier2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTier(ctx context.Context, sel ast.SelectionSet, v virtualmodels.Tier) graphql.Marshaler {
+	return ec._VirtualModelTier(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNVirtualModelTier2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTierᚄ(ctx context.Context, sel ast.SelectionSet, v []virtualmodels.Tier) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVirtualModelTier2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋvirtualmodelsᚐTier(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

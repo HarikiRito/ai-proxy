@@ -55,7 +55,7 @@ func TestMakeMigrateCreatesMissingDatabaseAndIsIdempotent(t *testing.T) {
 		err := conn.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, name).Scan(&found)
 		return err == nil
 	}
-	for _, table := range []string{"providers_providers", "providers_keys", "proxykeys_keys"} {
+	for _, table := range []string{"providers_providers", "providers_keys", "proxykeys_keys", "virtualmodels_models", "virtualmodels_tiers", "virtualmodels_entries"} {
 		if !tableExists(table) {
 			t.Errorf("%s table missing after migrate", table)
 		}

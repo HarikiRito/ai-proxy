@@ -16,6 +16,7 @@ import (
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
 func NewHandler(r *Resolver, debug bool) http.Handler {
@@ -32,14 +33,8 @@ func NewHandler(r *Resolver, debug bool) http.Handler {
 // presentError hides internal errors from clients and logs them.
 func presentError(ctx context.Context, err error) *gqlerror.Error {
 	gqlErr := graphql.DefaultErrorPresenter(ctx, err)
-	var userErr *providers.UserError
-	if errors.As(err, &userErr) {
-		gqlErr.Message = userErr.Msg
-		return gqlErr
-	}
-	var keyErr *proxykeys.UserError
-	if errors.As(err, &keyErr) {
-		gqlErr.Message = keyErr.Msg
+	if msg, ok := userMessage(err); ok {
+		gqlErr.Message = msg
 		return gqlErr
 	}
 	if gqlErr.Err != nil { // parse and validation errors carry no wrapped error and are safe to show
@@ -47,4 +42,20 @@ func presentError(ctx context.Context, err error) *gqlerror.Error {
 		gqlErr.Message = "internal server error"
 	}
 	return gqlErr
+}
+
+// userMessage returns the message of a module UserError, which is safe to show to the owner.
+func userMessage(err error) (string, bool) {
+	var providerErr *providers.UserError
+	var keyErr *proxykeys.UserError
+	var modelErr *virtualmodels.UserError
+	switch {
+	case errors.As(err, &providerErr):
+		return providerErr.Msg, true
+	case errors.As(err, &keyErr):
+		return keyErr.Msg, true
+	case errors.As(err, &modelErr):
+		return modelErr.Msg, true
+	}
+	return "", false
 }

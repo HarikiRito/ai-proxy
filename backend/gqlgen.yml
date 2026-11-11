@@ -36,3 +36,23 @@ models:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys.Status
   CreateProxyKeyInput:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys.CreateInput
+  VirtualModel:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.Model
+  VirtualModelTier:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.Tier
+  VirtualModelEntry:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.Entry
+  VirtualModelKind:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.Kind
+  DistributionStrategy:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.Strategy
+  EntryStatus:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.Status
+  CreateVirtualModelInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.CreateInput
+  UpdateVirtualModelInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.UpdateInput
+  TierInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.TierInput
+  EntryInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.EntryInput

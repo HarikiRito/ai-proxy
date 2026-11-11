@@ -1,0 +1,82 @@
+enum VirtualModelKind {
+  chat
+  transcription
+}
+
+enum DistributionStrategy {
+  round_robin
+  weighted_round_robin
+  priority_overflow
+  least_in_flight
+}
+
+"Computed on every read from the current providers."
+enum EntryStatus {
+  ok
+  provider_missing
+  provider_disabled
+  provider_incompatible
+}
+
+type VirtualModel {
+  id: ID!
+  name: String!
+  kind: VirtualModelKind!
+  strategy: DistributionStrategy!
+  cacheAffinity: Boolean!
+  tiers: [VirtualModelTier!]!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"Priority is contiguous from 0; lower is tried first."
+type VirtualModelTier {
+  priority: Int!
+  entries: [VirtualModelEntry!]!
+}
+
+type VirtualModelEntry {
+  id: ID!
+  providerId: ID!
+  providerName: String!
+  model: String!
+  weight: Int!
+  status: EntryStatus!
+}
+
+"Tiers are saved in array order as priorities 0..n-1."
+input CreateVirtualModelInput {
+  name: String!
+  kind: VirtualModelKind!
+  strategy: DistributionStrategy!
+  cacheAffinity: Boolean!
+  tiers: [TierInput!]!
+}
+
+"The name is immutable; the whole tier tree is replaced."
+input UpdateVirtualModelInput {
+  kind: VirtualModelKind!
+  strategy: DistributionStrategy!
+  cacheAffinity: Boolean!
+  tiers: [TierInput!]!
+}
+
+input TierInput {
+  entries: [EntryInput!]!
+}
+
+input EntryInput {
+  providerId: ID!
+  model: String!
+  weight: Int!
+}
+
+extend type Query {
+  virtualModels: [VirtualModel!]!
+}
+
+extend type Mutation {
+  createVirtualModel(input: CreateVirtualModelInput!): VirtualModel!
+  updateVirtualModel(id: ID!, input: UpdateVirtualModelInput!): VirtualModel!
+  deleteVirtualModel(id: ID!): Boolean!
+}
