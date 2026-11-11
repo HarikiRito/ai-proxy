@@ -37,6 +37,12 @@ docker compose down -v
 
 The standalone image (`docker build .`) does not migrate itself: run `atlas migrate apply` against the `/data` volume first (compose does this via the `migrate` service).
 
+## Deployment
+
+- URL: https://ai-proxy.harikidev.win (`/healthz` for status)
+- Dokploy compose app `ai-proxy`, built from `docker-compose.yml` on `main`
+- Every push to `main` auto-deploys via Dokploy
+
 ## Checks
 
 ```sh
