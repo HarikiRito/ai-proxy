@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { onMount, setContext, type Snippet } from 'svelte';
 	import { Button } from '#src/components/ui/button/index.js';
+	import {
+		createModelsDevStore,
+		MODELS_DEV_KEY
+	} from '#src/features/modelsdev/modelsdev.svelte.js';
 	import { AUTH_FETCH_KEY, createAuthStore } from './auth.svelte';
 
 	const { children }: { children: Snippet } = $props();
 
 	const auth = createAuthStore();
 	setContext(AUTH_FETCH_KEY, auth.authFetch);
+	setContext(MODELS_DEV_KEY, createModelsDevStore());
 
 	onMount(() => {
 		void auth.init();

@@ -1,7 +1,7 @@
+import type { ModelsDevPreset } from '#src/features/modelsdev/modelsdev.svelte.js';
 import {
 	ANTHROPIC_CACHE_AFFINITY_SECONDS,
 	DEFAULT_CACHE_AFFINITY_SECONDS,
-	PRESETS,
 	type ProviderKind
 } from './presets';
 
@@ -147,8 +147,7 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 		return ok;
 	}
 
-	function applyPreset(id: string): void {
-		const preset = PRESETS.find((p) => p.id === id);
+	function applyPreset(preset?: ModelsDevPreset): void {
 		if (!preset) {
 			draft.presetId = CUSTOM;
 			return;
@@ -156,10 +155,10 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 		draft = {
 			...draft,
 			presetId: preset.id,
-			name: draft.name || preset.label,
+			name: draft.name || preset.name,
 			kind: preset.kind,
-			baseUrl: preset.baseUrl,
-			cacheAffinitySeconds: preset.cacheAffinitySeconds
+			baseUrl: preset.api,
+			cacheAffinitySeconds: cacheAffinityFor(preset.kind)
 		};
 	}
 

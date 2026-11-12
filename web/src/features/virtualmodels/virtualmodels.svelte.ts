@@ -51,6 +51,7 @@ export interface ProviderOption {
 	id: string;
 	name: string;
 	kind: string;
+	baseUrl: string;
 	enabled: boolean;
 }
 
@@ -83,7 +84,7 @@ const TRANSCRIPTION_PROVIDER_KIND = 'openai_compatible';
 
 const LIST_QUERY = `{ virtualModels { id name kind strategy cacheAffinity createdAt updatedAt
   tiers { priority entries { id providerId providerName model weight status } } }
-  providers { id name kind enabled } }`;
+  providers { id name kind baseUrl enabled } }`;
 
 const MUTATIONS = {
 	createVirtualModel:

@@ -6,6 +6,10 @@
 	import * as Select from '#src/components/ui/select/index.js';
 	import { Switch } from '#src/components/ui/switch/index.js';
 	import {
+		modelSuggestions,
+		type createModelsDevStore
+	} from '#src/features/modelsdev/modelsdev.svelte.js';
+	import {
 		KIND_LABELS,
 		KINDS,
 		STRATEGIES,
@@ -17,10 +21,18 @@
 
 	interface Props {
 		store: ReturnType<typeof createVirtualModelsStore>;
+		modelsDev: ReturnType<typeof createModelsDevStore>;
 		open?: boolean;
 	}
 
-	let { store, open = $bindable(false) }: Props = $props();
+	let { store, modelsDev, open = $bindable(false) }: Props = $props();
+
+	const suggestionsFor = (providerId: string) =>
+		modelSuggestions(
+			modelsDev.presets,
+			store.providers.find((p) => p.id === providerId)?.baseUrl ?? '',
+			store.draft.kind
+		);
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -140,9 +152,15 @@
 								class="flex-1"
 								placeholder="Upstream model"
 								aria-label="Upstream model"
+								list="models-{ti}-{ei}"
 								value={entry.model}
 								oninput={(e) => store.updateEntry(ti, ei, { model: e.currentTarget.value })}
 							/>
+							<datalist id="models-{ti}-{ei}">
+								{#each suggestionsFor(entry.providerId) as id (id)}
+									<option value={id}></option>
+								{/each}
+							</datalist>
 							<Input
 								class="w-20"
 								type="number"

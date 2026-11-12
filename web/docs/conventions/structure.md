@@ -26,8 +26,11 @@ src/
     health.svelte.ts     # createHealthStore(): GET /healthz probe
     health.svelte.test.ts
     index.svelte         # app home + health indicator
+  features/modelsdev/
+    modelsdev.svelte.ts  # createModelsDevStore(fetch, storage, now): models.dev providers/models, 24h localStorage cache + ETag revalidation, modelSuggestions
+    modelsdev.svelte.test.ts
   features/providers/
-    presets.ts           # 8 provider presets (prefill only)
+    presets.ts           # ProviderKind + cache affinity defaults
     providers.svelte.ts  # createProvidersStore(authFetch): providers/keys CRUD via GraphQL, draft form state
     providers.svelte.test.ts
     index.svelte         # providers page (list, keys, capacity); provider-form/key-form dialogs

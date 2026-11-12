@@ -4,17 +4,24 @@
 	import { Button } from '#src/components/ui/button/index.js';
 	import * as Card from '#src/components/ui/card/index.js';
 	import { AUTH_FETCH_KEY } from '#src/features/auth/auth.svelte.js';
+	import {
+		MODELS_DEV_KEY,
+		type createModelsDevStore
+	} from '#src/features/modelsdev/modelsdev.svelte.js';
 	import KeyForm from './key-form.svelte';
 	import ProviderForm from './provider-form.svelte';
 	import { createProvidersStore, type AuthFetch, type Provider } from './providers.svelte';
 
 	const store = createProvidersStore(getContext<AuthFetch>(AUTH_FETCH_KEY));
 
+	const modelsDev = getContext<ReturnType<typeof createModelsDevStore>>(MODELS_DEV_KEY);
+
 	let formOpen = $state(false);
 	let keyTarget = $state<Provider | null>(null);
 
 	onMount(() => {
 		void store.load();
+		void modelsDev.load();
 	});
 
 	function openCreate() {
@@ -122,5 +129,5 @@
 	{/each}
 </div>
 
-<ProviderForm {store} bind:open={formOpen} />
+<ProviderForm {store} {modelsDev} bind:open={formOpen} />
 <KeyForm {store} provider={keyTarget} onclose={() => (keyTarget = null)} />
