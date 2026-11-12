@@ -93,14 +93,8 @@ func translateChat(body map[string]json.RawMessage) *chatTranslation {
 	if !present(req.CacheControl) {
 		req.CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
 	}
-	if present(body["temperature"]) {
-		if temp, err := strconv.ParseFloat(string(body["temperature"]), 64); err != nil || temp > 1 {
-			return nil // Claude accepts 0 to 1 only
-		}
-		req.Temperature = body["temperature"]
-	}
-	if present(body["top_p"]) {
-		req.TopP = body["top_p"]
+	if !req.setSampling(body) {
+		return nil
 	}
 	if in.User != "" {
 		req.Metadata = &claudeMetadata{UserID: in.User}
@@ -208,4 +202,17 @@ func imageSource(url string) (claudeSource, bool) {
 		return claudeSource{Type: "base64", MediaType: mediaType, Data: data}, hasData && isBase64 && mediaType != ""
 	}
 	return claudeSource{Type: "url", URL: url}, strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")
+}
+
+func (req *claudeRequest) setSampling(body map[string]json.RawMessage) bool {
+	if present(body["temperature"]) {
+		if temp, err := strconv.ParseFloat(string(body["temperature"]), 64); err != nil || temp > 1 {
+			return false // the messages API accepts 0 to 1 only
+		}
+		req.Temperature = body["temperature"]
+	}
+	if present(body["top_p"]) {
+		req.TopP = body["top_p"]
+	}
+	return true
 }
