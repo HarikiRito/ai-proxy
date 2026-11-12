@@ -73,8 +73,8 @@ type ComplexityRoot struct {
 		ID                   func(childComplexity int) int
 		Keys                 func(childComplexity int) int
 		Kind                 func(childComplexity int) int
+		Models               func(childComplexity int) int
 		Name                 func(childComplexity int) int
-		Rotation             func(childComplexity int) int
 	}
 
 	ProviderKey struct {
@@ -83,7 +83,6 @@ type ComplexityRoot struct {
 		MaskedKey   func(childComplexity int) int
 		MaxInFlight func(childComplexity int) int
 		Name        func(childComplexity int) int
-		Priority    func(childComplexity int) int
 		Weight      func(childComplexity int) int
 	}
 
@@ -374,18 +373,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Provider.Kind(childComplexity), true
+	case "Provider.models":
+		if e.ComplexityRoot.Provider.Models == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Provider.Models(childComplexity), true
 	case "Provider.name":
 		if e.ComplexityRoot.Provider.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Provider.Name(childComplexity), true
-	case "Provider.rotation":
-		if e.ComplexityRoot.Provider.Rotation == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Provider.Rotation(childComplexity), true
 
 	case "ProviderKey.enabled":
 		if e.ComplexityRoot.ProviderKey.Enabled == nil {
@@ -417,12 +416,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProviderKey.Name(childComplexity), true
-	case "ProviderKey.priority":
-		if e.ComplexityRoot.ProviderKey.Priority == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ProviderKey.Priority(childComplexity), true
 	case "ProviderKey.weight":
 		if e.ComplexityRoot.ProviderKey.Weight == nil {
 			break
@@ -756,8 +749,8 @@ func (ec *executionContext) childFields_Provider(ctx context.Context, field grap
 		return ec.fieldContext_Provider_baseUrl(ctx, field)
 	case "enabled":
 		return ec.fieldContext_Provider_enabled(ctx, field)
-	case "rotation":
-		return ec.fieldContext_Provider_rotation(ctx, field)
+	case "models":
+		return ec.fieldContext_Provider_models(ctx, field)
 	case "cacheAffinitySeconds":
 		return ec.fieldContext_Provider_cacheAffinitySeconds(ctx, field)
 	case "capacity":
@@ -780,8 +773,6 @@ func (ec *executionContext) childFields_ProviderKey(ctx context.Context, field g
 		return ec.fieldContext_ProviderKey_maxInFlight(ctx, field)
 	case "weight":
 		return ec.fieldContext_ProviderKey_weight(ctx, field)
-	case "priority":
-		return ec.fieldContext_ProviderKey_priority(ctx, field)
 	case "maskedKey":
 		return ec.fieldContext_ProviderKey_maskedKey(ctx, field)
 	}
@@ -1999,27 +1990,27 @@ func (ec *executionContext) fieldContext_Provider_enabled(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Provider", field, false, false, "Boolean")
 }
 
-func (ec *executionContext) _Provider_rotation(ctx context.Context, field graphql.CollectedField, obj *providers.Provider) (ret graphql.Marshaler) {
+func (ec *executionContext) _Provider_models(ctx context.Context, field graphql.CollectedField, obj *providers.Provider) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Provider_rotation(ctx, field)
+			return ec.fieldContext_Provider_models(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Rotation, nil
+			return obj.Models, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v providers.Rotation) graphql.Marshaler {
-			return ec.marshalNRotationStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Provider_rotation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Provider", field, false, false, "RotationStrategy")
+func (ec *executionContext) fieldContext_Provider_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Provider", field, false, false, "String")
 }
 
 func (ec *executionContext) _Provider_cacheAffinitySeconds(ctx context.Context, field graphql.CollectedField, obj *providers.Provider) (ret graphql.Marshaler) {
@@ -2212,29 +2203,6 @@ func (ec *executionContext) _ProviderKey_weight(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_ProviderKey_weight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "Int")
-}
-
-func (ec *executionContext) _ProviderKey_priority(ctx context.Context, field graphql.CollectedField, obj *providers.Key) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ProviderKey_priority(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Priority, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ProviderKey_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "Int")
 }
 
@@ -4326,7 +4294,7 @@ func (ec *executionContext) unmarshalInputProviderInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "kind", "baseUrl", "enabled", "rotation", "cacheAffinitySeconds"}
+	fieldsInOrder := [...]string{"name", "kind", "baseUrl", "enabled", "models", "cacheAffinitySeconds"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4361,13 +4329,13 @@ func (ec *executionContext) unmarshalInputProviderInput(ctx context.Context, obj
 				return it, err
 			}
 			it.Enabled = data
-		case "rotation":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rotation"))
-			data, err := ec.unmarshalORotationStrategy2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx, v)
+		case "models":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("models"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Rotation = data
+			it.Models = data
 		case "cacheAffinitySeconds":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheAffinitySeconds"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -4403,7 +4371,7 @@ func (ec *executionContext) unmarshalInputProviderKeyInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "secret", "enabled", "maxInFlight", "weight", "priority"}
+	fieldsInOrder := [...]string{"name", "secret", "enabled", "maxInFlight", "weight"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4445,13 +4413,6 @@ func (ec *executionContext) unmarshalInputProviderKeyInput(ctx context.Context, 
 				return it, err
 			}
 			it.Weight = data
-		case "priority":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Priority = data
 		}
 	}
 	return it, nil
@@ -4809,8 +4770,8 @@ func (ec *executionContext) _Provider(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "rotation":
-			out.Values[i] = ec._Provider_rotation(ctx, field, obj)
+		case "models":
+			out.Values[i] = ec._Provider_models(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4879,11 +4840,6 @@ func (ec *executionContext) _ProviderKey(ctx context.Context, sel ast.SelectionS
 			}
 		case "weight":
 			out.Values[i] = ec._ProviderKey_weight(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "priority":
-			out.Values[i] = ec._ProviderKey_priority(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -5844,21 +5800,6 @@ func (ec *executionContext) marshalNProxyKeyStatus2githubᚗcomᚋHarikiRitoᚋa
 	return res
 }
 
-func (ec *executionContext) unmarshalNRotationStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx context.Context, v any) (providers.Rotation, error) {
-	tmp, err := graphql.UnmarshalString(v)
-	res := providers.Rotation(tmp)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNRotationStrategy2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx context.Context, sel ast.SelectionSet, v providers.Rotation) graphql.Marshaler {
-	_ = sel
-	res := graphql.MarshalString(string(v))
-	if res == graphql.Null {
-		graphql.AddInvalidNullFromMarshaler(ctx, "RotationStrategy!")
-	}
-	return res
-}
-
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6227,25 +6168,6 @@ func (ec *executionContext) unmarshalOProviderKind2ᚖgithubᚗcomᚋHarikiRito�
 }
 
 func (ec *executionContext) marshalOProviderKind2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐKind(ctx context.Context, sel ast.SelectionSet, v *providers.Kind) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	_ = sel
-	_ = ctx
-	res := graphql.MarshalString(string(*v))
-	return res
-}
-
-func (ec *executionContext) unmarshalORotationStrategy2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx context.Context, v any) (*providers.Rotation, error) {
-	if v == nil {
-		return nil, nil
-	}
-	tmp, err := graphql.UnmarshalString(v)
-	res := providers.Rotation(tmp)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalORotationStrategy2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐRotation(ctx context.Context, sel ast.SelectionSet, v *providers.Rotation) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

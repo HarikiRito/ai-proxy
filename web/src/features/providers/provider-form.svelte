@@ -4,10 +4,11 @@
 	import { Button } from '#src/components/ui/button/index.js';
 	import { Input } from '#src/components/ui/input/index.js';
 	import { Label } from '#src/components/ui/label/index.js';
+	import { Textarea } from '#src/components/ui/textarea/index.js';
 	import { Switch } from '#src/components/ui/switch/index.js';
 	import type { createModelsDevStore } from '#src/features/modelsdev/modelsdev.svelte.js';
 	import type { ProviderKind } from './presets';
-	import { ROTATIONS, type createProvidersStore, type Rotation } from './providers.svelte';
+	import type { createProvidersStore } from './providers.svelte';
 
 	interface Props {
 		store: ReturnType<typeof createProvidersStore>;
@@ -22,12 +23,6 @@
 		{ value: 'anthropic', label: 'Anthropic' },
 		{ value: 'claude_subscription', label: 'Claude subscription' }
 	];
-	const ROTATION_LABELS: Record<Rotation, string> = {
-		round_robin: 'Round robin',
-		weighted_round_robin: 'Weighted round robin',
-		priority_overflow: 'Priority overflow',
-		least_in_flight: 'Least in flight'
-	};
 
 	const presetLabel = $derived(
 		modelsDev.presets.find((p) => p.id === store.draft.presetId)?.name ?? 'Custom'
@@ -102,21 +97,13 @@
 				/>
 			</div>
 			<div class="flex flex-col gap-2">
-				<Label>Rotation</Label>
-				<Select.Root
-					type="single"
-					value={store.draft.rotation}
-					onValueChange={(v) => store.updateDraft({ rotation: v as Rotation })}
-				>
-					<Select.Trigger class="w-full">{ROTATION_LABELS[store.draft.rotation]}</Select.Trigger>
-					<Select.Content>
-						{#each ROTATIONS as rotation (rotation)}
-							<Select.Item value={rotation} label={ROTATION_LABELS[rotation]}>
-								{ROTATION_LABELS[rotation]}
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+				<Label for="provider-models">Models (one per line)</Label>
+				<Textarea
+					id="provider-models"
+					rows={5}
+					value={store.draft.models}
+					oninput={(e) => store.updateDraft({ models: e.currentTarget.value })}
+				/>
 			</div>
 			<div class="flex flex-col gap-2">
 				<Label for="provider-affinity">Cache affinity (seconds)</Label>

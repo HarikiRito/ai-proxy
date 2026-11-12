@@ -246,24 +246,14 @@ func EnabledNEQ(v bool) predicate.Provider {
 	return predicate.Provider(sql.FieldNEQ(FieldEnabled, v))
 }
 
-// RotationEQ applies the EQ predicate on the "rotation" field.
-func RotationEQ(v Rotation) predicate.Provider {
-	return predicate.Provider(sql.FieldEQ(FieldRotation, v))
+// ModelsIsNil applies the IsNil predicate on the "models" field.
+func ModelsIsNil() predicate.Provider {
+	return predicate.Provider(sql.FieldIsNull(FieldModels))
 }
 
-// RotationNEQ applies the NEQ predicate on the "rotation" field.
-func RotationNEQ(v Rotation) predicate.Provider {
-	return predicate.Provider(sql.FieldNEQ(FieldRotation, v))
-}
-
-// RotationIn applies the In predicate on the "rotation" field.
-func RotationIn(vs ...Rotation) predicate.Provider {
-	return predicate.Provider(sql.FieldIn(FieldRotation, vs...))
-}
-
-// RotationNotIn applies the NotIn predicate on the "rotation" field.
-func RotationNotIn(vs ...Rotation) predicate.Provider {
-	return predicate.Provider(sql.FieldNotIn(FieldRotation, vs...))
+// ModelsNotNil applies the NotNil predicate on the "models" field.
+func ModelsNotNil() predicate.Provider {
+	return predicate.Provider(sql.FieldNotNull(FieldModels))
 }
 
 // CacheAffinitySecondsEQ applies the EQ predicate on the "cache_affinity_seconds" field.

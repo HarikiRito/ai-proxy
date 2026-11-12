@@ -1,17 +1,9 @@
-import type { ModelsDevPreset } from '#src/features/modelsdev/modelsdev.svelte.js';
+import { type ModelsDevPreset, presetModelIds } from '#src/features/modelsdev/modelsdev.svelte.js';
 import {
 	ANTHROPIC_CACHE_AFFINITY_SECONDS,
 	DEFAULT_CACHE_AFFINITY_SECONDS,
 	type ProviderKind
 } from './presets';
-
-export const ROTATIONS = [
-	'round_robin',
-	'weighted_round_robin',
-	'priority_overflow',
-	'least_in_flight'
-] as const;
-export type Rotation = (typeof ROTATIONS)[number];
 
 export interface ProviderKey {
 	id: string;
@@ -19,7 +11,6 @@ export interface ProviderKey {
 	enabled: boolean;
 	maxInFlight: number;
 	weight: number;
-	priority: number;
 	maskedKey: string;
 }
 
@@ -29,7 +20,7 @@ export interface Provider {
 	kind: ProviderKind;
 	baseUrl: string;
 	enabled: boolean;
-	rotation: Rotation;
+	models: string[];
 	cacheAffinitySeconds: number;
 	capacity: number;
 	keys: ProviderKey[];
@@ -41,7 +32,8 @@ export interface Draft {
 	kind: ProviderKind;
 	baseUrl: string;
 	enabled: boolean;
-	rotation: Rotation;
+	// One model id per line, as typed.
+	models: string;
 	cacheAffinitySeconds: number;
 }
 
@@ -50,7 +42,6 @@ export interface NewKey {
 	secret: string;
 	maxInFlight: number;
 	weight: number;
-	priority: number;
 }
 
 export type KeyPatch = Partial<Omit<NewKey, 'name'>> & { name?: string; enabled?: boolean };
@@ -65,8 +56,8 @@ interface GraphQLBody {
 const CUSTOM = 'custom';
 const REQUEST_FAILED = 'Request failed';
 
-const LIST_QUERY = `{ providers { id name kind baseUrl enabled rotation cacheAffinitySeconds capacity
-  keys { id name enabled maxInFlight weight priority maskedKey } } }`;
+const LIST_QUERY = `{ providers { id name kind baseUrl enabled models cacheAffinitySeconds capacity
+  keys { id name enabled maxInFlight weight maskedKey } } }`;
 
 const MUTATIONS = {
 	createProvider: 'mutation($input: ProviderInput!) { createProvider(input: $input) { id } }',
@@ -82,6 +73,12 @@ const MUTATIONS = {
 
 const HTTP_ERRORS: Record<number, string> = { 401: 'Signed out', 403: 'Access denied' };
 
+export const parseModels = (text: string): string[] =>
+	text
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line, i, all) => line && all.indexOf(line) === i);
+
 export const capacityOf = (keys: Pick<ProviderKey, 'enabled' | 'maxInFlight'>[]): number =>
 	keys.filter((k) => k.enabled).reduce((sum, k) => sum + k.maxInFlight, 0);
 
@@ -94,7 +91,7 @@ const emptyDraft = (): Draft => ({
 	kind: 'openai_compatible',
 	baseUrl: '',
 	enabled: true,
-	rotation: 'round_robin',
+	models: '',
 	cacheAffinitySeconds: DEFAULT_CACHE_AFFINITY_SECONDS
 });
 
@@ -158,6 +155,7 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 			name: draft.name || preset.name,
 			kind: preset.kind,
 			baseUrl: preset.api,
+			models: presetModelIds(preset).join('\n'),
 			cacheAffinitySeconds: cacheAffinityFor(preset.kind)
 		};
 	}
@@ -180,7 +178,7 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 			kind: p.kind,
 			baseUrl: p.baseUrl,
 			enabled: p.enabled,
-			rotation: p.rotation,
+			models: p.models.join('\n'),
 			cacheAffinitySeconds: p.cacheAffinitySeconds
 		};
 	}
@@ -197,7 +195,7 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 			kind: draft.kind,
 			baseUrl: draft.baseUrl,
 			enabled: draft.enabled,
-			rotation: draft.rotation,
+			models: parseModels(draft.models),
 			cacheAffinitySeconds: draft.cacheAffinitySeconds
 		};
 		const ok = editingId
@@ -234,7 +232,9 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 		submitDraft,
 		deleteProvider: (id: string) => mutate('deleteProvider', { id }),
 		addKey: (providerId: string, input: NewKey) => mutate('addProviderKey', { providerId, input }),
-		updateKey: (id: string, input: KeyPatch) => mutate('updateProviderKey', { id, input }),
+		// A blank secret means keep the current one.
+		updateKey: (id: string, { secret, ...rest }: KeyPatch) =>
+			mutate('updateProviderKey', { id, input: secret ? { ...rest, secret } : rest }),
 		deleteKey: (id: string) => mutate('deleteProviderKey', { id })
 	};
 }

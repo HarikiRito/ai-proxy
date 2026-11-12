@@ -5,6 +5,7 @@ import {
 	createVirtualModelsStore,
 	type DraftTier,
 	draftFromModel,
+	modelSuggestions,
 	moveTier,
 	type ProviderOption,
 	providerOptionsFor,
@@ -25,28 +26,28 @@ const providers: ProviderOption[] = [
 		id: 'p1',
 		name: 'openai',
 		kind: 'openai_compatible',
-		baseUrl: 'https://api.example.com',
+		models: ['m1'],
 		enabled: true
 	},
 	{
 		id: 'p2',
 		name: 'claude',
 		kind: 'anthropic',
-		baseUrl: 'https://api.example.com',
+		models: ['m1'],
 		enabled: true
 	},
 	{
 		id: 'p3',
 		name: 'sub',
 		kind: 'claude_subscription',
-		baseUrl: 'https://api.example.com',
+		models: ['m1'],
 		enabled: true
 	},
 	{
 		id: 'p4',
 		name: 'sleepy',
 		kind: 'openai_compatible',
-		baseUrl: 'https://api.example.com',
+		models: ['m1'],
 		enabled: false
 	}
 ];
@@ -285,5 +286,15 @@ describe('store', () => {
 		const down = createVirtualModelsStore(() => Promise.reject(new Error('offline')));
 		await expect(down.load()).resolves.toBeUndefined();
 		expect(down.error).toBe('Request failed');
+	});
+});
+
+describe('modelSuggestions', () => {
+	it("suggests the selected provider's stored models", () => {
+		expect(modelSuggestions(providers, 'p1')).toEqual(['m1']);
+	});
+
+	it('suggests nothing for an unknown provider', () => {
+		expect(modelSuggestions(providers, 'nope')).toEqual([]);
 	});
 });

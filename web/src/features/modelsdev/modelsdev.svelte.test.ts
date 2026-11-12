@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	createModelsDevStore,
 	type ModelsDevPreset,
-	modelSuggestions,
+	presetModelIds,
 	trim
 } from './modelsdev.svelte';
 
@@ -165,39 +165,21 @@ describe('createModelsDevStore', () => {
 	});
 });
 
-describe('modelSuggestions', () => {
-	const preset = (api: string, models: ModelsDevPreset['models']): ModelsDevPreset => ({
-		id: 'p',
-		name: 'P',
-		api,
-		kind: 'openai_compatible',
-		models
-	});
-	const presets = [
-		preset('https://API.Example.com/v1', [
-			{ id: 'chat-a', name: 'A' },
-			{ id: 'chat-b', name: 'B', type: 'chat' },
-			{ id: 'embed', name: 'E', type: 'embedding' },
-			{ id: 'whisper', name: 'W', type: 'transcription' },
-			{ id: 'tts', name: 'T', type: 'speech' }
-		])
-	];
-
-	it('matches base URL ignoring case and trailing slash', () => {
-		expect(modelSuggestions(presets, 'https://api.example.com/v1/', 'chat')).toEqual([
-			'chat-a',
-			'chat-b'
-		]);
-	});
-
-	it('suggests nothing without a match', () => {
-		expect(modelSuggestions(presets, 'https://other.example.com', 'chat')).toEqual([]);
-		expect(modelSuggestions(presets, '', 'chat')).toEqual([]);
-	});
-
-	it('suggests only transcription models for transcription', () => {
-		expect(modelSuggestions(presets, 'https://api.example.com/v1', 'transcription')).toEqual([
-			'whisper'
-		]);
+describe('presetModelIds', () => {
+	it('keeps chat and transcription models, drops other types', () => {
+		const preset: ModelsDevPreset = {
+			id: 'p',
+			name: 'P',
+			api: 'https://api.example.com/v1',
+			kind: 'openai_compatible',
+			models: [
+				{ id: 'chat-a', name: 'A' },
+				{ id: 'chat-b', name: 'B', type: 'chat' },
+				{ id: 'embed', name: 'E', type: 'embedding' },
+				{ id: 'whisper', name: 'W', type: 'transcription' },
+				{ id: 'tts', name: 'T', type: 'speech' }
+			]
+		};
+		expect(presetModelIds(preset)).toEqual(['chat-a', 'chat-b', 'whisper']);
 	});
 });

@@ -6,8 +6,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/crypto"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/db"
@@ -70,7 +73,7 @@ func requireUserError(t *testing.T, err error, contains string) {
 func TestCreateProviderAppliesDefaults(t *testing.T) {
 	s, _ := newService(t)
 	p := mustCreate(t, s, validProvider())
-	if !p.Enabled || p.Rotation != RotationRoundRobin || p.CacheAffinitySeconds != 600 || p.Capacity != 0 || len(p.Keys) != 0 {
+	if !p.Enabled || p.CacheAffinitySeconds != 600 || p.Capacity != 0 || len(p.Keys) != 0 {
 		t.Fatalf("unexpected defaults: %+v", p)
 	}
 }
@@ -87,7 +90,6 @@ func TestProviderValidation(t *testing.T) {
 		"no scheme":       {func(in *ProviderInput) { in.BaseURL = ptr("api.openai.com") }, "base URL"},
 		"ftp scheme":      {func(in *ProviderInput) { in.BaseURL = ptr("ftp://x.test") }, "base URL"},
 		"no host":         {func(in *ProviderInput) { in.BaseURL = ptr("https://") }, "base URL"},
-		"bad rotation":    {func(in *ProviderInput) { in.Rotation = ptr(Rotation("nope")) }, "rotation"},
 		"negative cache":  {func(in *ProviderInput) { in.CacheAffinitySeconds = ptr(-1) }, "cache"},
 		"missing baseURL": {func(in *ProviderInput) { in.BaseURL = nil }, "base URL"},
 	}
@@ -112,11 +114,11 @@ func TestDuplicateProviderNameIsUserError(t *testing.T) {
 func TestUpdateProviderChangesOnlyGivenFields(t *testing.T) {
 	s, _ := newService(t)
 	p := mustCreate(t, s, validProvider())
-	got, err := s.UpdateProvider(context.Background(), p.ID, ProviderInput{Enabled: ptr(false), Rotation: ptr(RotationLeastInFlight)})
+	got, err := s.UpdateProvider(context.Background(), p.ID, ProviderInput{Enabled: ptr(false), CacheAffinitySeconds: ptr(30)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Enabled || got.Rotation != RotationLeastInFlight || got.Name != "openai" || got.BaseURL != "https://api.openai.com/v1" {
+	if got.Enabled || got.CacheAffinitySeconds != 30 || got.Name != "openai" || got.BaseURL != "https://api.openai.com/v1" {
 		t.Fatalf("unexpected: %+v", got)
 	}
 	_, err = s.UpdateProvider(context.Background(), p.ID, ProviderInput{BaseURL: ptr("nope")})
@@ -174,16 +176,79 @@ func TestClaudeSubscriptionRejectsKeys(t *testing.T) {
 	requireUserError(t, err, "subscription")
 }
 
-func TestMaskedKeyShowsLast4OnlyForLongSecrets(t *testing.T) {
+func TestMaskedKeyByLength(t *testing.T) {
+	cases := map[string]struct{ secret, want string }{
+		"11 chars": {"abcdef12345", "••••"},
+		"12 chars": {"abcdefgh1234", "••••1234"},
+		"23 chars": {"abcdefghijklmnopqrs1234", "••••1234"},
+		"24 chars": {"abcdefghijklmnopqrst1234", "abcdef…1234"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			s, _ := newService(t)
+			p := mustCreate(t, s, validProvider())
+			k := mustAddKey(t, s, p.ID, validKey("k", tc.secret))
+			list, _ := s.ListProviders(context.Background())
+			if k.MaskedKey != tc.want || list[0].Keys[0].MaskedKey != tc.want {
+				t.Fatalf("add %q list %q want %q", k.MaskedKey, list[0].Keys[0].MaskedKey, tc.want)
+			}
+		})
+	}
+}
+
+func TestMaskedKeyOnDecryptFailure(t *testing.T) {
 	s, _ := newService(t)
 	p := mustCreate(t, s, validProvider())
-	long := mustAddKey(t, s, p.ID, validKey("long", "sk-abcdefgh1234"))
-	short := mustAddKey(t, s, p.ID, validKey("short", "abcdef12345"))
-	if long.MaskedKey != "••••1234" {
-		t.Errorf("long: %q", long.MaskedKey)
+	k := mustAddKey(t, s, p.ID, validKey("k", "abcdefghijklmnopqrst1234"))
+	id, _ := uuid.Parse(k.ID)
+	if err := s.store.db.ProviderKey.UpdateOneID(id).SetCiphertext([]byte("garbage")).Exec(context.Background()); err != nil {
+		t.Fatal(err)
 	}
-	if short.MaskedKey != "••••" {
-		t.Errorf("short (11 chars): %q", short.MaskedKey)
+	list, _ := s.ListProviders(context.Background())
+	if got := list[0].Keys[0].MaskedKey; got != "••••" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestUpdateKeyWithoutSecretKeepsCiphertext(t *testing.T) {
+	s, _ := newService(t)
+	ctx := context.Background()
+	p := mustCreate(t, s, validProvider())
+	k := mustAddKey(t, s, p.ID, validKey("k", "sk-aaaaaaaa1111"))
+	got, err := s.UpdateKey(ctx, k.ID, KeyInput{Weight: ptr(3)})
+	plain, _ := s.Reveal(ctx, k.ID)
+	if err != nil || got.MaskedKey != "••••1111" || got.Weight != 3 || plain != "sk-aaaaaaaa1111" {
+		t.Fatalf("got %+v %q %v", got, plain, err)
+	}
+}
+
+func TestProviderModelsRoundTrip(t *testing.T) {
+	s, _ := newService(t)
+	ctx := context.Background()
+	p := mustCreate(t, s, validProvider())
+	if p.Models == nil || len(p.Models) != 0 {
+		t.Fatalf("want empty non-nil, got %#v", p.Models)
+	}
+	in := validProvider()
+	in.Name = ptr("withmodels")
+	in.Models = []string{"gpt-4o", "gpt-4o-mini"}
+	q := mustCreate(t, s, in)
+	if !slices.Equal(q.Models, in.Models) {
+		t.Fatalf("create: %v", q.Models)
+	}
+	got, err := s.UpdateProvider(ctx, q.ID, ProviderInput{Enabled: ptr(false)})
+	if err != nil || !slices.Equal(got.Models, in.Models) {
+		t.Fatalf("nil must keep models: %v %v", got.Models, err)
+	}
+	got, err = s.UpdateProvider(ctx, q.ID, ProviderInput{Models: []string{"o3"}})
+	if err != nil || !slices.Equal(got.Models, []string{"o3"}) {
+		t.Fatalf("update: %v %v", got.Models, err)
+	}
+	list, _ := s.ListProviders(ctx)
+	for _, l := range list {
+		if l.Models == nil {
+			t.Fatalf("%s models nil", l.Name)
+		}
 	}
 }
 

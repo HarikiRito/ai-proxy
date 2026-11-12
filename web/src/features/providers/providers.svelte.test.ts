@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ModelsDevPreset } from '#src/features/modelsdev/modelsdev.svelte.js';
-import { capacityOf, createProvidersStore, type Provider } from './providers.svelte';
+import { capacityOf, createProvidersStore, type Provider, parseModels } from './providers.svelte';
 
 const SECRET = 'sk-DISTINCTIVE-secret-abcd1234';
 
@@ -10,7 +10,7 @@ const provider = (over: Partial<Provider> = {}): Provider => ({
 	kind: 'openai_compatible',
 	baseUrl: 'https://api.openai.com/v1',
 	enabled: true,
-	rotation: 'round_robin',
+	models: [],
 	cacheAffinitySeconds: 600,
 	capacity: 0,
 	keys: [],
@@ -22,7 +22,10 @@ const openai: ModelsDevPreset = {
 	name: 'OpenAI',
 	api: 'https://api.openai.com/v1',
 	kind: 'openai_compatible',
-	models: []
+	models: [
+		{ id: 'gpt-4o', name: 'GPT-4o' },
+		{ id: 'text-embedding', name: 'Emb', type: 'embedding' }
+	]
 };
 const anthropic: ModelsDevPreset = {
 	id: 'anthropic',
@@ -38,7 +41,6 @@ const key = (over = {}) => ({
 	enabled: true,
 	maxInFlight: 4,
 	weight: 1,
-	priority: 0,
 	maskedKey: '••••1234',
 	...over
 });
@@ -69,6 +71,13 @@ describe('capacityOf', () => {
 				key({ maxInFlight: 2 })
 			])
 		).toBe(6);
+	});
+});
+
+describe('parseModels', () => {
+	it('trims, drops empty lines and dedupes keeping order', () => {
+		expect(parseModels(' a \n\n b\r\na\n  \n')).toEqual(['a', 'b']);
+		expect(parseModels('')).toEqual([]);
 	});
 });
 
@@ -121,6 +130,20 @@ describe('presets and draft', () => {
 		expect(store.draft.baseUrl).toBe('https://proxy.example.com');
 	});
 
+	it('applyPreset fills models with the preset chat models, editable afterwards', () => {
+		const { store } = setup();
+		store.applyPreset(openai);
+		expect(store.draft.models).toBe('gpt-4o');
+		store.updateDraft({ models: 'gpt-4o\nmine' });
+		expect(store.draft.models).toBe('gpt-4o\nmine');
+	});
+
+	it('startEdit loads stored models one per line', () => {
+		const { store } = setup();
+		store.startEdit(provider({ models: ['a', 'b'] }));
+		expect(store.draft.models).toBe('a\nb');
+	});
+
 	it('keeps a typed name when a preset is applied', () => {
 		const { store } = setup();
 		store.updateDraft({ name: 'my-groq' });
@@ -152,7 +175,7 @@ describe('submitDraft', () => {
 			name: 'OpenAI',
 			kind: 'openai_compatible',
 			baseUrl: 'https://api.openai.com/v1',
-			rotation: 'round_robin',
+			models: ['gpt-4o'],
 			cacheAffinitySeconds: 600,
 			enabled: true
 		});
@@ -163,13 +186,13 @@ describe('submitDraft', () => {
 
 	it('updates when editing an existing provider', async () => {
 		const { store, calls } = setup();
-		store.startEdit(provider({ id: 'p9', rotation: 'least_in_flight' }));
+		store.startEdit(provider({ id: 'p9', models: ['a', 'b'] }));
 		store.updateDraft({ enabled: false });
 		await store.submitDraft();
 		expect(calls[0].op).toBe('updateProvider');
 		expect(calls[0].variables).toMatchObject({
 			id: 'p9',
-			input: { enabled: false, rotation: 'least_in_flight' }
+			input: { enabled: false, models: ['a', 'b'] }
 		});
 	});
 
@@ -207,8 +230,7 @@ describe('provider and key mutations', () => {
 			name: 'main',
 			secret: SECRET,
 			maxInFlight: 4,
-			weight: 1,
-			priority: 0
+			weight: 1
 		});
 		expect(calls[0].op).toBe('addProviderKey');
 		expect(JSON.stringify(calls[0].variables)).toContain(SECRET);
@@ -228,6 +250,29 @@ describe('provider and key mutations', () => {
 			variables: { id: 'k1', input: { secret: SECRET, enabled: false } }
 		});
 		expect(JSON.stringify({ p: store.providers, e: store.error })).not.toContain(SECRET);
+	});
+});
+
+describe('updateKey', () => {
+	it('omits a blank secret so the current one is kept', async () => {
+		const { store, calls } = setup();
+		await store.updateKey('k1', {
+			name: 'n',
+			secret: '',
+			maxInFlight: 2,
+			weight: 3,
+			enabled: true
+		});
+		expect(calls[0].variables).toEqual({
+			id: 'k1',
+			input: { name: 'n', maxInFlight: 2, weight: 3, enabled: true }
+		});
+	});
+
+	it('sends a non-empty secret', async () => {
+		const { store, calls } = setup();
+		await store.updateKey('k1', { secret: SECRET, weight: 2 });
+		expect(calls[0].variables).toEqual({ id: 'k1', input: { secret: SECRET, weight: 2 } });
 	});
 });
 

@@ -10,14 +10,19 @@
 	} from '#src/features/modelsdev/modelsdev.svelte.js';
 	import KeyForm from './key-form.svelte';
 	import ProviderForm from './provider-form.svelte';
-	import { createProvidersStore, type AuthFetch, type Provider } from './providers.svelte';
+	import {
+		createProvidersStore,
+		type AuthFetch,
+		type Provider,
+		type ProviderKey
+	} from './providers.svelte';
 
 	const store = createProvidersStore(getContext<AuthFetch>(AUTH_FETCH_KEY));
 
 	const modelsDev = getContext<ReturnType<typeof createModelsDevStore>>(MODELS_DEV_KEY);
 
 	let formOpen = $state(false);
-	let keyTarget = $state<Provider | null>(null);
+	let keyTarget = $state<{ provider: Provider; key: ProviderKey | null } | null>(null);
 
 	onMount(() => {
 		void store.load();
@@ -34,9 +39,9 @@
 		formOpen = true;
 	}
 
-	function openKeyForm(provider: Provider) {
+	function openKeyForm(provider: Provider, key: ProviderKey | null) {
 		store.clearError();
-		keyTarget = provider;
+		keyTarget = { provider, key };
 	}
 
 	function remove(message: string, run: () => Promise<boolean>) {
@@ -64,8 +69,9 @@
 					</Badge>
 				</Card.Title>
 				<Card.Description>
-					{provider.kind} · {provider.baseUrl} · {provider.rotation} · affinity {provider.cacheAffinitySeconds}s
-					· capacity {provider.capacity}
+					{provider.kind} · {provider.baseUrl} · affinity {provider.cacheAffinitySeconds}s ·
+					capacity {provider.capacity}
+					· {provider.models.length} models
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="flex flex-col gap-2">
@@ -77,14 +83,14 @@
 							<span class="font-medium">{key.name}</span>
 							<code class="text-muted-foreground">{key.maskedKey}</code>
 							<span>max {key.maxInFlight}</span>
-							{#if provider.rotation === 'weighted_round_robin'}<span>weight {key.weight}</span
-								>{/if}
-							{#if provider.rotation === 'priority_overflow'}<span>priority {key.priority}</span
-								>{/if}
+							<span>weight {key.weight}</span>
 							<Badge variant={key.enabled ? 'default' : 'secondary'}>
 								{key.enabled ? 'on' : 'off'}
 							</Badge>
 							<span class="ml-auto"></span>
+							<Button variant="outline" size="sm" onclick={() => openKeyForm(provider, key)}>
+								Edit
+							</Button>
 							<Button
 								variant="outline"
 								size="sm"
@@ -107,7 +113,9 @@
 			</Card.Content>
 			<Card.Footer class="gap-2">
 				{#if provider.kind !== 'claude_subscription'}
-					<Button variant="outline" size="sm" onclick={() => openKeyForm(provider)}>Add key</Button>
+					<Button variant="outline" size="sm" onclick={() => openKeyForm(provider, null)}
+						>Add key</Button
+					>
 				{/if}
 				<Button variant="outline" size="sm" onclick={() => openEdit(provider)}>Edit</Button>
 				<Button
@@ -130,4 +138,4 @@
 </div>
 
 <ProviderForm {store} {modelsDev} bind:open={formOpen} />
-<KeyForm {store} provider={keyTarget} onclose={() => (keyTarget = null)} />
+<KeyForm {store} target={keyTarget} onclose={() => (keyTarget = null)} />

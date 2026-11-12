@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/predicate"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
@@ -86,17 +87,21 @@ func (_u *ProviderUpdate) SetNillableEnabled(v *bool) *ProviderUpdate {
 	return _u
 }
 
-// SetRotation sets the "rotation" field.
-func (_u *ProviderUpdate) SetRotation(v provider.Rotation) *ProviderUpdate {
-	_u.mutation.SetRotation(v)
+// SetModels sets the "models" field.
+func (_u *ProviderUpdate) SetModels(v []string) *ProviderUpdate {
+	_u.mutation.SetModels(v)
 	return _u
 }
 
-// SetNillableRotation sets the "rotation" field if the given value is not nil.
-func (_u *ProviderUpdate) SetNillableRotation(v *provider.Rotation) *ProviderUpdate {
-	if v != nil {
-		_u.SetRotation(*v)
-	}
+// AppendModels appends value to the "models" field.
+func (_u *ProviderUpdate) AppendModels(v []string) *ProviderUpdate {
+	_u.mutation.AppendModels(v)
+	return _u
+}
+
+// ClearModels clears the value of the "models" field.
+func (_u *ProviderUpdate) ClearModels() *ProviderUpdate {
+	_u.mutation.ClearModels()
 	return _u
 }
 
@@ -221,11 +226,6 @@ func (_u *ProviderUpdate) check() error {
 			return &ValidationError{Name: "base_url", err: fmt.Errorf(`ent: validator failed for field "Provider.base_url": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Rotation(); ok {
-		if err := provider.RotationValidator(v); err != nil {
-			return &ValidationError{Name: "rotation", err: fmt.Errorf(`ent: validator failed for field "Provider.rotation": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.CacheAffinitySeconds(); ok {
 		if err := provider.CacheAffinitySecondsValidator(v); err != nil {
 			return &ValidationError{Name: "cache_affinity_seconds", err: fmt.Errorf(`ent: validator failed for field "Provider.cache_affinity_seconds": %w`, err)}
@@ -258,8 +258,16 @@ func (_u *ProviderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(provider.FieldEnabled, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.Rotation(); ok {
-		_spec.SetField(provider.FieldRotation, field.TypeEnum, value)
+	if value, ok := _u.mutation.Models(); ok {
+		_spec.SetField(provider.FieldModels, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedModels(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, provider.FieldModels, value)
+		})
+	}
+	if _u.mutation.ModelsCleared() {
+		_spec.ClearField(provider.FieldModels, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CacheAffinitySeconds(); ok {
 		_spec.SetField(provider.FieldCacheAffinitySeconds, field.TypeInt, value)
@@ -391,17 +399,21 @@ func (_u *ProviderUpdateOne) SetNillableEnabled(v *bool) *ProviderUpdateOne {
 	return _u
 }
 
-// SetRotation sets the "rotation" field.
-func (_u *ProviderUpdateOne) SetRotation(v provider.Rotation) *ProviderUpdateOne {
-	_u.mutation.SetRotation(v)
+// SetModels sets the "models" field.
+func (_u *ProviderUpdateOne) SetModels(v []string) *ProviderUpdateOne {
+	_u.mutation.SetModels(v)
 	return _u
 }
 
-// SetNillableRotation sets the "rotation" field if the given value is not nil.
-func (_u *ProviderUpdateOne) SetNillableRotation(v *provider.Rotation) *ProviderUpdateOne {
-	if v != nil {
-		_u.SetRotation(*v)
-	}
+// AppendModels appends value to the "models" field.
+func (_u *ProviderUpdateOne) AppendModels(v []string) *ProviderUpdateOne {
+	_u.mutation.AppendModels(v)
+	return _u
+}
+
+// ClearModels clears the value of the "models" field.
+func (_u *ProviderUpdateOne) ClearModels() *ProviderUpdateOne {
+	_u.mutation.ClearModels()
 	return _u
 }
 
@@ -539,11 +551,6 @@ func (_u *ProviderUpdateOne) check() error {
 			return &ValidationError{Name: "base_url", err: fmt.Errorf(`ent: validator failed for field "Provider.base_url": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Rotation(); ok {
-		if err := provider.RotationValidator(v); err != nil {
-			return &ValidationError{Name: "rotation", err: fmt.Errorf(`ent: validator failed for field "Provider.rotation": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.CacheAffinitySeconds(); ok {
 		if err := provider.CacheAffinitySecondsValidator(v); err != nil {
 			return &ValidationError{Name: "cache_affinity_seconds", err: fmt.Errorf(`ent: validator failed for field "Provider.cache_affinity_seconds": %w`, err)}
@@ -593,8 +600,16 @@ func (_u *ProviderUpdateOne) sqlSave(ctx context.Context) (_node *Provider, err 
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(provider.FieldEnabled, field.TypeBool, value)
 	}
-	if value, ok := _u.mutation.Rotation(); ok {
-		_spec.SetField(provider.FieldRotation, field.TypeEnum, value)
+	if value, ok := _u.mutation.Models(); ok {
+		_spec.SetField(provider.FieldModels, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedModels(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, provider.FieldModels, value)
+		})
+	}
+	if _u.mutation.ModelsCleared() {
+		_spec.ClearField(provider.FieldModels, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CacheAffinitySeconds(); ok {
 		_spec.SetField(provider.FieldCacheAffinitySeconds, field.TypeInt, value)

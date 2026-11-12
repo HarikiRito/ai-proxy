@@ -50,20 +50,6 @@ func (_u *ProviderKeyUpdate) SetCiphertext(v []byte) *ProviderKeyUpdate {
 	return _u
 }
 
-// SetLast4 sets the "last4" field.
-func (_u *ProviderKeyUpdate) SetLast4(v string) *ProviderKeyUpdate {
-	_u.mutation.SetLast4(v)
-	return _u
-}
-
-// SetNillableLast4 sets the "last4" field if the given value is not nil.
-func (_u *ProviderKeyUpdate) SetNillableLast4(v *string) *ProviderKeyUpdate {
-	if v != nil {
-		_u.SetLast4(*v)
-	}
-	return _u
-}
-
 // SetEnabled sets the "enabled" field.
 func (_u *ProviderKeyUpdate) SetEnabled(v bool) *ProviderKeyUpdate {
 	_u.mutation.SetEnabled(v)
@@ -117,27 +103,6 @@ func (_u *ProviderKeyUpdate) SetNillableWeight(v *int) *ProviderKeyUpdate {
 // AddWeight adds value to the "weight" field.
 func (_u *ProviderKeyUpdate) AddWeight(v int) *ProviderKeyUpdate {
 	_u.mutation.AddWeight(v)
-	return _u
-}
-
-// SetPriority sets the "priority" field.
-func (_u *ProviderKeyUpdate) SetPriority(v int) *ProviderKeyUpdate {
-	_u.mutation.ResetPriority()
-	_u.mutation.SetPriority(v)
-	return _u
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *ProviderKeyUpdate) SetNillablePriority(v *int) *ProviderKeyUpdate {
-	if v != nil {
-		_u.SetPriority(*v)
-	}
-	return _u
-}
-
-// AddPriority adds value to the "priority" field.
-func (_u *ProviderKeyUpdate) AddPriority(v int) *ProviderKeyUpdate {
-	_u.mutation.AddPriority(v)
 	return _u
 }
 
@@ -246,9 +211,6 @@ func (_u *ProviderKeyUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Ciphertext(); ok {
 		_spec.SetField(providerkey.FieldCiphertext, field.TypeBytes, value)
 	}
-	if value, ok := _u.mutation.Last4(); ok {
-		_spec.SetField(providerkey.FieldLast4, field.TypeString, value)
-	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(providerkey.FieldEnabled, field.TypeBool, value)
 	}
@@ -263,12 +225,6 @@ func (_u *ProviderKeyUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.AddedWeight(); ok {
 		_spec.AddField(providerkey.FieldWeight, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.Priority(); ok {
-		_spec.SetField(providerkey.FieldPriority, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedPriority(); ok {
-		_spec.AddField(providerkey.FieldPriority, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(providerkey.FieldUpdatedAt, field.TypeTime, value)
@@ -342,20 +298,6 @@ func (_u *ProviderKeyUpdateOne) SetCiphertext(v []byte) *ProviderKeyUpdateOne {
 	return _u
 }
 
-// SetLast4 sets the "last4" field.
-func (_u *ProviderKeyUpdateOne) SetLast4(v string) *ProviderKeyUpdateOne {
-	_u.mutation.SetLast4(v)
-	return _u
-}
-
-// SetNillableLast4 sets the "last4" field if the given value is not nil.
-func (_u *ProviderKeyUpdateOne) SetNillableLast4(v *string) *ProviderKeyUpdateOne {
-	if v != nil {
-		_u.SetLast4(*v)
-	}
-	return _u
-}
-
 // SetEnabled sets the "enabled" field.
 func (_u *ProviderKeyUpdateOne) SetEnabled(v bool) *ProviderKeyUpdateOne {
 	_u.mutation.SetEnabled(v)
@@ -409,27 +351,6 @@ func (_u *ProviderKeyUpdateOne) SetNillableWeight(v *int) *ProviderKeyUpdateOne 
 // AddWeight adds value to the "weight" field.
 func (_u *ProviderKeyUpdateOne) AddWeight(v int) *ProviderKeyUpdateOne {
 	_u.mutation.AddWeight(v)
-	return _u
-}
-
-// SetPriority sets the "priority" field.
-func (_u *ProviderKeyUpdateOne) SetPriority(v int) *ProviderKeyUpdateOne {
-	_u.mutation.ResetPriority()
-	_u.mutation.SetPriority(v)
-	return _u
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *ProviderKeyUpdateOne) SetNillablePriority(v *int) *ProviderKeyUpdateOne {
-	if v != nil {
-		_u.SetPriority(*v)
-	}
-	return _u
-}
-
-// AddPriority adds value to the "priority" field.
-func (_u *ProviderKeyUpdateOne) AddPriority(v int) *ProviderKeyUpdateOne {
-	_u.mutation.AddPriority(v)
 	return _u
 }
 
@@ -568,9 +489,6 @@ func (_u *ProviderKeyUpdateOne) sqlSave(ctx context.Context) (_node *ProviderKey
 	if value, ok := _u.mutation.Ciphertext(); ok {
 		_spec.SetField(providerkey.FieldCiphertext, field.TypeBytes, value)
 	}
-	if value, ok := _u.mutation.Last4(); ok {
-		_spec.SetField(providerkey.FieldLast4, field.TypeString, value)
-	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(providerkey.FieldEnabled, field.TypeBool, value)
 	}
@@ -585,12 +503,6 @@ func (_u *ProviderKeyUpdateOne) sqlSave(ctx context.Context) (_node *ProviderKey
 	}
 	if value, ok := _u.mutation.AddedWeight(); ok {
 		_spec.AddField(providerkey.FieldWeight, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.Priority(); ok {
-		_spec.SetField(providerkey.FieldPriority, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedPriority(); ok {
-		_spec.AddField(providerkey.FieldPriority, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(providerkey.FieldUpdatedAt, field.TypeTime, value)

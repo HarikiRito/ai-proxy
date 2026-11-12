@@ -34,20 +34,6 @@ func (_c *ProviderKeyCreate) SetCiphertext(v []byte) *ProviderKeyCreate {
 	return _c
 }
 
-// SetLast4 sets the "last4" field.
-func (_c *ProviderKeyCreate) SetLast4(v string) *ProviderKeyCreate {
-	_c.mutation.SetLast4(v)
-	return _c
-}
-
-// SetNillableLast4 sets the "last4" field if the given value is not nil.
-func (_c *ProviderKeyCreate) SetNillableLast4(v *string) *ProviderKeyCreate {
-	if v != nil {
-		_c.SetLast4(*v)
-	}
-	return _c
-}
-
 // SetEnabled sets the "enabled" field.
 func (_c *ProviderKeyCreate) SetEnabled(v bool) *ProviderKeyCreate {
 	_c.mutation.SetEnabled(v)
@@ -78,20 +64,6 @@ func (_c *ProviderKeyCreate) SetWeight(v int) *ProviderKeyCreate {
 func (_c *ProviderKeyCreate) SetNillableWeight(v *int) *ProviderKeyCreate {
 	if v != nil {
 		_c.SetWeight(*v)
-	}
-	return _c
-}
-
-// SetPriority sets the "priority" field.
-func (_c *ProviderKeyCreate) SetPriority(v int) *ProviderKeyCreate {
-	_c.mutation.SetPriority(v)
-	return _c
-}
-
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_c *ProviderKeyCreate) SetNillablePriority(v *int) *ProviderKeyCreate {
-	if v != nil {
-		_c.SetPriority(*v)
 	}
 	return _c
 }
@@ -184,10 +156,6 @@ func (_c *ProviderKeyCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ProviderKeyCreate) defaults() {
-	if _, ok := _c.mutation.Last4(); !ok {
-		v := providerkey.DefaultLast4
-		_c.mutation.SetLast4(v)
-	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		v := providerkey.DefaultEnabled
 		_c.mutation.SetEnabled(v)
@@ -195,10 +163,6 @@ func (_c *ProviderKeyCreate) defaults() {
 	if _, ok := _c.mutation.Weight(); !ok {
 		v := providerkey.DefaultWeight
 		_c.mutation.SetWeight(v)
-	}
-	if _, ok := _c.mutation.Priority(); !ok {
-		v := providerkey.DefaultPriority
-		_c.mutation.SetPriority(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := providerkey.DefaultCreatedAt()
@@ -227,9 +191,6 @@ func (_c *ProviderKeyCreate) check() error {
 	if _, ok := _c.mutation.Ciphertext(); !ok {
 		return &ValidationError{Name: "ciphertext", err: errors.New(`ent: missing required field "ProviderKey.ciphertext"`)}
 	}
-	if _, ok := _c.mutation.Last4(); !ok {
-		return &ValidationError{Name: "last4", err: errors.New(`ent: missing required field "ProviderKey.last4"`)}
-	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "ProviderKey.enabled"`)}
 	}
@@ -248,9 +209,6 @@ func (_c *ProviderKeyCreate) check() error {
 		if err := providerkey.WeightValidator(v); err != nil {
 			return &ValidationError{Name: "weight", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.weight": %w`, err)}
 		}
-	}
-	if _, ok := _c.mutation.Priority(); !ok {
-		return &ValidationError{Name: "priority", err: errors.New(`ent: missing required field "ProviderKey.priority"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ProviderKey.created_at"`)}
@@ -304,10 +262,6 @@ func (_c *ProviderKeyCreate) createSpec() (*ProviderKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(providerkey.FieldCiphertext, field.TypeBytes, value)
 		_node.Ciphertext = value
 	}
-	if value, ok := _c.mutation.Last4(); ok {
-		_spec.SetField(providerkey.FieldLast4, field.TypeString, value)
-		_node.Last4 = value
-	}
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(providerkey.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
@@ -319,10 +273,6 @@ func (_c *ProviderKeyCreate) createSpec() (*ProviderKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Weight(); ok {
 		_spec.SetField(providerkey.FieldWeight, field.TypeInt, value)
 		_node.Weight = value
-	}
-	if value, ok := _c.mutation.Priority(); ok {
-		_spec.SetField(providerkey.FieldPriority, field.TypeInt, value)
-		_node.Priority = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(providerkey.FieldCreatedAt, field.TypeTime, value)

@@ -51,7 +51,7 @@ export interface ProviderOption {
 	id: string;
 	name: string;
 	kind: string;
-	baseUrl: string;
+	models: string[];
 	enabled: boolean;
 }
 
@@ -84,7 +84,7 @@ const TRANSCRIPTION_PROVIDER_KIND = 'openai_compatible';
 
 const LIST_QUERY = `{ virtualModels { id name kind strategy cacheAffinity createdAt updatedAt
   tiers { priority entries { id providerId providerName model weight status } } }
-  providers { id name kind baseUrl enabled } }`;
+  providers { id name kind models enabled } }`;
 
 const MUTATIONS = {
 	createVirtualModel:
@@ -136,6 +136,9 @@ export const updateEntry = (
 	mapTier(tiers, tierIndex, (t) => ({
 		entries: t.entries.map((e, i) => (i === entryIndex ? { ...e, ...patch } : e))
 	}));
+
+export const modelSuggestions = (providers: ProviderOption[], providerId: string): string[] =>
+	providers.find((p) => p.id === providerId)?.models ?? [];
 
 // Disabled providers are never offered (the backend rejects them); transcription also needs OpenAI-compatible.
 export const providerOptionsFor = (kind: Kind, providers: ProviderOption[]): ProviderOption[] =>

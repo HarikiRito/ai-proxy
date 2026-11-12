@@ -48,7 +48,8 @@ type ProviderMutation struct {
 	kind                      *provider.Kind
 	base_url                  *string
 	enabled                   *bool
-	rotation                  *provider.Rotation
+	models                    *[]string
+	appendmodels              []string
 	cache_affinity_seconds    *int
 	addcache_affinity_seconds *int
 	created_at                *time.Time
@@ -310,40 +311,69 @@ func (m *ProviderMutation) ResetEnabled() {
 	m.enabled = nil
 }
 
-// SetRotation sets the "rotation" field.
-func (m *ProviderMutation) SetRotation(pr provider.Rotation) {
-	m.rotation = &pr
+// SetModels sets the "models" field.
+func (m *ProviderMutation) SetModels(s []string) {
+	m.models = &s
+	m.appendmodels = nil
 }
 
-// Rotation returns the value of the "rotation" field in the mutation.
-func (m *ProviderMutation) Rotation() (r provider.Rotation, exists bool) {
-	v := m.rotation
+// Models returns the value of the "models" field in the mutation.
+func (m *ProviderMutation) Models() (r []string, exists bool) {
+	v := m.models
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldRotation returns the old "rotation" field's value of the Provider entity.
+// OldModels returns the old "models" field's value of the Provider entity.
 // If the Provider object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ProviderMutation) OldRotation(ctx context.Context) (v provider.Rotation, err error) {
+func (m *ProviderMutation) OldModels(ctx context.Context) (v []string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRotation is only allowed on UpdateOne operations")
+		return v, errors.New("OldModels is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRotation requires an ID field in the mutation")
+		return v, errors.New("OldModels requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRotation: %w", err)
+		return v, fmt.Errorf("querying old value for OldModels: %w", err)
 	}
-	return oldValue.Rotation, nil
+	return oldValue.Models, nil
 }
 
-// ResetRotation resets all changes to the "rotation" field.
-func (m *ProviderMutation) ResetRotation() {
-	m.rotation = nil
+// AppendModels adds s to the "models" field.
+func (m *ProviderMutation) AppendModels(s []string) {
+	m.appendmodels = append(m.appendmodels, s...)
+}
+
+// AppendedModels returns the list of values that were appended to the "models" field in this mutation.
+func (m *ProviderMutation) AppendedModels() ([]string, bool) {
+	if len(m.appendmodels) == 0 {
+		return nil, false
+	}
+	return m.appendmodels, true
+}
+
+// ClearModels clears the value of the "models" field.
+func (m *ProviderMutation) ClearModels() {
+	m.models = nil
+	m.appendmodels = nil
+	m.clearedFields[provider.FieldModels] = struct{}{}
+}
+
+// ModelsCleared returns if the "models" field was cleared in this mutation.
+func (m *ProviderMutation) ModelsCleared() bool {
+	_, ok := m.clearedFields[provider.FieldModels]
+	return ok
+}
+
+// ResetModels resets all changes to the "models" field.
+func (m *ProviderMutation) ResetModels() {
+	m.models = nil
+	m.appendmodels = nil
+	delete(m.clearedFields, provider.FieldModels)
 }
 
 // SetCacheAffinitySeconds sets the "cache_affinity_seconds" field.
@@ -575,8 +605,8 @@ func (m *ProviderMutation) Fields() []string {
 	if m.enabled != nil {
 		fields = append(fields, provider.FieldEnabled)
 	}
-	if m.rotation != nil {
-		fields = append(fields, provider.FieldRotation)
+	if m.models != nil {
+		fields = append(fields, provider.FieldModels)
 	}
 	if m.cache_affinity_seconds != nil {
 		fields = append(fields, provider.FieldCacheAffinitySeconds)
@@ -603,8 +633,8 @@ func (m *ProviderMutation) Field(name string) (ent.Value, bool) {
 		return m.BaseURL()
 	case provider.FieldEnabled:
 		return m.Enabled()
-	case provider.FieldRotation:
-		return m.Rotation()
+	case provider.FieldModels:
+		return m.Models()
 	case provider.FieldCacheAffinitySeconds:
 		return m.CacheAffinitySeconds()
 	case provider.FieldCreatedAt:
@@ -628,8 +658,8 @@ func (m *ProviderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldBaseURL(ctx)
 	case provider.FieldEnabled:
 		return m.OldEnabled(ctx)
-	case provider.FieldRotation:
-		return m.OldRotation(ctx)
+	case provider.FieldModels:
+		return m.OldModels(ctx)
 	case provider.FieldCacheAffinitySeconds:
 		return m.OldCacheAffinitySeconds(ctx)
 	case provider.FieldCreatedAt:
@@ -673,12 +703,12 @@ func (m *ProviderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEnabled(v)
 		return nil
-	case provider.FieldRotation:
-		v, ok := value.(provider.Rotation)
+	case provider.FieldModels:
+		v, ok := value.([]string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetRotation(v)
+		m.SetModels(v)
 		return nil
 	case provider.FieldCacheAffinitySeconds:
 		v, ok := value.(int)
@@ -745,7 +775,11 @@ func (m *ProviderMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ProviderMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(provider.FieldModels) {
+		fields = append(fields, provider.FieldModels)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -758,6 +792,11 @@ func (m *ProviderMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ProviderMutation) ClearField(name string) error {
+	switch name {
+	case provider.FieldModels:
+		m.ClearModels()
+		return nil
+	}
 	return fmt.Errorf("unknown Provider nullable field %s", name)
 }
 
@@ -777,8 +816,8 @@ func (m *ProviderMutation) ResetField(name string) error {
 	case provider.FieldEnabled:
 		m.ResetEnabled()
 		return nil
-	case provider.FieldRotation:
-		m.ResetRotation()
+	case provider.FieldModels:
+		m.ResetModels()
 		return nil
 	case provider.FieldCacheAffinitySeconds:
 		m.ResetCacheAffinitySeconds()
@@ -885,14 +924,11 @@ type ProviderKeyMutation struct {
 	id               *uuid.UUID
 	name             *string
 	ciphertext       *[]byte
-	last4            *string
 	enabled          *bool
 	max_in_flight    *int
 	addmax_in_flight *int
 	weight           *int
 	addweight        *int
-	priority         *int
-	addpriority      *int
 	created_at       *time.Time
 	updated_at       *time.Time
 	clearedFields    map[string]struct{}
@@ -1079,42 +1115,6 @@ func (m *ProviderKeyMutation) ResetCiphertext() {
 	m.ciphertext = nil
 }
 
-// SetLast4 sets the "last4" field.
-func (m *ProviderKeyMutation) SetLast4(s string) {
-	m.last4 = &s
-}
-
-// Last4 returns the value of the "last4" field in the mutation.
-func (m *ProviderKeyMutation) Last4() (r string, exists bool) {
-	v := m.last4
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldLast4 returns the old "last4" field's value of the ProviderKey entity.
-// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ProviderKeyMutation) OldLast4(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldLast4 is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldLast4 requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldLast4: %w", err)
-	}
-	return oldValue.Last4, nil
-}
-
-// ResetLast4 resets all changes to the "last4" field.
-func (m *ProviderKeyMutation) ResetLast4() {
-	m.last4 = nil
-}
-
 // SetEnabled sets the "enabled" field.
 func (m *ProviderKeyMutation) SetEnabled(b bool) {
 	m.enabled = &b
@@ -1263,62 +1263,6 @@ func (m *ProviderKeyMutation) ResetWeight() {
 	m.addweight = nil
 }
 
-// SetPriority sets the "priority" field.
-func (m *ProviderKeyMutation) SetPriority(i int) {
-	m.priority = &i
-	m.addpriority = nil
-}
-
-// Priority returns the value of the "priority" field in the mutation.
-func (m *ProviderKeyMutation) Priority() (r int, exists bool) {
-	v := m.priority
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPriority returns the old "priority" field's value of the ProviderKey entity.
-// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ProviderKeyMutation) OldPriority(ctx context.Context) (v int, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPriority requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
-	}
-	return oldValue.Priority, nil
-}
-
-// AddPriority adds i to the "priority" field.
-func (m *ProviderKeyMutation) AddPriority(i int) {
-	if m.addpriority != nil {
-		*m.addpriority += i
-	} else {
-		m.addpriority = &i
-	}
-}
-
-// AddedPriority returns the value that was added to the "priority" field in this mutation.
-func (m *ProviderKeyMutation) AddedPriority() (r int, exists bool) {
-	v := m.addpriority
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetPriority resets all changes to the "priority" field.
-func (m *ProviderKeyMutation) ResetPriority() {
-	m.priority = nil
-	m.addpriority = nil
-}
-
 // SetCreatedAt sets the "created_at" field.
 func (m *ProviderKeyMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -1464,15 +1408,12 @@ func (m *ProviderKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProviderKeyMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 7)
 	if m.name != nil {
 		fields = append(fields, providerkey.FieldName)
 	}
 	if m.ciphertext != nil {
 		fields = append(fields, providerkey.FieldCiphertext)
-	}
-	if m.last4 != nil {
-		fields = append(fields, providerkey.FieldLast4)
 	}
 	if m.enabled != nil {
 		fields = append(fields, providerkey.FieldEnabled)
@@ -1482,9 +1423,6 @@ func (m *ProviderKeyMutation) Fields() []string {
 	}
 	if m.weight != nil {
 		fields = append(fields, providerkey.FieldWeight)
-	}
-	if m.priority != nil {
-		fields = append(fields, providerkey.FieldPriority)
 	}
 	if m.created_at != nil {
 		fields = append(fields, providerkey.FieldCreatedAt)
@@ -1504,16 +1442,12 @@ func (m *ProviderKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case providerkey.FieldCiphertext:
 		return m.Ciphertext()
-	case providerkey.FieldLast4:
-		return m.Last4()
 	case providerkey.FieldEnabled:
 		return m.Enabled()
 	case providerkey.FieldMaxInFlight:
 		return m.MaxInFlight()
 	case providerkey.FieldWeight:
 		return m.Weight()
-	case providerkey.FieldPriority:
-		return m.Priority()
 	case providerkey.FieldCreatedAt:
 		return m.CreatedAt()
 	case providerkey.FieldUpdatedAt:
@@ -1531,16 +1465,12 @@ func (m *ProviderKeyMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldName(ctx)
 	case providerkey.FieldCiphertext:
 		return m.OldCiphertext(ctx)
-	case providerkey.FieldLast4:
-		return m.OldLast4(ctx)
 	case providerkey.FieldEnabled:
 		return m.OldEnabled(ctx)
 	case providerkey.FieldMaxInFlight:
 		return m.OldMaxInFlight(ctx)
 	case providerkey.FieldWeight:
 		return m.OldWeight(ctx)
-	case providerkey.FieldPriority:
-		return m.OldPriority(ctx)
 	case providerkey.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case providerkey.FieldUpdatedAt:
@@ -1568,13 +1498,6 @@ func (m *ProviderKeyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCiphertext(v)
 		return nil
-	case providerkey.FieldLast4:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetLast4(v)
-		return nil
 	case providerkey.FieldEnabled:
 		v, ok := value.(bool)
 		if !ok {
@@ -1595,13 +1518,6 @@ func (m *ProviderKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetWeight(v)
-		return nil
-	case providerkey.FieldPriority:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPriority(v)
 		return nil
 	case providerkey.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1631,9 +1547,6 @@ func (m *ProviderKeyMutation) AddedFields() []string {
 	if m.addweight != nil {
 		fields = append(fields, providerkey.FieldWeight)
 	}
-	if m.addpriority != nil {
-		fields = append(fields, providerkey.FieldPriority)
-	}
 	return fields
 }
 
@@ -1646,8 +1559,6 @@ func (m *ProviderKeyMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedMaxInFlight()
 	case providerkey.FieldWeight:
 		return m.AddedWeight()
-	case providerkey.FieldPriority:
-		return m.AddedPriority()
 	}
 	return nil, false
 }
@@ -1670,13 +1581,6 @@ func (m *ProviderKeyMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddWeight(v)
-		return nil
-	case providerkey.FieldPriority:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddPriority(v)
 		return nil
 	}
 	return fmt.Errorf("unknown ProviderKey numeric field %s", name)
@@ -1711,9 +1615,6 @@ func (m *ProviderKeyMutation) ResetField(name string) error {
 	case providerkey.FieldCiphertext:
 		m.ResetCiphertext()
 		return nil
-	case providerkey.FieldLast4:
-		m.ResetLast4()
-		return nil
 	case providerkey.FieldEnabled:
 		m.ResetEnabled()
 		return nil
@@ -1722,9 +1623,6 @@ func (m *ProviderKeyMutation) ResetField(name string) error {
 		return nil
 	case providerkey.FieldWeight:
 		m.ResetWeight()
-		return nil
-	case providerkey.FieldPriority:
-		m.ResetPriority()
 		return nil
 	case providerkey.FieldCreatedAt:
 		m.ResetCreatedAt()
