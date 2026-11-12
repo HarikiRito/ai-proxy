@@ -1,4 +1,4 @@
-// Package gateway serves the OpenAI-compatible /v1 API behind proxy-key auth.
+// Package gateway serves the OpenAI-compatible /v1 API and native Anthropic /v1/messages behind proxy-key auth.
 package gateway
 
 import (
@@ -29,6 +29,8 @@ const (
 	touchTimeout  = 5 * time.Second
 	touchInterval = 30 * time.Second
 	maxFormParts  = 32
+
+	statusOverloaded = 529 // Anthropic overloaded_error, not in net/http
 )
 
 // Consumer-defined views of the facades and engine this package needs.
@@ -43,6 +45,8 @@ type (
 	Chat interface {
 		Do(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
 		Stream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
+		Messages(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
+		MessagesStream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
 		Transcribe(ctx context.Context, name string, hdr http.Header, parts []routing.Part) (routing.Result, error)
 	}
 	Settings interface {
@@ -64,7 +68,32 @@ type gateway struct {
 	touched map[string]time.Time
 }
 
-type keyCtx struct{}
+type (
+	keyCtx    struct{}
+	formatCtx struct{}
+	callFn    func(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
+)
+
+// format picks the error envelope a route group answers with.
+type format int
+
+const (
+	openAI format = iota
+	anthropic
+)
+
+func withFormat(f format) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), formatCtx{}, f)))
+		})
+	}
+}
+
+func formatOf(r *http.Request) format {
+	f, _ := r.Context().Value(formatCtx{}).(format)
+	return f
+}
 
 // New returns the handler for everything under /v1 (mount it at that prefix).
 func New(d Deps) http.Handler {
@@ -73,12 +102,18 @@ func New(d Deps) http.Handler {
 	}
 	g := &gateway{Deps: d, touched: map[string]time.Time{}}
 	r := chi.NewRouter()
-	r.Use(g.auth)
-	r.Get("/models", g.models)
-	r.Post("/chat/completions", g.chatCompletions)
-	r.Post("/audio/transcriptions", g.transcriptions)
-	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
-		writeError(w, http.StatusNotFound, "not_found", "unknown endpoint", 0)
+	r.Group(func(r chi.Router) {
+		r.Use(withFormat(openAI), g.auth)
+		r.Get("/models", g.models)
+		r.Post("/chat/completions", g.completions(g.Chat.Do, g.Chat.Stream))
+		r.Post("/audio/transcriptions", g.transcriptions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Use(withFormat(anthropic), g.auth)
+		r.Post("/messages", g.completions(g.Chat.Messages, g.Chat.MessagesStream))
+	})
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, r, http.StatusNotFound, "not_found", "unknown endpoint", 0)
 	})
 	return r
 }
@@ -90,17 +125,17 @@ func (g *gateway) auth(next http.Handler) http.Handler {
 			token = bearer
 		}
 		if token = strings.TrimSpace(token); token == "" {
-			writeError(w, http.StatusUnauthorized, "missing_api_key", "missing API key", 0)
+			writeError(w, r, http.StatusUnauthorized, "missing_api_key", "missing API key", 0)
 			return
 		}
 		key, err := g.Keys.Verify(r.Context(), token)
 		switch {
 		case errors.Is(err, proxykeys.ErrInvalidKey):
-			writeError(w, http.StatusUnauthorized, "invalid_api_key", "invalid API key", 0)
+			writeError(w, r, http.StatusUnauthorized, "invalid_api_key", "invalid API key", 0)
 			return
 		case err != nil:
 			g.Log.ErrorContext(r.Context(), "verify proxy key", "err", err)
-			writeError(w, http.StatusInternalServerError, "internal_error", "internal error", 0)
+			writeError(w, r, http.StatusInternalServerError, "internal_error", "internal error", 0)
 			return
 		}
 		if g.shouldTouch(key.ID) {
@@ -156,9 +191,9 @@ func (g *gateway) readBody(w http.ResponseWriter, r *http.Request) ([]byte, bool
 	var tooBig *http.MaxBytesError
 	switch {
 	case errors.As(err, &tooBig):
-		writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "request body too large", 0)
+		writeError(w, r, http.StatusRequestEntityTooLarge, "request_too_large", "request body too large", 0)
 	case err != nil:
-		writeError(w, http.StatusBadRequest, "invalid_request", "could not read request body", 0)
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "could not read request body", 0)
 	default:
 		return raw, true
 	}
@@ -169,29 +204,36 @@ func allowed(w http.ResponseWriter, r *http.Request, model string) bool {
 	if r.Context().Value(keyCtx{}).(proxykeys.Key).AllowsModel(model) {
 		return true
 	}
-	writeError(w, http.StatusForbidden, "model_not_allowed", "this key may not use model "+model, 0)
+	writeError(w, r, http.StatusForbidden, "model_not_allowed", "this key may not use model "+model, 0)
 	return false
 }
 
-func (g *gateway) chatCompletions(w http.ResponseWriter, r *http.Request) {
-	raw, ok := g.readBody(w, r)
-	if !ok {
-		return
+// completions serves a JSON body naming a model and optionally stream: chat completions and native messages.
+func (g *gateway) completions(do, stream callFn) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		raw, ok := g.readBody(w, r)
+		if !ok {
+			return
+		}
+		g.complete(w, r, raw, do, stream)
 	}
+}
+
+func (g *gateway) complete(w http.ResponseWriter, r *http.Request, raw []byte, do, stream callFn) {
 	var body map[string]json.RawMessage
 	var model string
 	if json.Unmarshal(raw, &body) != nil || json.Unmarshal(body["model"], &model) != nil || model == "" {
-		writeError(w, http.StatusBadRequest, "invalid_request", "body must be a JSON object with a model", 0)
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "body must be a JSON object with a model", 0)
 		return
 	}
-	var stream bool
-	_ = json.Unmarshal(body["stream"], &stream)
+	var streaming bool
+	_ = json.Unmarshal(body["stream"], &streaming)
 	if !allowed(w, r, model) {
 		return
 	}
-	call := g.Chat.Do
-	if stream {
-		call = g.Chat.Stream
+	call := do
+	if streaming {
+		call = stream
 	}
 	res, err := call(r.Context(), model, r.Header, body)
 	g.respond(w, r, res, err)
@@ -206,13 +248,13 @@ func (g *gateway) transcriptions(w http.ResponseWriter, r *http.Request) {
 	model := strings.TrimSpace(string(formValue(parts, "model")))
 	switch {
 	case err != nil:
-		writeError(w, http.StatusBadRequest, "invalid_request", "body must be multipart/form-data", 0)
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "body must be multipart/form-data", 0)
 		return
 	case model == "":
-		writeError(w, http.StatusBadRequest, "invalid_request", "form field model is required", 0)
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "form field model is required", 0)
 		return
 	case slices.ContainsFunc(parts, isStreamTrue):
-		writeError(w, http.StatusBadRequest, "invalid_request", "streaming is not supported for transcription", 0)
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "streaming is not supported for transcription", 0)
 		return
 	case !allowed(w, r, model):
 		return
@@ -293,9 +335,8 @@ func (g *gateway) pipe(w http.ResponseWriter, r *http.Request, res routing.Resul
 	if errors.As(err, &re) {
 		code, msg = re.Code, re.Message
 	}
-	event, _ := json.Marshal(map[string]any{"error": map[string]string{"message": msg, "type": "upstream_error", "code": code}})
 	// leading blank line closes a frame the break may have cut short
-	_, _ = w.Write(append(append([]byte("\n\ndata: "), event...), "\n\n"...))
+	_, _ = w.Write(append([]byte("\n\n"), streamError(formatOf(r), code, msg)...))
 	_ = rc.Flush()
 }
 
@@ -324,11 +365,11 @@ func (g *gateway) fail(w http.ResponseWriter, r *http.Request, err error) {
 	var re *routing.Error
 	switch {
 	case errors.As(err, &re):
-		writeError(w, re.Status, re.Code, re.Message, re.RetryAfter)
+		writeError(w, r, re.Status, re.Code, re.Message, re.RetryAfter)
 	case errors.Is(err, context.Canceled):
 	default:
 		g.Log.ErrorContext(r.Context(), "gateway request", "err", err)
-		writeError(w, http.StatusInternalServerError, "internal_error", "internal error", 0)
+		writeError(w, r, http.StatusInternalServerError, "internal_error", "internal error", 0)
 	}
 }
 
@@ -338,7 +379,14 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeError(w http.ResponseWriter, status int, code, msg string, retryAfter int) {
+func writeError(w http.ResponseWriter, r *http.Request, status int, code, msg string, retryAfter int) {
+	if retryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+	}
+	if formatOf(r) == anthropic {
+		writeJSON(w, status, anthropicError(anthropicType(status), msg))
+		return
+	}
 	typ := "invalid_request_error"
 	switch {
 	case status == http.StatusUnauthorized:
@@ -348,8 +396,49 @@ func writeError(w http.ResponseWriter, status int, code, msg string, retryAfter 
 	case status >= http.StatusInternalServerError:
 		typ = "api_error"
 	}
-	if retryAfter > 0 {
-		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
-	}
 	writeJSON(w, status, map[string]any{"error": map[string]string{"message": msg, "type": typ, "code": code}})
+}
+
+type anthropicBody struct {
+	Type  string `json:"type"`
+	Error struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+func anthropicError(typ, msg string) anthropicBody {
+	b := anthropicBody{Type: "error"}
+	b.Error.Type, b.Error.Message = typ, msg
+	return b
+}
+
+func anthropicType(status int) string {
+	switch {
+	case status == http.StatusUnauthorized:
+		return "authentication_error"
+	case status == http.StatusForbidden:
+		return "permission_error"
+	case status == http.StatusNotFound:
+		return "not_found_error"
+	case status == http.StatusRequestEntityTooLarge:
+		return "request_too_large"
+	case status == http.StatusTooManyRequests:
+		return "rate_limit_error"
+	case status == statusOverloaded:
+		return "overloaded_error"
+	case status >= http.StatusInternalServerError:
+		return "api_error"
+	}
+	return "invalid_request_error"
+}
+
+// streamError is one SSE frame announcing a broken upstream stream.
+func streamError(f format, code, msg string) []byte {
+	if f == anthropic {
+		event, _ := json.Marshal(anthropicError("api_error", msg))
+		return append(append([]byte("event: error\ndata: "), event...), "\n\n"...)
+	}
+	event, _ := json.Marshal(map[string]any{"error": map[string]string{"message": msg, "type": "upstream_error", "code": code}})
+	return append(append([]byte("data: "), event...), "\n\n"...)
 }
