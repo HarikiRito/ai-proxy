@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"maps"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -322,6 +323,7 @@ func (g *gateway) respond(w http.ResponseWriter, r *http.Request, res routing.Re
 	if res.ContentType == "" {
 		res.ContentType = "application/json"
 	}
+	maps.Copy(w.Header(), res.Header)
 	w.Header().Set("Content-Type", res.ContentType)
 	if res.Stream != nil {
 		g.pipe(w, r, res)

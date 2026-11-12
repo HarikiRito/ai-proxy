@@ -3,6 +3,7 @@
 package providerkey
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -19,6 +20,10 @@ const (
 	FieldName = "name"
 	// FieldCiphertext holds the string denoting the ciphertext field in the database.
 	FieldCiphertext = "ciphertext"
+	// FieldAuthMode holds the string denoting the auth_mode field in the database.
+	FieldAuthMode = "auth_mode"
+	// FieldTokenCreatedAt holds the string denoting the token_created_at field in the database.
+	FieldTokenCreatedAt = "token_created_at"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
 	// FieldMaxInFlight holds the string denoting the max_in_flight field in the database.
@@ -47,6 +52,8 @@ var Columns = []string{
 	FieldID,
 	FieldName,
 	FieldCiphertext,
+	FieldAuthMode,
+	FieldTokenCreatedAt,
 	FieldEnabled,
 	FieldMaxInFlight,
 	FieldWeight,
@@ -96,6 +103,33 @@ var (
 	DefaultID func() uuid.UUID
 )
 
+// AuthMode defines the type for the "auth_mode" enum field.
+type AuthMode string
+
+// AuthModeAPIKey is the default value of the AuthMode enum.
+const DefaultAuthMode = AuthModeAPIKey
+
+// AuthMode values.
+const (
+	AuthModeAPIKey     AuthMode = "api_key"
+	AuthModeSetupToken AuthMode = "setup_token"
+	AuthModeLoginDir   AuthMode = "login_dir"
+)
+
+func (am AuthMode) String() string {
+	return string(am)
+}
+
+// AuthModeValidator is a validator for the "auth_mode" field enum values. It is called by the builders before save.
+func AuthModeValidator(am AuthMode) error {
+	switch am {
+	case AuthModeAPIKey, AuthModeSetupToken, AuthModeLoginDir:
+		return nil
+	default:
+		return fmt.Errorf("providerkey: invalid enum value for auth_mode field: %q", am)
+	}
+}
+
 // OrderOption defines the ordering options for the ProviderKey queries.
 type OrderOption func(*sql.Selector)
 
@@ -107,6 +141,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByAuthMode orders the results by the auth_mode field.
+func ByAuthMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthMode, opts...).ToFunc()
+}
+
+// ByTokenCreatedAt orders the results by the token_created_at field.
+func ByTokenCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTokenCreatedAt, opts...).ToFunc()
 }
 
 // ByEnabled orders the results by the enabled field.

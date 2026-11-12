@@ -928,6 +928,8 @@ type ProviderKeyMutation struct {
 	id               *uuid.UUID
 	name             *string
 	ciphertext       *[]byte
+	auth_mode        *providerkey.AuthMode
+	token_created_at *time.Time
 	enabled          *bool
 	max_in_flight    *int
 	addmax_in_flight *int
@@ -1117,6 +1119,91 @@ func (m *ProviderKeyMutation) OldCiphertext(ctx context.Context) (v []byte, err 
 // ResetCiphertext resets all changes to the "ciphertext" field.
 func (m *ProviderKeyMutation) ResetCiphertext() {
 	m.ciphertext = nil
+}
+
+// SetAuthMode sets the "auth_mode" field.
+func (m *ProviderKeyMutation) SetAuthMode(pm providerkey.AuthMode) {
+	m.auth_mode = &pm
+}
+
+// AuthMode returns the value of the "auth_mode" field in the mutation.
+func (m *ProviderKeyMutation) AuthMode() (r providerkey.AuthMode, exists bool) {
+	v := m.auth_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthMode returns the old "auth_mode" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldAuthMode(ctx context.Context) (v providerkey.AuthMode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthMode: %w", err)
+	}
+	return oldValue.AuthMode, nil
+}
+
+// ResetAuthMode resets all changes to the "auth_mode" field.
+func (m *ProviderKeyMutation) ResetAuthMode() {
+	m.auth_mode = nil
+}
+
+// SetTokenCreatedAt sets the "token_created_at" field.
+func (m *ProviderKeyMutation) SetTokenCreatedAt(t time.Time) {
+	m.token_created_at = &t
+}
+
+// TokenCreatedAt returns the value of the "token_created_at" field in the mutation.
+func (m *ProviderKeyMutation) TokenCreatedAt() (r time.Time, exists bool) {
+	v := m.token_created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenCreatedAt returns the old "token_created_at" field's value of the ProviderKey entity.
+// If the ProviderKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProviderKeyMutation) OldTokenCreatedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenCreatedAt: %w", err)
+	}
+	return oldValue.TokenCreatedAt, nil
+}
+
+// ClearTokenCreatedAt clears the value of the "token_created_at" field.
+func (m *ProviderKeyMutation) ClearTokenCreatedAt() {
+	m.token_created_at = nil
+	m.clearedFields[providerkey.FieldTokenCreatedAt] = struct{}{}
+}
+
+// TokenCreatedAtCleared returns if the "token_created_at" field was cleared in this mutation.
+func (m *ProviderKeyMutation) TokenCreatedAtCleared() bool {
+	_, ok := m.clearedFields[providerkey.FieldTokenCreatedAt]
+	return ok
+}
+
+// ResetTokenCreatedAt resets all changes to the "token_created_at" field.
+func (m *ProviderKeyMutation) ResetTokenCreatedAt() {
+	m.token_created_at = nil
+	delete(m.clearedFields, providerkey.FieldTokenCreatedAt)
 }
 
 // SetEnabled sets the "enabled" field.
@@ -1412,12 +1499,18 @@ func (m *ProviderKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProviderKeyMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 9)
 	if m.name != nil {
 		fields = append(fields, providerkey.FieldName)
 	}
 	if m.ciphertext != nil {
 		fields = append(fields, providerkey.FieldCiphertext)
+	}
+	if m.auth_mode != nil {
+		fields = append(fields, providerkey.FieldAuthMode)
+	}
+	if m.token_created_at != nil {
+		fields = append(fields, providerkey.FieldTokenCreatedAt)
 	}
 	if m.enabled != nil {
 		fields = append(fields, providerkey.FieldEnabled)
@@ -1446,6 +1539,10 @@ func (m *ProviderKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case providerkey.FieldCiphertext:
 		return m.Ciphertext()
+	case providerkey.FieldAuthMode:
+		return m.AuthMode()
+	case providerkey.FieldTokenCreatedAt:
+		return m.TokenCreatedAt()
 	case providerkey.FieldEnabled:
 		return m.Enabled()
 	case providerkey.FieldMaxInFlight:
@@ -1469,6 +1566,10 @@ func (m *ProviderKeyMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldName(ctx)
 	case providerkey.FieldCiphertext:
 		return m.OldCiphertext(ctx)
+	case providerkey.FieldAuthMode:
+		return m.OldAuthMode(ctx)
+	case providerkey.FieldTokenCreatedAt:
+		return m.OldTokenCreatedAt(ctx)
 	case providerkey.FieldEnabled:
 		return m.OldEnabled(ctx)
 	case providerkey.FieldMaxInFlight:
@@ -1501,6 +1602,20 @@ func (m *ProviderKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCiphertext(v)
+		return nil
+	case providerkey.FieldAuthMode:
+		v, ok := value.(providerkey.AuthMode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthMode(v)
+		return nil
+	case providerkey.FieldTokenCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenCreatedAt(v)
 		return nil
 	case providerkey.FieldEnabled:
 		v, ok := value.(bool)
@@ -1593,7 +1708,11 @@ func (m *ProviderKeyMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ProviderKeyMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(providerkey.FieldTokenCreatedAt) {
+		fields = append(fields, providerkey.FieldTokenCreatedAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1606,6 +1725,11 @@ func (m *ProviderKeyMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ProviderKeyMutation) ClearField(name string) error {
+	switch name {
+	case providerkey.FieldTokenCreatedAt:
+		m.ClearTokenCreatedAt()
+		return nil
+	}
 	return fmt.Errorf("unknown ProviderKey nullable field %s", name)
 }
 
@@ -1618,6 +1742,12 @@ func (m *ProviderKeyMutation) ResetField(name string) error {
 		return nil
 	case providerkey.FieldCiphertext:
 		m.ResetCiphertext()
+		return nil
+	case providerkey.FieldAuthMode:
+		m.ResetAuthMode()
+		return nil
+	case providerkey.FieldTokenCreatedAt:
+		m.ResetTokenCreatedAt()
 		return nil
 	case providerkey.FieldEnabled:
 		m.ResetEnabled()

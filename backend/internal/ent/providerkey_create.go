@@ -34,6 +34,34 @@ func (_c *ProviderKeyCreate) SetCiphertext(v []byte) *ProviderKeyCreate {
 	return _c
 }
 
+// SetAuthMode sets the "auth_mode" field.
+func (_c *ProviderKeyCreate) SetAuthMode(v providerkey.AuthMode) *ProviderKeyCreate {
+	_c.mutation.SetAuthMode(v)
+	return _c
+}
+
+// SetNillableAuthMode sets the "auth_mode" field if the given value is not nil.
+func (_c *ProviderKeyCreate) SetNillableAuthMode(v *providerkey.AuthMode) *ProviderKeyCreate {
+	if v != nil {
+		_c.SetAuthMode(*v)
+	}
+	return _c
+}
+
+// SetTokenCreatedAt sets the "token_created_at" field.
+func (_c *ProviderKeyCreate) SetTokenCreatedAt(v time.Time) *ProviderKeyCreate {
+	_c.mutation.SetTokenCreatedAt(v)
+	return _c
+}
+
+// SetNillableTokenCreatedAt sets the "token_created_at" field if the given value is not nil.
+func (_c *ProviderKeyCreate) SetNillableTokenCreatedAt(v *time.Time) *ProviderKeyCreate {
+	if v != nil {
+		_c.SetTokenCreatedAt(*v)
+	}
+	return _c
+}
+
 // SetEnabled sets the "enabled" field.
 func (_c *ProviderKeyCreate) SetEnabled(v bool) *ProviderKeyCreate {
 	_c.mutation.SetEnabled(v)
@@ -156,6 +184,10 @@ func (_c *ProviderKeyCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ProviderKeyCreate) defaults() {
+	if _, ok := _c.mutation.AuthMode(); !ok {
+		v := providerkey.DefaultAuthMode
+		_c.mutation.SetAuthMode(v)
+	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		v := providerkey.DefaultEnabled
 		_c.mutation.SetEnabled(v)
@@ -190,6 +222,14 @@ func (_c *ProviderKeyCreate) check() error {
 	}
 	if _, ok := _c.mutation.Ciphertext(); !ok {
 		return &ValidationError{Name: "ciphertext", err: errors.New(`ent: missing required field "ProviderKey.ciphertext"`)}
+	}
+	if _, ok := _c.mutation.AuthMode(); !ok {
+		return &ValidationError{Name: "auth_mode", err: errors.New(`ent: missing required field "ProviderKey.auth_mode"`)}
+	}
+	if v, ok := _c.mutation.AuthMode(); ok {
+		if err := providerkey.AuthModeValidator(v); err != nil {
+			return &ValidationError{Name: "auth_mode", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.auth_mode": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "ProviderKey.enabled"`)}
@@ -261,6 +301,14 @@ func (_c *ProviderKeyCreate) createSpec() (*ProviderKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Ciphertext(); ok {
 		_spec.SetField(providerkey.FieldCiphertext, field.TypeBytes, value)
 		_node.Ciphertext = value
+	}
+	if value, ok := _c.mutation.AuthMode(); ok {
+		_spec.SetField(providerkey.FieldAuthMode, field.TypeEnum, value)
+		_node.AuthMode = value
+	}
+	if value, ok := _c.mutation.TokenCreatedAt(); ok {
+		_spec.SetField(providerkey.FieldTokenCreatedAt, field.TypeTime, value)
+		_node.TokenCreatedAt = &value
 	}
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(providerkey.FieldEnabled, field.TypeBool, value)

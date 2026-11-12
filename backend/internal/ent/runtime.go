@@ -62,25 +62,25 @@ func init() {
 	// providerkey.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	providerkey.NameValidator = providerkeyDescName.Validators[0].(func(string) error)
 	// providerkeyDescEnabled is the schema descriptor for enabled field.
-	providerkeyDescEnabled := providerkeyFields[3].Descriptor()
+	providerkeyDescEnabled := providerkeyFields[5].Descriptor()
 	// providerkey.DefaultEnabled holds the default value on creation for the enabled field.
 	providerkey.DefaultEnabled = providerkeyDescEnabled.Default.(bool)
 	// providerkeyDescMaxInFlight is the schema descriptor for max_in_flight field.
-	providerkeyDescMaxInFlight := providerkeyFields[4].Descriptor()
+	providerkeyDescMaxInFlight := providerkeyFields[6].Descriptor()
 	// providerkey.MaxInFlightValidator is a validator for the "max_in_flight" field. It is called by the builders before save.
 	providerkey.MaxInFlightValidator = providerkeyDescMaxInFlight.Validators[0].(func(int) error)
 	// providerkeyDescWeight is the schema descriptor for weight field.
-	providerkeyDescWeight := providerkeyFields[5].Descriptor()
+	providerkeyDescWeight := providerkeyFields[7].Descriptor()
 	// providerkey.DefaultWeight holds the default value on creation for the weight field.
 	providerkey.DefaultWeight = providerkeyDescWeight.Default.(int)
 	// providerkey.WeightValidator is a validator for the "weight" field. It is called by the builders before save.
 	providerkey.WeightValidator = providerkeyDescWeight.Validators[0].(func(int) error)
 	// providerkeyDescCreatedAt is the schema descriptor for created_at field.
-	providerkeyDescCreatedAt := providerkeyFields[6].Descriptor()
+	providerkeyDescCreatedAt := providerkeyFields[8].Descriptor()
 	// providerkey.DefaultCreatedAt holds the default value on creation for the created_at field.
 	providerkey.DefaultCreatedAt = providerkeyDescCreatedAt.Default.(func() time.Time)
 	// providerkeyDescUpdatedAt is the schema descriptor for updated_at field.
-	providerkeyDescUpdatedAt := providerkeyFields[7].Descriptor()
+	providerkeyDescUpdatedAt := providerkeyFields[9].Descriptor()
 	// providerkey.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	providerkey.DefaultUpdatedAt = providerkeyDescUpdatedAt.Default.(func() time.Time)
 	// providerkey.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

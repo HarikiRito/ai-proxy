@@ -135,6 +135,26 @@ type env struct {
 	provs    fakeProviders
 	settings *fakeSettings
 	rec      *fakeRecorder
+	engine   *routing.Engine
+	logs     syncBuffer
+	advance  atomic.Int64 // nanoseconds the engine clock runs ahead
+}
+
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
 }
 
 func newEnv(t *testing.T) *env {
@@ -161,8 +181,10 @@ func newEnv(t *testing.T) *env {
 // serve starts a gateway over a fresh engine; calling it again simulates a restart.
 func (e *env) serve(t *testing.T) {
 	t.Helper()
-	engine := routing.New(routing.Deps{Models: e.models, Providers: e.provs, Settings: e.settings, Now: func() time.Time { return time.Now().Add(clockSkew) }})
-	h := New(Deps{Keys: e.keys, Models: e.models, Chat: engine, Settings: e.settings, Recorder: e.rec})
+	log := slog.New(slog.NewTextHandler(&e.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	now := func() time.Time { return time.Now().Add(clockSkew + time.Duration(e.advance.Load())) }
+	e.engine = routing.New(routing.Deps{Models: e.models, Providers: e.provs, Settings: e.settings, Log: log, Now: now})
+	h := New(Deps{Keys: e.keys, Models: e.models, Chat: e.engine, Settings: e.settings, Recorder: e.rec, Log: log})
 	router := httpx.NewRouter(httpx.Options{Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	router.Mount("/v1", h)
 	e.srv = httptest.NewServer(router)

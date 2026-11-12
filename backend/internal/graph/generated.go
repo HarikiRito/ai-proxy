@@ -56,6 +56,7 @@ type ComplexityRoot struct {
 	LiveKey struct {
 		CooldownUntil func(childComplexity int) int
 		Enabled       func(childComplexity int) int
+		Flag          func(childComplexity int) int
 		Free          func(childComplexity int) int
 		InFlight      func(childComplexity int) int
 		KeyID         func(childComplexity int) int
@@ -94,12 +95,15 @@ type ComplexityRoot struct {
 	}
 
 	ProviderKey struct {
-		Enabled     func(childComplexity int) int
-		ID          func(childComplexity int) int
-		MaskedKey   func(childComplexity int) int
-		MaxInFlight func(childComplexity int) int
-		Name        func(childComplexity int) int
-		Weight      func(childComplexity int) int
+		AuthMode       func(childComplexity int) int
+		Enabled        func(childComplexity int) int
+		ID             func(childComplexity int) int
+		MaskedKey      func(childComplexity int) int
+		MaxInFlight    func(childComplexity int) int
+		Name           func(childComplexity int) int
+		TokenCreatedAt func(childComplexity int) int
+		TokenExpiresAt func(childComplexity int) int
+		Weight         func(childComplexity int) int
 	}
 
 	ProxyKey struct {
@@ -278,6 +282,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.LiveKey.Enabled(childComplexity), true
+	case "LiveKey.flag":
+		if e.ComplexityRoot.LiveKey.Flag == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.Flag(childComplexity), true
 	case "LiveKey.free":
 		if e.ComplexityRoot.LiveKey.Free == nil {
 			break
@@ -520,6 +530,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Provider.Name(childComplexity), true
 
+	case "ProviderKey.authMode":
+		if e.ComplexityRoot.ProviderKey.AuthMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProviderKey.AuthMode(childComplexity), true
 	case "ProviderKey.enabled":
 		if e.ComplexityRoot.ProviderKey.Enabled == nil {
 			break
@@ -550,6 +566,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProviderKey.Name(childComplexity), true
+	case "ProviderKey.tokenCreatedAt":
+		if e.ComplexityRoot.ProviderKey.TokenCreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProviderKey.TokenCreatedAt(childComplexity), true
+	case "ProviderKey.tokenExpiresAt":
+		if e.ComplexityRoot.ProviderKey.TokenExpiresAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProviderKey.TokenExpiresAt(childComplexity), true
 	case "ProviderKey.weight":
 		if e.ComplexityRoot.ProviderKey.Weight == nil {
 			break
@@ -1120,6 +1148,8 @@ func (ec *executionContext) childFields_LiveKey(ctx context.Context, field graph
 		return ec.fieldContext_LiveKey_free(ctx, field)
 	case "cooldownUntil":
 		return ec.fieldContext_LiveKey_cooldownUntil(ctx, field)
+	case "flag":
+		return ec.fieldContext_LiveKey_flag(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type LiveKey", field.Name)
 }
@@ -1162,6 +1192,12 @@ func (ec *executionContext) childFields_ProviderKey(ctx context.Context, field g
 		return ec.fieldContext_ProviderKey_weight(ctx, field)
 	case "maskedKey":
 		return ec.fieldContext_ProviderKey_maskedKey(ctx, field)
+	case "authMode":
+		return ec.fieldContext_ProviderKey_authMode(ctx, field)
+	case "tokenCreatedAt":
+		return ec.fieldContext_ProviderKey_tokenCreatedAt(ctx, field)
+	case "tokenExpiresAt":
+		return ec.fieldContext_ProviderKey_tokenExpiresAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ProviderKey", field.Name)
 }
@@ -2093,6 +2129,29 @@ func (ec *executionContext) fieldContext_LiveKey_cooldownUntil(_ context.Context
 	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "Time")
 }
 
+func (ec *executionContext) _LiveKey_flag(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_flag(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Flag, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalOString2string(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_flag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "String")
+}
+
 func (ec *executionContext) _Mutation_createProvider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3017,6 +3076,75 @@ func (ec *executionContext) _ProviderKey_maskedKey(ctx context.Context, field gr
 }
 func (ec *executionContext) fieldContext_ProviderKey_maskedKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "String")
+}
+
+func (ec *executionContext) _ProviderKey_authMode(ctx context.Context, field graphql.CollectedField, obj *providers.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProviderKey_authMode(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AuthMode, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v providers.AuthMode) graphql.Marshaler {
+			return ec.marshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProviderKey_authMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "ProviderKeyAuthMode")
+}
+
+func (ec *executionContext) _ProviderKey_tokenCreatedAt(ctx context.Context, field graphql.CollectedField, obj *providers.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProviderKey_tokenCreatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TokenCreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProviderKey_tokenCreatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "Time")
+}
+
+func (ec *executionContext) _ProviderKey_tokenExpiresAt(ctx context.Context, field graphql.CollectedField, obj *providers.Key) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProviderKey_tokenExpiresAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TokenExpiresAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProviderKey_tokenExpiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProviderKey", field, false, false, "Time")
 }
 
 func (ec *executionContext) _ProxyKey_id(ctx context.Context, field graphql.CollectedField, obj *proxykeys.Key) (ret graphql.Marshaler) {
@@ -6035,7 +6163,7 @@ func (ec *executionContext) unmarshalInputProviderKeyInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "secret", "enabled", "maxInFlight", "weight"}
+	fieldsInOrder := [...]string{"name", "secret", "enabled", "maxInFlight", "weight", "authMode", "tokenCreatedAt"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6077,6 +6205,20 @@ func (ec *executionContext) unmarshalInputProviderKeyInput(ctx context.Context, 
 				return it, err
 			}
 			it.Weight = data
+		case "authMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("authMode"))
+			data, err := ec.unmarshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AuthMode = data
+		case "tokenCreatedAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tokenCreatedAt"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TokenCreatedAt = data
 		}
 	}
 	return it, nil
@@ -6460,6 +6602,11 @@ func (ec *executionContext) _LiveKey(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "flag":
+			out.Values[i] = ec._LiveKey_flag(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6716,6 +6863,21 @@ func (ec *executionContext) _ProviderKey(ctx context.Context, sel ast.SelectionS
 		case "maskedKey":
 			out.Values[i] = ec._ProviderKey_maskedKey(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "authMode":
+			out.Values[i] = ec._ProviderKey_authMode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tokenCreatedAt":
+			out.Values[i] = ec._ProviderKey_tokenCreatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "tokenExpiresAt":
+			out.Values[i] = ec._ProviderKey_tokenExpiresAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -7926,6 +8088,34 @@ func (ec *executionContext) marshalNProviderKey2ᚖgithubᚗcomᚋHarikiRitoᚋa
 	return ec._ProviderKey(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode(ctx context.Context, v any) (providers.AuthMode, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := unmarshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode[tmp]
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode(ctx context.Context, sel ast.SelectionSet, v providers.AuthMode) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(marshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode[v])
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "ProviderKeyAuthMode!")
+	}
+	return res
+}
+
+var (
+	unmarshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode = map[string]providers.AuthMode{
+		"API_KEY":     providers.AuthAPIKey,
+		"SETUP_TOKEN": providers.AuthSetupToken,
+		"LOGIN_DIR":   providers.AuthLoginDir,
+	}
+	marshalNProviderKeyAuthMode2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode = map[providers.AuthMode]string{
+		providers.AuthAPIKey:     "API_KEY",
+		providers.AuthSetupToken: "SETUP_TOKEN",
+		providers.AuthLoginDir:   "LOGIN_DIR",
+	}
+)
+
 func (ec *executionContext) unmarshalNProviderKeyInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐKeyInput(ctx context.Context, v any) (providers.KeyInput, error) {
 	res, err := ec.unmarshalInputProviderKeyInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -8441,6 +8631,38 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
+func (ec *executionContext) unmarshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode(ctx context.Context, v any) (*providers.AuthMode, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := unmarshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode[tmp]
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode(ctx context.Context, sel ast.SelectionSet, v *providers.AuthMode) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(marshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode[*v])
+	return res
+}
+
+var (
+	unmarshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode = map[string]providers.AuthMode{
+		"API_KEY":     providers.AuthAPIKey,
+		"SETUP_TOKEN": providers.AuthSetupToken,
+		"LOGIN_DIR":   providers.AuthLoginDir,
+	}
+	marshalOProviderKeyAuthMode2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐAuthMode = map[providers.AuthMode]string{
+		providers.AuthAPIKey:     "API_KEY",
+		providers.AuthSetupToken: "SETUP_TOKEN",
+		providers.AuthLoginDir:   "LOGIN_DIR",
+	}
+)
+
 func (ec *executionContext) unmarshalOProviderKind2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐKind(ctx context.Context, v any) (*providers.Kind, error) {
 	if v == nil {
 		return nil, nil
@@ -8457,6 +8679,18 @@ func (ec *executionContext) marshalOProviderKind2ᚖgithubᚗcomᚋHarikiRitoᚋ
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalString(string(*v))
+	return res
+}
+
+func (ec *executionContext) unmarshalOString2string(ctx context.Context, v any) (string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(v)
 	return res
 }
 

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
@@ -47,7 +48,7 @@ func (e *Engine) chain(ctx context.Context, m virtualmodels.Model, pl payload) (
 		cur := tier{key: fmt.Sprintf("%s#%d", m.Name, t.Priority)}
 		for _, en := range t.Entries {
 			p, ok := provs[en.ProviderID]
-			if en.Status != virtualmodels.StatusOK || !ok || !p.Enabled || !slices.Contains(pl.accepts, p.Kind) {
+			if en.Status != virtualmodels.StatusOK || !ok || !p.Enabled || !slices.Contains(pl.accepts, p.Kind) || (p.Kind == providers.KindClaudeSubscription && !pl.sidecar) {
 				e.log.Debug("skipping target", "model", m.Name, "provider", en.ProviderID, "status", en.Status)
 				continue
 			}
@@ -77,6 +78,10 @@ func (r *request) run() (Result, error) {
 		if err == nil {
 			usage := res.Meta.Usage
 			res.Meta, res.Meta.Usage = r.meta, usage
+			res.Header = r.ignoredParams(a)
+			if res.Status/100 == 2 && a.t.provider.Kind == providers.KindClaudeSubscription {
+				r.e.unflagKey(a.key.ID)
+			}
 			return r.served(a, res), nil
 		}
 		r.failed(a)

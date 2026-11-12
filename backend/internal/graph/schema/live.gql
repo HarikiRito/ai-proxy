@@ -11,6 +11,8 @@ type LiveKey {
   free: Int!
   "Set only while the key is cooling down."
   cooldownUntil: Time
+  "needs_login while a subscription account is held back after a 401/403 (retried after 10 minutes), expired for a setup token past its lifetime, else empty."
+  flag: String
 }
 
 extend type Query {

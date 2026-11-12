@@ -4,6 +4,13 @@ enum ProviderKind {
   claude_subscription
 }
 
+"How a key's secret is used: an API key, a Claude setup token, or the name of a logged-in account directory (subscription providers only)."
+enum ProviderKeyAuthMode {
+  API_KEY
+  SETUP_TOKEN
+  LOGIN_DIR
+}
+
 type Provider {
   id: ID!
   name: String!
@@ -26,6 +33,11 @@ type ProviderKey {
   weight: Int!
   "Never the secret: a partial hint that reveals more only for longer keys."
   maskedKey: String!
+  authMode: ProviderKeyAuthMode!
+  "Setup tokens only."
+  tokenCreatedAt: Time
+  "Setup tokens only: created plus 365 days."
+  tokenExpiresAt: Time
 }
 
 "Create needs name, kind and baseUrl; update changes only the fields given."
@@ -38,13 +50,19 @@ input ProviderInput {
   cacheAffinitySeconds: Int
 }
 
-"Add needs name, secret and maxInFlight; update changes only the fields given (secret replaces the key)."
+"""
+Add needs name, secret and maxInFlight (and authMode on claude_subscription providers: SETUP_TOKEN or LOGIN_DIR; other providers take API_KEY, the default).
+Update changes only the fields given (a secret replaces the key; changing authMode needs a secret).
+LOGIN_DIR secret is the account directory name, tokenCreatedAt (SETUP_TOKEN only, not in the future) defaults to now when the secret is set.
+"""
 input ProviderKeyInput {
   name: String
   secret: String
   enabled: Boolean
   maxInFlight: Int
   weight: Int
+  authMode: ProviderKeyAuthMode
+  tokenCreatedAt: Time
 }
 
 extend type Query {

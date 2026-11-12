@@ -48,6 +48,9 @@ type candidate struct {
 // take records a lease; the caller holds e.mu and has checked capacity.
 func (e *Engine) take(keyID string, ttl time.Duration) uint64 {
 	e.lastID++
+	if _, ok := e.flags[keyID]; ok {
+		e.flags[keyID] = e.now() // one probe per retry window
+	}
 	e.inflight[keyID]++
 	e.leases[e.lastID] = lease{keyID: keyID, expires: e.now().Add(ttl)}
 	return e.lastID
@@ -166,7 +169,7 @@ func (r *request) candidates(t tier, now time.Time, out *outlook) []candidate {
 
 // room is the free slots of a key this request may still use now; it records waiting hints in out.
 func (e *Engine) room(k providers.Key, tried bool, now time.Time, out *outlook) int {
-	if !k.Enabled || tried {
+	if !k.Enabled || tried || e.blocked(k, now) {
 		return 0
 	}
 	out.untried = true

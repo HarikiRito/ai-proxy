@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"maps"
 	"sort"
 	"time"
 )
@@ -15,6 +16,7 @@ type KeyStatus struct {
 	MaxInFlight, InFlight    int
 	Free                     int
 	CooldownUntil            *time.Time // nil unless the key is cooling down
+	Flag                     string     // flagNeedsLogin, flagExpired, or "" when the key is fine
 }
 
 // Enabled reports whether both the provider and the key are enabled.
@@ -38,6 +40,7 @@ func (e *Engine) Snapshot(ctx context.Context) ([]KeyStatus, error) {
 			cooling[id] = until
 		}
 	}
+	flagged := maps.Clone(e.flags)
 	e.mu.Unlock()
 
 	var out []KeyStatus
@@ -48,6 +51,7 @@ func (e *Engine) Snapshot(ctx context.Context) ([]KeyStatus, error) {
 				KeyID: k.ID, KeyName: k.Name, KeyEnabled: k.Enabled,
 				MaxInFlight: k.MaxInFlight, InFlight: inflight[k.ID], Free: max(k.MaxInFlight-inflight[k.ID], 0),
 			}
+			st.Flag = keyFlag(k, now, flagged)
 			if until, ok := cooling[k.ID]; ok {
 				st.CooldownUntil = &until
 			}

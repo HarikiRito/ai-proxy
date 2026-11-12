@@ -51,6 +51,40 @@ func (_u *ProviderKeyUpdate) SetCiphertext(v []byte) *ProviderKeyUpdate {
 	return _u
 }
 
+// SetAuthMode sets the "auth_mode" field.
+func (_u *ProviderKeyUpdate) SetAuthMode(v providerkey.AuthMode) *ProviderKeyUpdate {
+	_u.mutation.SetAuthMode(v)
+	return _u
+}
+
+// SetNillableAuthMode sets the "auth_mode" field if the given value is not nil.
+func (_u *ProviderKeyUpdate) SetNillableAuthMode(v *providerkey.AuthMode) *ProviderKeyUpdate {
+	if v != nil {
+		_u.SetAuthMode(*v)
+	}
+	return _u
+}
+
+// SetTokenCreatedAt sets the "token_created_at" field.
+func (_u *ProviderKeyUpdate) SetTokenCreatedAt(v time.Time) *ProviderKeyUpdate {
+	_u.mutation.SetTokenCreatedAt(v)
+	return _u
+}
+
+// SetNillableTokenCreatedAt sets the "token_created_at" field if the given value is not nil.
+func (_u *ProviderKeyUpdate) SetNillableTokenCreatedAt(v *time.Time) *ProviderKeyUpdate {
+	if v != nil {
+		_u.SetTokenCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearTokenCreatedAt clears the value of the "token_created_at" field.
+func (_u *ProviderKeyUpdate) ClearTokenCreatedAt() *ProviderKeyUpdate {
+	_u.mutation.ClearTokenCreatedAt()
+	return _u
+}
+
 // SetEnabled sets the "enabled" field.
 func (_u *ProviderKeyUpdate) SetEnabled(v bool) *ProviderKeyUpdate {
 	_u.mutation.SetEnabled(v)
@@ -178,6 +212,11 @@ func (_u *ProviderKeyUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AuthMode(); ok {
+		if err := providerkey.AuthModeValidator(v); err != nil {
+			return &ValidationError{Name: "auth_mode", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.auth_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.MaxInFlight(); ok {
 		if err := providerkey.MaxInFlightValidator(v); err != nil {
 			return &ValidationError{Name: "max_in_flight", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.max_in_flight": %w`, err)}
@@ -217,6 +256,15 @@ func (_u *ProviderKeyUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Ciphertext(); ok {
 		_spec.SetField(providerkey.FieldCiphertext, field.TypeBytes, value)
+	}
+	if value, ok := _u.mutation.AuthMode(); ok {
+		_spec.SetField(providerkey.FieldAuthMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.TokenCreatedAt(); ok {
+		_spec.SetField(providerkey.FieldTokenCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TokenCreatedAtCleared() {
+		_spec.ClearField(providerkey.FieldTokenCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(providerkey.FieldEnabled, field.TypeBool, value)
@@ -304,6 +352,40 @@ func (_u *ProviderKeyUpdateOne) SetNillableName(v *string) *ProviderKeyUpdateOne
 // SetCiphertext sets the "ciphertext" field.
 func (_u *ProviderKeyUpdateOne) SetCiphertext(v []byte) *ProviderKeyUpdateOne {
 	_u.mutation.SetCiphertext(v)
+	return _u
+}
+
+// SetAuthMode sets the "auth_mode" field.
+func (_u *ProviderKeyUpdateOne) SetAuthMode(v providerkey.AuthMode) *ProviderKeyUpdateOne {
+	_u.mutation.SetAuthMode(v)
+	return _u
+}
+
+// SetNillableAuthMode sets the "auth_mode" field if the given value is not nil.
+func (_u *ProviderKeyUpdateOne) SetNillableAuthMode(v *providerkey.AuthMode) *ProviderKeyUpdateOne {
+	if v != nil {
+		_u.SetAuthMode(*v)
+	}
+	return _u
+}
+
+// SetTokenCreatedAt sets the "token_created_at" field.
+func (_u *ProviderKeyUpdateOne) SetTokenCreatedAt(v time.Time) *ProviderKeyUpdateOne {
+	_u.mutation.SetTokenCreatedAt(v)
+	return _u
+}
+
+// SetNillableTokenCreatedAt sets the "token_created_at" field if the given value is not nil.
+func (_u *ProviderKeyUpdateOne) SetNillableTokenCreatedAt(v *time.Time) *ProviderKeyUpdateOne {
+	if v != nil {
+		_u.SetTokenCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearTokenCreatedAt clears the value of the "token_created_at" field.
+func (_u *ProviderKeyUpdateOne) ClearTokenCreatedAt() *ProviderKeyUpdateOne {
+	_u.mutation.ClearTokenCreatedAt()
 	return _u
 }
 
@@ -447,6 +529,11 @@ func (_u *ProviderKeyUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AuthMode(); ok {
+		if err := providerkey.AuthModeValidator(v); err != nil {
+			return &ValidationError{Name: "auth_mode", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.auth_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.MaxInFlight(); ok {
 		if err := providerkey.MaxInFlightValidator(v); err != nil {
 			return &ValidationError{Name: "max_in_flight", err: fmt.Errorf(`ent: validator failed for field "ProviderKey.max_in_flight": %w`, err)}
@@ -503,6 +590,15 @@ func (_u *ProviderKeyUpdateOne) sqlSave(ctx context.Context) (_node *ProviderKey
 	}
 	if value, ok := _u.mutation.Ciphertext(); ok {
 		_spec.SetField(providerkey.FieldCiphertext, field.TypeBytes, value)
+	}
+	if value, ok := _u.mutation.AuthMode(); ok {
+		_spec.SetField(providerkey.FieldAuthMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.TokenCreatedAt(); ok {
+		_spec.SetField(providerkey.FieldTokenCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TokenCreatedAtCleared() {
+		_spec.ClearField(providerkey.FieldTokenCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(providerkey.FieldEnabled, field.TypeBool, value)

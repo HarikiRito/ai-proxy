@@ -167,15 +167,6 @@ func TestKeyValidation(t *testing.T) {
 	}
 }
 
-func TestClaudeSubscriptionRejectsKeys(t *testing.T) {
-	s, _ := newService(t)
-	in := validProvider()
-	in.Kind = ptr(KindClaudeSubscription)
-	p := mustCreate(t, s, in)
-	_, err := s.AddKey(context.Background(), p.ID, validKey("k", "sk-secret-value"))
-	requireUserError(t, err, "subscription")
-}
-
 func TestMaskedKeyByLength(t *testing.T) {
 	cases := map[string]struct{ secret, want string }{
 		"11 chars": {"abcdef12345", "••••"},
