@@ -42,6 +42,9 @@ const key = (over = {}) => ({
 	maxInFlight: 4,
 	weight: 1,
 	maskedKey: '••••1234',
+	authMode: 'API_KEY' as const,
+	tokenCreatedAt: null,
+	tokenExpiresAt: null,
 	...over
 });
 
@@ -273,6 +276,79 @@ describe('updateKey', () => {
 		const { store, calls } = setup();
 		await store.updateKey('k1', { secret: SECRET, weight: 2 });
 		expect(calls[0].variables).toEqual({ id: 'k1', input: { secret: SECRET, weight: 2 } });
+	});
+});
+
+describe('account keys', () => {
+	const account = { name: 'a', secret: SECRET, maxInFlight: 2, weight: 1 };
+	const created = '2026-11-01T00:00:00Z';
+
+	it.each([
+		['setup token without date', { authMode: 'SETUP_TOKEN' }],
+		['setup token with date', { authMode: 'SETUP_TOKEN', tokenCreatedAt: created }],
+		['login dir', { authMode: 'LOGIN_DIR' }]
+	] as const)('addKey sends %s', async (_name, extra) => {
+		const { store, calls } = setup();
+		await store.addKey('p1', { ...account, ...extra });
+		expect(calls[0].variables).toEqual({ providerId: 'p1', input: { ...account, ...extra } });
+	});
+
+	it('addKey for a regular key sends no authMode', async () => {
+		const { store, calls } = setup();
+		await store.addKey('p1', account);
+		expect(calls[0].variables.input).not.toHaveProperty('authMode');
+	});
+
+	it('updateKey omits date and secret unless given, a mode change carries the secret', async () => {
+		const { store, calls } = setup();
+		await store.updateKey('k1', { authMode: 'SETUP_TOKEN', secret: '', weight: 2 });
+		await store.updateKey('k1', { authMode: 'LOGIN_DIR', secret: 'acct-1' });
+		await store.updateKey('k1', { secret: '', tokenCreatedAt: created });
+		expect(calls.filter((c) => c.op === 'updateProviderKey').map((c) => c.variables.input)).toEqual(
+			[
+				{ authMode: 'SETUP_TOKEN', weight: 2 },
+				{ authMode: 'LOGIN_DIR', secret: 'acct-1' },
+				{ tokenCreatedAt: created }
+			]
+		);
+	});
+});
+
+describe('live status', () => {
+	function liveSetup(override?: (op: string) => Response | undefined) {
+		const handles: { fn: () => void; ms: number; cleared: boolean }[] = [];
+		const authFetch = vi.fn((_i: RequestInfo | URL, init?: RequestInit) => {
+			const op = /liveStatus/.test(JSON.parse(init?.body as string).query) ? 'liveStatus' : '';
+			return Promise.resolve(
+				override?.(op) ??
+					Response.json({ data: { liveStatus: [{ keyId: 'k1', flag: 'needs_login' }] } })
+			);
+		});
+		const timers = {
+			setInterval: (fn: () => void, ms: number) => handles.push({ fn, ms, cleared: false }) - 1,
+			clearInterval: (h: unknown) => {
+				handles[h as number].cleared = true;
+			}
+		};
+		return { store: createProvidersStore(authFetch, timers), handles, authFetch };
+	}
+
+	it('refreshes every 10s, stops on cleanup and exposes flags', async () => {
+		const { store, handles, authFetch } = liveSetup();
+		store.startLive();
+		expect(handles.map((h) => h.ms)).toEqual([10000]);
+		await vi.waitFor(() => expect(store.live).toHaveLength(1));
+		handles[0].fn();
+		await vi.waitFor(() => expect(authFetch).toHaveBeenCalledTimes(2));
+		store.stopLive();
+		expect(handles[0].cleared).toBe(true);
+	});
+
+	it('records a GraphQL error without rejecting', async () => {
+		const { store } = liveSetup(() => Response.json({ errors: [{ message: 'boom' }] }));
+		store.startLive();
+		await vi.waitFor(() => expect(store.liveError).toBe('boom'));
+		store.stopLive();
 	});
 });
 

@@ -174,7 +174,8 @@ describe('live status', () => {
 			maxInFlight: 2,
 			inFlight: 1,
 			free: 1,
-			cooldownUntil: null
+			cooldownUntil: null,
+			flag: ''
 		};
 		const { store } = setup(1, (op) =>
 			op === 'liveStatus' ? Response.json({ data: { liveStatus: [key] } }) : undefined
@@ -208,7 +209,8 @@ describe('helpers', () => {
 			maxInFlight: 2,
 			inFlight: 0,
 			free: 2,
-			cooldownUntil: null
+			cooldownUntil: null,
+			flag: ''
 		};
 		expect(keyState({ ...base, enabled: false, cooldownUntil: '2026-11-11T10:00:00Z' }).label).toBe(
 			'disabled'

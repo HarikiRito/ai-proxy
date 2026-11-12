@@ -8,6 +8,7 @@
 		MODELS_DEV_KEY,
 		type createModelsDevStore
 	} from '#src/features/modelsdev/modelsdev.svelte.js';
+	import { accountStatus, tokenInfo } from './accounts';
 	import KeyForm from './key-form.svelte';
 	import ProviderForm from './provider-form.svelte';
 	import {
@@ -27,7 +28,16 @@
 	onMount(() => {
 		void store.load();
 		void modelsDev.load();
+		store.startLive();
+		return store.stopLive;
 	});
+
+	const MODE_LABELS = {
+		API_KEY: 'API key',
+		SETUP_TOKEN: 'Setup token',
+		LOGIN_DIR: 'Login directory'
+	};
+	const TOKEN_LEVEL = { ok: 'secondary', warning: 'outline', expired: 'destructive' } as const;
 
 	function openCreate() {
 		store.resetDraft();
@@ -60,6 +70,8 @@
 	{/if}
 
 	{#each store.providers as provider (provider.id)}
+		{@const account = provider.kind === 'claude_subscription'}
+		{@const noun = account ? 'account' : 'key'}
 		<Card.Root>
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
@@ -75,48 +87,67 @@
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="flex flex-col gap-2">
-				{#if provider.kind === 'claude_subscription'}
-					<p class="text-sm text-muted-foreground">Accounts managed in a later release.</p>
-				{:else}
-					{#each provider.keys as key (key.id)}
-						<div class="flex items-center gap-3 text-sm">
-							<span class="font-medium">{key.name}</span>
-							<code class="text-muted-foreground">{key.maskedKey}</code>
-							<span>max {key.maxInFlight}</span>
-							<span>weight {key.weight}</span>
-							<Badge variant={key.enabled ? 'default' : 'secondary'}>
-								{key.enabled ? 'on' : 'off'}
-							</Badge>
-							<span class="ml-auto"></span>
-							<Button variant="outline" size="sm" onclick={() => openKeyForm(provider, key)}>
-								Edit
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => void store.updateKey(key.id, { enabled: !key.enabled })}
-							>
-								{key.enabled ? 'Disable' : 'Enable'}
-							</Button>
-							<Button
-								variant="destructive"
-								size="sm"
-								onclick={() => remove(`Delete key ${key.name}?`, () => store.deleteKey(key.id))}
-							>
-								Delete
-							</Button>
-						</div>
-					{:else}
-						<p class="text-sm text-muted-foreground">No keys yet.</p>
-					{/each}
+				{#if account && store.liveError}
+					<p class="text-sm text-destructive">{store.liveError}</p>
 				{/if}
+				{#each provider.keys as key (key.id)}
+					{@const status = accountStatus(
+						key,
+						store.live.find((l) => l.keyId === key.id),
+						Date.now(),
+						provider.enabled
+					)}
+					{@const token = tokenInfo(key, Date.now())}
+					<div class="flex flex-wrap items-center gap-3 text-sm">
+						<span class="font-medium">{key.name}</span>
+						{#if account}
+							<Badge variant="outline">{MODE_LABELS[key.authMode]}</Badge>
+						{/if}
+						<code class="text-muted-foreground">{key.maskedKey}</code>
+						{#if account}
+							<Badge variant={status.variant}>{status.label}</Badge>
+							{#if token}
+								<span class="text-muted-foreground">Token age {token.ageDays} days</span>
+								<Badge
+									variant={TOKEN_LEVEL[token.level]}
+									class={token.level === 'warning' ? 'text-amber-600' : ''}
+								>
+									{token.level === 'expired' ? 'Expired' : `Expires in ${token.daysLeft} days`}
+								</Badge>
+							{/if}
+						{/if}
+						<span>max {key.maxInFlight}</span>
+						<span>weight {key.weight}</span>
+						<Badge variant={key.enabled ? 'default' : 'secondary'}>
+							{key.enabled ? 'on' : 'off'}
+						</Badge>
+						<span class="ml-auto"></span>
+						<Button variant="outline" size="sm" onclick={() => openKeyForm(provider, key)}>
+							Edit
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => void store.updateKey(key.id, { enabled: !key.enabled })}
+						>
+							{key.enabled ? 'Disable' : 'Enable'}
+						</Button>
+						<Button
+							variant="destructive"
+							size="sm"
+							onclick={() => remove(`Delete ${noun} ${key.name}?`, () => store.deleteKey(key.id))}
+						>
+							Delete
+						</Button>
+					</div>
+				{:else}
+					<p class="text-sm text-muted-foreground">No {noun}s yet.</p>
+				{/each}
 			</Card.Content>
 			<Card.Footer class="gap-2">
-				{#if provider.kind !== 'claude_subscription'}
-					<Button variant="outline" size="sm" onclick={() => openKeyForm(provider, null)}
-						>Add key</Button
-					>
-				{/if}
+				<Button variant="outline" size="sm" onclick={() => openKeyForm(provider, null)}>
+					Add {noun}
+				</Button>
 				<Button variant="outline" size="sm" onclick={() => openEdit(provider)}>Edit</Button>
 				<Button
 					variant="destructive"
