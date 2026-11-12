@@ -62,7 +62,7 @@ func run() error {
 	defer func() { _ = client.Close() }()
 
 	healthSvc := health.New(health.Deps{DB: pool})
-	resolver := newResolver(client, healthSvc, cipher)
+	resolver := newResolver(client, healthSvc, cipher, log)
 	resolver.Usage.Start(ctx)
 	defer resolver.Usage.Close() // runs before client.Close, after srv.Shutdown has stopped new requests
 
@@ -109,14 +109,14 @@ func newGateway(ctx context.Context, resolver *graph.Resolver, log *slog.Logger)
 	return gateway.New(gateway.Deps{Keys: resolver.ProxyKeys, Models: resolver.VirtualModels, Chat: engine, Settings: resolver.Settings, Recorder: resolver.Usage, Log: log})
 }
 
-func newResolver(client *ent.Client, healthSvc *health.Service, cipher providers.Cipher) *graph.Resolver {
+func newResolver(client *ent.Client, healthSvc *health.Service, cipher providers.Cipher, log *slog.Logger) *graph.Resolver {
 	providerSvc := providers.New(providers.Deps{DB: client, Cipher: cipher})
 	return &graph.Resolver{
 		Health:        healthSvc,
 		Providers:     providerSvc,
 		ProxyKeys:     proxykeys.New(proxykeys.Deps{DB: client}),
 		Settings:      settings.New(settings.Deps{DB: client}),
-		Usage:         usage.New(usage.Deps{DB: client}),
+		Usage:         usage.New(usage.Deps{DB: client, Log: log}),
 		VirtualModels: virtualmodels.New(virtualmodels.Deps{DB: client, Providers: providerDirectory{providerSvc}}),
 	}
 }
