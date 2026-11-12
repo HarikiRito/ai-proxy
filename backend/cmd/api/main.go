@@ -16,6 +16,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/config"
@@ -101,6 +102,7 @@ func newResolver(client *ent.Client, healthSvc *health.Service, cipher providers
 		Health:        healthSvc,
 		Providers:     providerSvc,
 		ProxyKeys:     proxykeys.New(proxykeys.Deps{DB: client}),
+		Settings:      settings.New(settings.Deps{DB: client}),
 		VirtualModels: virtualmodels.New(virtualmodels.Deps{DB: client, Providers: providerDirectory{providerSvc}}),
 	}
 }

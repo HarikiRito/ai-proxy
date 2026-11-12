@@ -15,6 +15,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/provider"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
@@ -81,6 +82,7 @@ func checkColumn(t, c string) error {
 			provider.Table:          provider.ValidColumn,
 			providerkey.Table:       providerkey.ValidColumn,
 			proxykey.Table:          proxykey.ValidColumn,
+			setting.Table:           setting.ValidColumn,
 			virtualmodel.Table:      virtualmodel.ValidColumn,
 			virtualmodelentry.Table: virtualmodelentry.ValidColumn,
 			virtualmodeltier.Table:  virtualmodeltier.ValidColumn,

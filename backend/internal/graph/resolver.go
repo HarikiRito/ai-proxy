@@ -4,6 +4,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
@@ -15,5 +16,6 @@ type Resolver struct {
 	Providers *providers.Service
 	ProxyKeys *proxykeys.Service
 
+	Settings      *settings.Service
 	VirtualModels *virtualmodels.Service
 }

@@ -115,6 +115,11 @@ linters:
               desc: virtualmodels owns these tables; use its facade
             - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry
               desc: virtualmodels owns these tables; use its facade
+        settings-tables:
+          files: ["**/internal/modules/**", "!**/internal/modules/settings/**"]
+          deny:
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/setting
+              desc: settings owns this table; use its facade
         graph:
           files: ["**/internal/graph/**", "!**/internal/graph/generated.go"]
           deny:
