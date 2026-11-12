@@ -42,7 +42,13 @@
 			{#each fields as field (field.key)}
 				<div class="flex flex-col gap-2">
 					<Label for="settings-{field.key}">{field.label} ({field.unit})</Label>
-					<Input id="settings-{field.key}" type="number" min="1" bind:value={form[field.key]} />
+					<Input
+						id="settings-{field.key}"
+						type="number"
+						min="1"
+						required
+						bind:value={form[field.key]}
+					/>
 				</div>
 			{/each}
 			<Button type="submit" class="self-start">Save</Button>
