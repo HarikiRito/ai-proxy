@@ -2,11 +2,14 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,6 +41,7 @@ type (
 	Chat interface {
 		Do(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
 		Stream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
+		Transcribe(ctx context.Context, name string, hdr http.Header, parts []routing.Part) (routing.Result, error)
 	}
 	Settings interface {
 		Get(ctx context.Context) (settings.Settings, error)
@@ -70,6 +74,7 @@ func New(d Deps) http.Handler {
 	r.Use(g.auth)
 	r.Get("/models", g.models)
 	r.Post("/chat/completions", g.chatCompletions)
+	r.Post("/audio/transcriptions", g.transcriptions)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown endpoint", 0)
 	})
@@ -138,40 +143,116 @@ func (g *gateway) models(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
 
-func (g *gateway) chatCompletions(w http.ResponseWriter, r *http.Request) {
+// readBody reads the capped request body; false means the error response is already written.
+func (g *gateway) readBody(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 	cfg, err := g.Settings.Get(r.Context())
 	if err != nil {
 		g.fail(w, r, err)
-		return
+		return nil, false
 	}
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, int64(cfg.MaxBodyBytes)))
 	var tooBig *http.MaxBytesError
-	if errors.As(err, &tooBig) {
+	switch {
+	case errors.As(err, &tooBig):
 		writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "request body too large", 0)
+	case err != nil:
+		writeError(w, http.StatusBadRequest, "invalid_request", "could not read request body", 0)
+	default:
+		return raw, true
+	}
+	return nil, false
+}
+
+func allowed(w http.ResponseWriter, r *http.Request, model string) bool {
+	if r.Context().Value(keyCtx{}).(proxykeys.Key).AllowsModel(model) {
+		return true
+	}
+	writeError(w, http.StatusForbidden, "model_not_allowed", "this key may not use model "+model, 0)
+	return false
+}
+
+func (g *gateway) chatCompletions(w http.ResponseWriter, r *http.Request) {
+	raw, ok := g.readBody(w, r)
+	if !ok {
 		return
 	}
 	var body map[string]json.RawMessage
 	var model string
-	if err != nil || json.Unmarshal(raw, &body) != nil || json.Unmarshal(body["model"], &model) != nil || model == "" {
+	if json.Unmarshal(raw, &body) != nil || json.Unmarshal(body["model"], &model) != nil || model == "" {
 		writeError(w, http.StatusBadRequest, "invalid_request", "body must be a JSON object with a model", 0)
 		return
 	}
 	var stream bool
 	_ = json.Unmarshal(body["stream"], &stream)
-	switch {
-	case !r.Context().Value(keyCtx{}).(proxykeys.Key).AllowsModel(model):
-		writeError(w, http.StatusForbidden, "model_not_allowed", "this key may not use model "+model, 0)
-	default:
-		g.forward(w, r, model, body, stream)
+	if !allowed(w, r, model) {
+		return
 	}
-}
-
-func (g *gateway) forward(w http.ResponseWriter, r *http.Request, model string, body map[string]json.RawMessage, stream bool) {
 	call := g.Chat.Do
 	if stream {
 		call = g.Chat.Stream
 	}
 	res, err := call(r.Context(), model, r.Header, body)
+	g.respond(w, r, res, err)
+}
+
+func (g *gateway) transcriptions(w http.ResponseWriter, r *http.Request) {
+	raw, ok := g.readBody(w, r)
+	if !ok {
+		return
+	}
+	parts, err := parseForm(r.Header.Get("Content-Type"), raw)
+	model := strings.TrimSpace(string(formValue(parts, "model")))
+	switch {
+	case err != nil:
+		writeError(w, http.StatusBadRequest, "invalid_request", "body must be multipart/form-data", 0)
+		return
+	case model == "":
+		writeError(w, http.StatusBadRequest, "invalid_request", "form field model is required", 0)
+		return
+	case strings.EqualFold(strings.TrimSpace(string(formValue(parts, "stream"))), "true"):
+		writeError(w, http.StatusBadRequest, "invalid_request", "streaming is not supported for transcription", 0)
+		return
+	case !allowed(w, r, model):
+		return
+	}
+	res, err := g.Chat.Transcribe(r.Context(), model, r.Header, parts)
+	g.respond(w, r, res, err)
+}
+
+// parseForm buffers each multipart field with its raw headers; no temp files.
+func parseForm(contentType string, raw []byte) ([]routing.Part, error) {
+	mediaType, params, err := mime.ParseMediaType(contentType)
+	if err != nil || mediaType != "multipart/form-data" || params["boundary"] == "" {
+		return nil, errors.New("not multipart/form-data")
+	}
+	mr := multipart.NewReader(bytes.NewReader(raw), params["boundary"])
+	var parts []routing.Part
+	for {
+		p, err := mr.NextRawPart()
+		if errors.Is(err, io.EOF) {
+			return parts, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		data, err := io.ReadAll(p)
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, routing.Part{Name: p.FormName(), Header: p.Header, Data: data})
+	}
+}
+
+func formValue(parts []routing.Part, name string) []byte {
+	for _, p := range parts {
+		if p.Name == name {
+			return p.Data
+		}
+	}
+	return nil
+}
+
+func (g *gateway) respond(w http.ResponseWriter, r *http.Request, res routing.Result, err error) {
 	if err != nil {
 		g.fail(w, r, err)
 		return

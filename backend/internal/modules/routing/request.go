@@ -2,7 +2,6 @@ package routing
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,7 +20,7 @@ type request struct {
 	model     virtualmodels.Model
 	chain     []tier
 	hdr       http.Header
-	body      map[string]json.RawMessage
+	pl        payload
 	stream    bool
 	ttl       time.Duration
 	tried     map[string]bool

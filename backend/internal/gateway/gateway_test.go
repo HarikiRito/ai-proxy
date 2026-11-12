@@ -122,8 +122,10 @@ func (e *env) upstream(t *testing.T, id string, limit int, h http.HandlerFunc) *
 }
 
 // route defines model "m" whose tiers hold one entry per listed provider id, tried in order (priority_overflow).
-func (e *env) route(tiers ...[]string) {
-	m := virtualmodels.Model{Name: "m", Kind: virtualmodels.KindChat, Strategy: virtualmodels.StrategyPriorityOverflow}
+func (e *env) route(tiers ...[]string) { e.routeKind(virtualmodels.KindChat, tiers...) }
+
+func (e *env) routeKind(kind virtualmodels.Kind, tiers ...[]string) {
+	m := virtualmodels.Model{Name: "m", Kind: kind, Strategy: virtualmodels.StrategyPriorityOverflow}
 	for i, ids := range tiers {
 		tier := virtualmodels.Tier{Priority: i}
 		for _, id := range ids {

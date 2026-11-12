@@ -102,15 +102,14 @@ func withModel(body map[string]json.RawMessage, model string) []byte {
 }
 
 func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, error) {
+	body, contentType := r.pl.build(a.t.entry.Model)
 	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost,
-		strings.TrimRight(a.t.provider.BaseURL, "/")+"/chat/completions", bytes.NewReader(withModel(r.body, a.t.entry.Model)))
+		strings.TrimRight(a.t.provider.BaseURL, "/")+r.pl.path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	forwardHeaders(req.Header, r.hdr)
-	if req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
+	req.Header.Set("Content-Type", contentType)
 	switch a.t.provider.Kind {
 	case providers.KindOpenAICompatible:
 		req.Header.Set("Authorization", "Bearer "+secret)
