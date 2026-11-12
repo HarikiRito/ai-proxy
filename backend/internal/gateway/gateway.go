@@ -105,7 +105,7 @@ func New(d Deps) http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(withFormat(openAI), g.auth)
 		r.Get("/models", g.models)
-		r.Post("/chat/completions", g.completions(g.Chat.Do, g.Chat.Stream))
+		r.Post("/chat/completions", g.completions(withAffinity(g.Chat.Do), withAffinity(g.Chat.Stream)))
 		r.Post("/audio/transcriptions", g.transcriptions)
 	})
 	r.Group(func(r chi.Router) {
@@ -206,6 +206,13 @@ func allowed(w http.ResponseWriter, r *http.Request, model string) bool {
 	}
 	writeError(w, r, http.StatusForbidden, "model_not_allowed", "this key may not use model "+model, 0)
 	return false
+}
+
+// withAffinity scopes cache-affinity pins to the calling proxy key.
+func withAffinity(call callFn) callFn {
+	return func(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error) {
+		return call(routing.WithAffinity(ctx, ctx.Value(keyCtx{}).(proxykeys.Key).ID), name, hdr, body)
+	}
 }
 
 // completions serves a JSON body naming a model and optionally stream: chat completions and native messages.

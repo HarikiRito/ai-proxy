@@ -20,11 +20,13 @@ type Part struct {
 // payload describes one endpoint: the model kind it serves, the provider kinds it can be sent to,
 // its upstream path, and how to encode the body for a real model name.
 type payload struct {
-	kind    virtualmodels.Kind
-	accepts []providers.Kind
-	path    string
-	build   func(model string, kind providers.Kind) (body []byte, contentType string)
-	chat    *chatTranslation // set when Claude targets can serve this chat request; their answers are translated back
+	kind     virtualmodels.Kind
+	accepts  []providers.Kind
+	path     string
+	build    func(model string, kind providers.Kind) (body []byte, contentType string)
+	body     map[string]json.RawMessage // the client body, kept for cache hints
+	affinity bool                       // may be pinned to a target and given cache hints
+	chat     *chatTranslation           // set when Claude targets can serve this chat request; their answers are translated back
 }
 
 const claudePath = "/messages"
@@ -36,7 +38,7 @@ var (
 
 // chatPayload also reaches Claude targets when the body can be translated.
 func chatPayload(body map[string]json.RawMessage) payload {
-	pl := payload{kind: virtualmodels.KindChat, accepts: openAIOnly, path: "/chat/completions", chat: translateChat(body)}
+	pl := payload{kind: virtualmodels.KindChat, accepts: openAIOnly, path: "/chat/completions", chat: translateChat(body), body: body, affinity: true}
 	pl.build = func(model string, kind providers.Kind) ([]byte, string) {
 		if kind == providers.KindAnthropic {
 			req := pl.chat.req

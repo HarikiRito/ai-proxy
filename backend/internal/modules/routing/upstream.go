@@ -130,7 +130,7 @@ func withModel(body map[string]json.RawMessage, model string) []byte {
 
 func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, error) {
 	kind := a.t.provider.Kind
-	body, contentType := r.pl.build(a.t.entry.Model, kind)
+	body, contentType := r.body(a)
 	path := r.pl.path
 	if r.pl.chat != nil && kind == providers.KindAnthropic {
 		path = claudePath
@@ -140,6 +140,7 @@ func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, erro
 		return nil, err
 	}
 	forwardHeaders(req.Header, r.hdr)
+	r.setHintHeader(req.Header, a)
 	req.Header.Set("Content-Type", contentType)
 	switch kind {
 	case providers.KindOpenAICompatible:

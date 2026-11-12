@@ -20,6 +20,8 @@ type chatStream struct {
 	id      string
 	model   string
 	usage   claudeUsage
+
+	onCached func() // called once when the reply shows cached prompt tokens
 }
 
 func newChatStream(src io.ReadCloser, created int64, includeUsage bool) *chatStream {
@@ -90,6 +92,10 @@ func (s *chatStream) handle(data []byte) {
 	switch ev.Type {
 	case "message_start":
 		s.id, s.model, s.usage = ev.Message.ID, ev.Message.Model, ev.Message.Usage
+		if s.onCached != nil && s.usage.CacheReadInputTokens > 0 {
+			s.onCached()
+			s.onCached = nil
+		}
 		empty := ""
 		s.chunk(chatDelta{Role: "assistant", Content: &empty}, nil)
 	case "content_block_delta":
