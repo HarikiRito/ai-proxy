@@ -110,7 +110,7 @@ func New(d Deps) http.Handler {
 	})
 	r.Group(func(r chi.Router) {
 		r.Use(withFormat(anthropic), g.auth)
-		r.Post("/messages", g.completions(g.Chat.Messages, g.Chat.MessagesStream))
+		r.Post("/messages", g.completions(withAffinity(g.Chat.Messages), withAffinity(g.Chat.MessagesStream)))
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusNotFound, "not_found", "unknown endpoint", 0)

@@ -167,7 +167,7 @@ func (e *Engine) route(ctx context.Context, name string, hdr http.Header, pl pay
 		ttl: timeout + leaseGrace, tried: map[string]bool{},
 	}
 	if pl.affinity && m.CacheAffinity {
-		r.aff = e.newAffinity(ctx, name, hdr, pl.body)
+		r.aff = e.newAffinity(ctx, name, hdr, pl)
 	}
 	return r.run()
 }

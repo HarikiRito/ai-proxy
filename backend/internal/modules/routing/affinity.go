@@ -38,29 +38,28 @@ type affinity struct {
 	live     *pin // start until its target fails
 }
 
-func (e *Engine) newAffinity(ctx context.Context, model string, hdr http.Header, body map[string]json.RawMessage) *affinity {
+func (e *Engine) newAffinity(ctx context.Context, model string, hdr http.Header, pl payload) *affinity {
 	scope, ok := ctx.Value(affinityCtx{}).(string)
 	if !ok || scope == "" {
 		return nil
 	}
-	id := explicitID(hdr, body)
+	body := pl.body
+	id := pl.shape.explicitID(hdr, body)
 	explicit := id != ""
 	if !explicit {
-		if id, ok = openingHash(body); !ok {
+		if id, ok = pl.shape.opening(body); !ok {
 			return nil
 		}
 	}
-	var cc struct{ TTL string }
-	_ = json.Unmarshal(body["cache_control"], &cc)
-	a := &affinity{key: scope + "|" + model + "|" + id, explicit: explicit, hinted: hasHint(hdr, body), oneHour: cc.TTL == "1h"}
+	a := &affinity{key: scope + "|" + model + "|" + id, explicit: explicit, hinted: hasHint(hdr, body), oneHour: pl.shape.oneHour(body)}
 	if p, found := e.pins.get(a.key, e.now()); found {
 		a.start, a.live = &p, &p
 	}
 	return a
 }
 
-// explicitID is the client's own conversation id: body session_id, header x-session-id, body prompt_cache_key.
-func explicitID(hdr http.Header, body map[string]json.RawMessage) string {
+// chatExplicitID is the client's own conversation id: body session_id, header x-session-id, body prompt_cache_key.
+func chatExplicitID(hdr http.Header, body map[string]json.RawMessage) string {
 	var id string
 	_ = json.Unmarshal(body["session_id"], &id)
 	if id == "" {
@@ -69,6 +68,10 @@ func explicitID(hdr http.Header, body map[string]json.RawMessage) string {
 	if id == "" {
 		_ = json.Unmarshal(body["prompt_cache_key"], &id)
 	}
+	return truncateID(id)
+}
+
+func truncateID(id string) string {
 	if utf8.RuneCountInString(id) > maxExplicitID {
 		id = string([]rune(id)[:maxExplicitID])
 	}
@@ -153,11 +156,11 @@ func (r *request) served(a attempt, res Result) Result {
 	case af.explicit:
 		repin()
 	case res.Stream == nil:
-		if cachedTokens(res.Body) {
+		if r.pl.shape.cached(res.Body) {
 			repin()
 		}
 	default:
-		res.Stream = watchCache(res.Stream, repin)
+		res.Stream = watchCache(res.Stream, r.pl.shape.cached, repin)
 	}
 	return res
 }

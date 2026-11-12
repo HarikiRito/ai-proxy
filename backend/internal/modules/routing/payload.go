@@ -26,6 +26,7 @@ type payload struct {
 	build    func(model string, kind providers.Kind) (body []byte, contentType string)
 	body     map[string]json.RawMessage // the client body, kept for cache hints
 	affinity bool                       // may be pinned to a target and given cache hints
+	shape    affinityShape              // how affinity reads this body; set when affinity is
 	chat     *chatTranslation           // set when Claude targets can serve this chat request; their answers are translated back
 }
 
@@ -38,7 +39,7 @@ var (
 
 // chatPayload also reaches Claude targets when the body can be translated.
 func chatPayload(body map[string]json.RawMessage) payload {
-	pl := payload{kind: virtualmodels.KindChat, accepts: openAIOnly, path: "/chat/completions", chat: translateChat(body), body: body, affinity: true}
+	pl := payload{kind: virtualmodels.KindChat, accepts: openAIOnly, path: "/chat/completions", chat: translateChat(body), body: body, affinity: true, shape: chatShape}
 	pl.build = func(model string, kind providers.Kind) ([]byte, string) {
 		if kind == providers.KindAnthropic {
 			req := pl.chat.req
@@ -56,7 +57,7 @@ func chatPayload(body map[string]json.RawMessage) payload {
 
 // messagesPayload is the native Anthropic messages body, passed through with only the model rewritten.
 func messagesPayload(body map[string]json.RawMessage) payload {
-	return payload{kind: virtualmodels.KindChat, accepts: []providers.Kind{providers.KindAnthropic}, path: claudePath, build: func(model string, _ providers.Kind) ([]byte, string) {
+	return payload{kind: virtualmodels.KindChat, accepts: []providers.Kind{providers.KindAnthropic}, path: claudePath, body: body, affinity: true, shape: messagesShape, build: func(model string, _ providers.Kind) ([]byte, string) {
 		return withModel(body, model), "application/json"
 	}}
 }

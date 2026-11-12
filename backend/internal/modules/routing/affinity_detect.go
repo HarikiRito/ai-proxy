@@ -19,21 +19,22 @@ func cachedTokens(data []byte) bool {
 	return json.Unmarshal(data, &in) == nil && in.Usage.PromptTokensDetails.CachedTokens > 0
 }
 
-// watchCache calls seen once when the stream shows cached prompt tokens; the bytes are never altered.
-func watchCache(s io.ReadCloser, seen func()) io.ReadCloser {
+// watchCache calls seen once when a stream data line satisfies cached; the bytes are never altered.
+func watchCache(s io.ReadCloser, cached func([]byte) bool, seen func()) io.ReadCloser {
 	if cs, ok := s.(*chatStream); ok {
 		cs.onCached = seen
 		return cs
 	}
-	return &cacheTee{ReadCloser: s, seen: seen}
+	return &cacheTee{ReadCloser: s, cached: cached, seen: seen}
 }
 
 // cacheTee scans SSE data lines of a passthrough stream.
 type cacheTee struct {
 	io.ReadCloser
-	seen func()
-	buf  []byte
-	done bool
+	cached func([]byte) bool
+	seen   func()
+	buf    []byte
+	done   bool
 }
 
 func (t *cacheTee) Read(p []byte) (int, error) {
@@ -51,7 +52,7 @@ func (t *cacheTee) scan(b []byte) {
 		if !found {
 			break
 		}
-		if data, ok := bytes.CutPrefix(line, []byte("data:")); ok && cachedTokens(data) {
+		if data, ok := bytes.CutPrefix(line, []byte("data:")); ok && t.cached(data) {
 			t.done = true
 			t.seen()
 		}
