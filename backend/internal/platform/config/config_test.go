@@ -105,3 +105,18 @@ func TestLoadDecodesAndTrimsMasterKey(t *testing.T) {
 		t.Fatalf("got %d bytes, %v", len(cfg.MasterKey), err)
 	}
 }
+
+func TestLoadDevModeStrict(t *testing.T) {
+	for _, value := range []string{"true", "false", ""} {
+		setRequired(t)
+		t.Setenv("WORKOS_DEV_MODE", value)
+		if _, err := Load(); err != nil {
+			t.Fatalf("%q: %v", value, err)
+		}
+	}
+	setRequired(t)
+	t.Setenv("WORKOS_DEV_MODE", "maybe")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "WORKOS_DEV_MODE") {
+		t.Fatalf("want WORKOS_DEV_MODE error, got %v", err)
+	}
+}

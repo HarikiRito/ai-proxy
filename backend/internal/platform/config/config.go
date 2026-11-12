@@ -29,9 +29,11 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	var err error
 	debug, _ := strconv.ParseBool(os.Getenv("DEBUG"))
-	devMode, _ := strconv.ParseBool(os.Getenv("WORKOS_DEV_MODE"))
+	devMode, err := parseDevMode(os.Getenv("WORKOS_DEV_MODE"))
+	if err != nil {
+		return Config{}, err
+	}
 	cfg := Config{
 		Port:        getenv("PORT", "8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
@@ -59,6 +61,17 @@ func Load() (Config, error) {
 	}
 	cfg.MasterKey, err = decodeMasterKey(masterKey)
 	return cfg, err
+}
+
+func parseDevMode(value string) (bool, error) {
+	if value == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, errors.New("WORKOS_DEV_MODE must be true or false")
+	}
+	return b, nil
 }
 
 func decodeMasterKey(value string) ([]byte, error) {
