@@ -8,6 +8,8 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
+const pinSweepTicks = 30
+
 type lease struct {
 	keyID   string
 	expires time.Time
@@ -106,12 +108,15 @@ func (e *Engine) cool(keyID string, d time.Duration) {
 func (e *Engine) Watch(ctx context.Context) {
 	t := time.NewTicker(sweepEvery)
 	defer t.Stop()
-	for {
+	for tick := 1; ; tick++ {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
 			e.sweep()
+			if tick%pinSweepTicks == 0 {
+				e.pins.evict(e.now())
+			}
 		}
 	}
 }
@@ -123,6 +128,11 @@ func (r *request) pick() (attempt, outlook, bool) {
 	defer e.mu.Unlock()
 	now := e.now()
 	out := outlook{changed: e.changed}
+	if r.aff != nil {
+		if a, ok := r.pickPinned(now, &out); ok {
+			return a, out, true
+		}
+	}
 	for _, t := range r.chain {
 		cands := r.candidates(t, now, &out)
 		if len(cands) == 0 {

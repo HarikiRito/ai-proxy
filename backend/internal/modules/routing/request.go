@@ -26,6 +26,7 @@ type request struct {
 	tried     map[string]bool
 	last      error
 	waitUntil time.Time
+	aff       *affinity
 }
 
 // chain keeps only usable targets, tiers in ascending priority.
@@ -72,8 +73,9 @@ func (r *request) run() (Result, error) {
 		}
 		res, err := r.call(a)
 		if err == nil {
-			return res, nil
+			return r.served(a, res), nil
 		}
+		r.failed(a)
 		if cerr := r.ctx.Err(); cerr != nil {
 			return Result{}, ctxError(cerr)
 		}

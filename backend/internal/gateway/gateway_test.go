@@ -89,14 +89,20 @@ func newEnv(t *testing.T) *env {
 		keys: proxykeys.New(proxykeys.Deps{DB: client}), models: fakeModels{}, provs: fakeProviders{},
 		settings: &fakeSettings{s: settings.Settings{MaxBodyBytes: 1 << 20, RequestTimeoutSeconds: 30, QueueWaitSeconds: 1, DefaultCooldownSeconds: 60}},
 	}
+	e.serve(t)
+	_, e.token = e.newKey(t)
+	return e
+}
+
+// serve starts a gateway over a fresh engine; calling it again simulates a restart.
+func (e *env) serve(t *testing.T) {
+	t.Helper()
 	engine := routing.New(routing.Deps{Models: e.models, Providers: e.provs, Settings: e.settings, Now: func() time.Time { return time.Now().Add(clockSkew) }})
 	h := New(Deps{Keys: e.keys, Models: e.models, Chat: engine, Settings: e.settings})
 	router := httpx.NewRouter(httpx.Options{Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	router.Mount("/v1", h)
 	e.srv = httptest.NewServer(router)
 	t.Cleanup(e.srv.Close)
-	_, e.token = e.newKey(t)
-	return e
 }
 
 func (e *env) newKey(t *testing.T, allowed ...string) (proxykeys.Key, string) {

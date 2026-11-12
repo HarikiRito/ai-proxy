@@ -63,6 +63,7 @@ type Result struct {
 	ContentType string
 	Body        []byte
 	Stream      io.ReadCloser
+	Affinity    string // hit, break or new for pinned conversations, "" when affinity does not apply
 }
 
 type Engine struct {
@@ -81,13 +82,14 @@ type Engine struct {
 	changed  chan struct{}        // closed and replaced when capacity may have appeared
 	cursor   map[string]int       // round robin, by tier
 	credit   map[string]int       // smooth weighted round robin current weights
+	pins     *pinStore
 }
 
 func New(d Deps) *Engine {
 	e := &Engine{
 		models: d.Models, providers: d.Providers, settings: d.Settings, log: d.Log, client: d.Client, now: d.Now,
 		inflight: map[string]int{}, leases: map[uint64]lease{}, cooldown: map[string]time.Time{},
-		changed: make(chan struct{}), cursor: map[string]int{}, credit: map[string]int{},
+		changed: make(chan struct{}), cursor: map[string]int{}, credit: map[string]int{}, pins: newPinStore(),
 	}
 	if e.log == nil {
 		e.log = slog.Default()
@@ -163,6 +165,9 @@ func (e *Engine) route(ctx context.Context, name string, hdr http.Header, pl pay
 	r := &request{
 		e: e, ctx: ctx, cancel: cancel, cfg: cfg, model: m, chain: chain, hdr: hdr, pl: pl, stream: stream,
 		ttl: timeout + leaseGrace, tried: map[string]bool{},
+	}
+	if pl.affinity && m.CacheAffinity {
+		r.aff = e.newAffinity(ctx, name, hdr, pl.body)
 	}
 	return r.run()
 }
