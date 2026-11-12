@@ -76,13 +76,7 @@ func (r *request) run() (Result, error) {
 		r.attempted(a)
 		res, err := r.call(a)
 		if err == nil {
-			usage := res.Meta.Usage
-			res.Meta, res.Meta.Usage = r.meta, usage
-			res.Header = r.ignoredParams(a)
-			if res.Status/100 == 2 && a.t.provider.Kind == providers.KindClaudeSubscription {
-				r.e.unflagKey(a.key.ID)
-			}
-			return r.served(a, res), nil
+			return r.delivered(a, res), nil
 		}
 		r.failed(a)
 		if cerr := r.ctx.Err(); cerr != nil {
@@ -91,6 +85,17 @@ func (r *request) run() (Result, error) {
 		r.tried[pairKey(a.t, a.key)] = true
 		r.last = err
 	}
+}
+
+// delivered finishes a successful attempt: identity, client headers, flag healing, affinity.
+func (r *request) delivered(a attempt, res Result) Result {
+	usage := res.Meta.Usage
+	res.Meta, res.Meta.Usage = r.meta, usage
+	res.Header = r.ignoredParams(a)
+	if res.Status/100 == 2 && a.t.provider.Kind == providers.KindClaudeSubscription {
+		r.e.unflagKey(a.key.ID)
+	}
+	return r.served(a, res)
 }
 
 // attempted records the target about to be called.

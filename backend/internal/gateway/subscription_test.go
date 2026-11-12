@@ -41,7 +41,9 @@ func recording(into *seen, h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (e *env) engineNow() time.Time { return time.Now().Add(clockSkew + time.Duration(e.advance.Load())) }
+func (e *env) engineNow() time.Time {
+	return time.Now().Add(clockSkew + time.Duration(e.advance.Load()))
+}
 
 func (e *env) flagOf(t *testing.T, keyID string) string {
 	t.Helper()
@@ -67,6 +69,22 @@ func authError(status int, typ string, header ...string) http.HandlerFunc {
 	}
 }
 
+func (e *env) wantSidecarCall(t *testing.T, got seen, mode providers.AuthMode, out string) {
+	t.Helper()
+	if got.path != "/v1/messages" || got.header.Get("X-Claude-Auth-Mode") != string(mode) || got.header.Get("X-Claude-Credential") != sidecarCred {
+		t.Fatalf("%s %v", got.path, got.header)
+	}
+	if got.header.Get("X-Api-Key") != "" || got.header.Get("Authorization") != "" {
+		t.Fatalf("proxy or provider credentials leaked to the sidecar: %v", got.header)
+	}
+	if want, have := [4]int{16, 7, 4, 2}, tokens(e.one(t)); have != want {
+		t.Fatalf("tokens %v, want %v", have, want)
+	}
+	if strings.Contains(out, sidecarCred) || strings.Contains(e.logs.String(), sidecarCred) {
+		t.Fatal("credential leaked to the client or the logs")
+	}
+}
+
 func TestSubscriptionTargetsGetSidecarCredentialsAndRecordCacheUsage(t *testing.T) {
 	calls := map[string]func(e *env) (reply, string){
 		"chat":            func(e *env) (reply, string) { return e.chat(t, simple) },
@@ -89,18 +107,7 @@ func TestSubscriptionTargetsGetSidecarCredentialsAndRecordCacheUsage(t *testing.
 				if resp.StatusCode != 200 {
 					t.Fatalf("%d %s", resp.StatusCode, out)
 				}
-				if got.path != "/v1/messages" || got.header.Get("X-Claude-Auth-Mode") != string(mode) || got.header.Get("X-Claude-Credential") != sidecarCred {
-					t.Fatalf("%s %v", got.path, got.header)
-				}
-				if got.header.Get("X-Api-Key") != "" || got.header.Get("Authorization") != "" {
-					t.Fatalf("proxy or provider credentials leaked to the sidecar: %v", got.header)
-				}
-				if want := [4]int{16, 7, 4, 2}; tokens(e.one(t)) != want {
-					t.Fatalf("tokens %v, want %v", tokens(e.one(t)), want)
-				}
-				if strings.Contains(out, sidecarCred) || strings.Contains(e.logs.String(), sidecarCred) {
-					t.Fatal("credential leaked to the client or the logs")
-				}
+				e.wantSidecarCall(t, got, mode, out)
 			})
 		}
 	}
@@ -136,45 +143,63 @@ func TestSubscriptionRateLimitCoolsKeyAndFailsOver(t *testing.T) {
 	}
 }
 
+// authFlow is a failing subscription target "a" with a healthy Anthropic fallback "b".
+type authFlow struct {
+	t       *testing.T
+	e       *env
+	a       *atomic.Int32
+	healthy atomic.Bool
+}
+
+func newAuthFlow(t *testing.T, status int) *authFlow {
+	f := &authFlow{t: t, e: newEnv(t)}
+	f.a = f.e.sidecar(t, "a", providers.AuthLoginDir, nil, func(w http.ResponseWriter, r *http.Request) {
+		if f.healthy.Load() {
+			ok(`{"served":"a"}`)(w, r)
+			return
+		}
+		authError(status, "authentication_error")(w, r)
+	})
+	f.e.claude(t, "b", 1, ok(`{"served":"b"}`))
+	f.e.route([]string{"a"}, []string{"b"})
+	return f
+}
+
+func (f *authFlow) serve(wantBody string) {
+	f.t.Helper()
+	if _, out := f.e.messages(f.t, claudeReq); out != wantBody {
+		f.t.Fatalf("served %s, want %s", out, wantBody)
+	}
+}
+
+func (f *authFlow) want(hits int32, flag string) {
+	f.t.Helper()
+	if got := f.e.flagOf(f.t, "k-a"); f.a.Load() != hits || got != flag {
+		f.t.Fatalf("hits %d flag %q, want %d %q", f.a.Load(), got, hits, flag)
+	}
+}
+
+func (f *authFlow) pass() { f.e.advance.Add(int64(11 * time.Minute)) }
+
 func TestSubscriptionAuthFailureFlagsKeyUntilProbeSucceeds(t *testing.T) {
 	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
-			e := newEnv(t)
-			var healthy atomic.Bool
-			a := e.sidecar(t, "a", providers.AuthLoginDir, nil, func(w http.ResponseWriter, r *http.Request) {
-				if healthy.Load() {
-					ok(`{"served":"a"}`)(w, r)
-					return
-				}
-				authError(status, "authentication_error")(w, r)
-			})
-			e.claude(t, "b", 1, ok(`{"served":"b"}`))
-			e.route([]string{"a"}, []string{"b"})
-			serve := func() string { _, out := e.messages(t, claudeReq); return out }
+			f := newAuthFlow(t, status)
+			f.serve(`{"served":"b"}`)
+			f.want(1, "needs_login")
+			f.serve(`{"served":"b"}`)
+			f.want(1, "needs_login") // skipped while flagged
 
-			if out := serve(); out != `{"served":"b"}` || e.flagOf(t, "k-a") != "needs_login" {
-				t.Fatalf("%s flag=%q", out, e.flagOf(t, "k-a"))
-			}
-			serve()
-			if a.Load() != 1 {
-				t.Fatalf("flagged key called again: %d", a.Load())
-			}
+			f.pass()
+			f.serve(`{"served":"b"}`) // probe fails and flags again
+			f.serve(`{"served":"b"}`)
+			f.want(2, "needs_login")
 
-			e.advance.Add(int64(11 * time.Minute))
-			serve() // probe fails: flagged again
-			serve()
-			if a.Load() != 2 || e.flagOf(t, "k-a") != "needs_login" {
-				t.Fatalf("hits %d flag %q", a.Load(), e.flagOf(t, "k-a"))
-			}
-
-			healthy.Store(true)
-			e.advance.Add(int64(11 * time.Minute))
-			if out := serve(); out != `{"served":"a"}` || e.flagOf(t, "k-a") != "" {
-				t.Fatalf("%s flag=%q", out, e.flagOf(t, "k-a"))
-			}
-			if out := serve(); out != `{"served":"a"}` {
-				t.Fatal(out)
-			}
+			f.healthy.Store(true)
+			f.pass()
+			f.serve(`{"served":"a"}`)
+			f.want(3, "")
+			f.serve(`{"served":"a"}`)
 		})
 	}
 }
@@ -212,10 +237,14 @@ func TestIgnoredParamsHeaderOnlyWhenSubscriptionDropsThem(t *testing.T) {
 		stream bool
 		want   string
 	}{
-		"chat":                {func(e *env) (reply, string) { return e.chat(t, sampled) }, false, want},
-		"chat stream":         {func(e *env) (reply, string) { return e.chat(t, strings.Replace(sampled, `"model":"m"`, `"model":"m","stream":true`, 1)) }, true, want},
-		"messages":            {func(e *env) (reply, string) { return e.messages(t, nativeSampled) }, false, "max_tokens,temperature,top_k"},
-		"messages stream":     {func(e *env) (reply, string) { return e.messages(t, strings.Replace(nativeSampled, `"model":"m"`, `"model":"m","stream":true`, 1)) }, true, "max_tokens,temperature,top_k"},
+		"chat": {func(e *env) (reply, string) { return e.chat(t, sampled) }, false, want},
+		"chat stream": {func(e *env) (reply, string) {
+			return e.chat(t, strings.Replace(sampled, `"model":"m"`, `"model":"m","stream":true`, 1))
+		}, true, want},
+		"messages": {func(e *env) (reply, string) { return e.messages(t, nativeSampled) }, false, "max_tokens,temperature,top_k"},
+		"messages stream": {func(e *env) (reply, string) {
+			return e.messages(t, strings.Replace(nativeSampled, `"model":"m"`, `"model":"m","stream":true`, 1))
+		}, true, "max_tokens,temperature,top_k"},
 		"nothing sent":        {func(e *env) (reply, string) { return e.chat(t, simple) }, false, ""},
 		"nothing sent stream": {func(e *env) (reply, string) { return e.chat(t, streamReq) }, true, ""},
 	}
