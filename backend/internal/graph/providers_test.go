@@ -102,3 +102,43 @@ func TestValidationErrorsAreShownAndInternalOnesHidden(t *testing.T) {
 type errInternal struct{}
 
 func (errInternal) Error() string { return "sqlite: disk on fire" }
+
+func TestSubscriptionAccountsOverGraphQL(t *testing.T) {
+	const setupToken = "sk-ant-oat01-DISTINCTIVE-token-abcdef123456"
+	h := providersHandler(t)
+	out := gql(t, h, `mutation { createProvider(input: {name: "sub", kind: claude_subscription, baseUrl: "http://sidecar:3000"}) { id } }`, nil)
+	var created struct {
+		Data struct{ CreateProvider struct{ ID string } }
+	}
+	if err := json.Unmarshal([]byte(out), &created); err != nil || created.Data.CreateProvider.ID == "" {
+		t.Fatalf("create: %s", out)
+	}
+	add := func(in map[string]any) string {
+		in["maxInFlight"] = 1
+		return gql(t, h, `mutation($p: ID!, $i: ProviderKeyInput!) { addProviderKey(providerId: $p, input: $i) { name maskedKey authMode tokenCreatedAt tokenExpiresAt } }`,
+			map[string]any{"p": created.Data.CreateProvider.ID, "i": in})
+	}
+
+	out = add(map[string]any{"name": "tok", "secret": setupToken, "authMode": "SETUP_TOKEN", "tokenCreatedAt": "2026-01-01T00:00:00Z"})
+	if !strings.Contains(out, `"authMode":"SETUP_TOKEN"`) || !strings.Contains(out, `"tokenExpiresAt":"2027-01-01T00:00:00Z"`) || strings.Contains(out, setupToken) {
+		t.Fatalf("token account: %s", out)
+	}
+	out = add(map[string]any{"name": "dir", "secret": "acct-1", "authMode": "LOGIN_DIR"})
+	if !strings.Contains(out, `"maskedKey":"acct-1"`) || !strings.Contains(out, `"tokenExpiresAt":null`) {
+		t.Fatalf("dir account: %s", out)
+	}
+	for name, in := range map[string]map[string]any{
+		"api_key on subscription": {"name": "x", "secret": setupToken, "authMode": "API_KEY"},
+		"missing mode":            {"name": "x", "secret": setupToken},
+		"bad dir":                 {"name": "x", "secret": "../etc", "authMode": "LOGIN_DIR"},
+	} {
+		if out := add(in); !strings.Contains(out, `"errors"`) || strings.Contains(out, "internal server error") || strings.Contains(out, setupToken) {
+			t.Fatalf("%s: %s", name, out)
+		}
+	}
+
+	out = gql(t, h, `{ providers { keys { name authMode maskedKey tokenCreatedAt tokenExpiresAt } } }`, nil)
+	if strings.Contains(out, setupToken) || !strings.Contains(out, `"authMode":"LOGIN_DIR"`) {
+		t.Fatalf("list: %s", out)
+	}
+}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
@@ -44,7 +43,7 @@ func (r *request) meter(a attempt, res Result) Result {
 	if r.pl.kind != virtualmodels.KindChat || res.Status/100 != 2 {
 		return res
 	}
-	claude := a.t.provider.Kind == providers.KindAnthropic
+	claude := claudeShaped(a.t.provider.Kind)
 	u := &Usage{}
 	res.Meta.Usage = u
 	switch {

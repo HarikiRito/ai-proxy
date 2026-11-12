@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
@@ -47,7 +48,7 @@ func (e *Engine) chain(ctx context.Context, m virtualmodels.Model, pl payload) (
 		cur := tier{key: fmt.Sprintf("%s#%d", m.Name, t.Priority)}
 		for _, en := range t.Entries {
 			p, ok := provs[en.ProviderID]
-			if en.Status != virtualmodels.StatusOK || !ok || !p.Enabled || !slices.Contains(pl.accepts, p.Kind) {
+			if en.Status != virtualmodels.StatusOK || !ok || !p.Enabled || !slices.Contains(pl.accepts, p.Kind) || (p.Kind == providers.KindClaudeSubscription && !pl.sidecar) {
 				e.log.Debug("skipping target", "model", m.Name, "provider", en.ProviderID, "status", en.Status)
 				continue
 			}
@@ -75,9 +76,7 @@ func (r *request) run() (Result, error) {
 		r.attempted(a)
 		res, err := r.call(a)
 		if err == nil {
-			usage := res.Meta.Usage
-			res.Meta, res.Meta.Usage = r.meta, usage
-			return r.served(a, res), nil
+			return r.delivered(a, res), nil
 		}
 		r.failed(a)
 		if cerr := r.ctx.Err(); cerr != nil {
@@ -86,6 +85,17 @@ func (r *request) run() (Result, error) {
 		r.tried[pairKey(a.t, a.key)] = true
 		r.last = err
 	}
+}
+
+// delivered finishes a successful attempt: identity, client headers, flag healing, affinity.
+func (r *request) delivered(a attempt, res Result) Result {
+	usage := res.Meta.Usage
+	res.Meta, res.Meta.Usage = r.meta, usage
+	res.Header = r.ignoredParams(a)
+	if res.Status/100 == 2 && a.t.provider.Kind == providers.KindClaudeSubscription {
+		r.e.unflagKey(a.key.ID)
+	}
+	return r.served(a, res)
 }
 
 // attempted records the target about to be called.

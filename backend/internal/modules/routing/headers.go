@@ -10,6 +10,7 @@ var skipHeaders = map[string]bool{
 	"Authorization": true, "X-Api-Key": true, "Host": true, "Cookie": true, "Content-Length": true, "Accept-Encoding": true,
 	"Connection": true, "Keep-Alive": true, "Proxy-Authenticate": true, "Proxy-Authorization": true, "Proxy-Connection": true,
 	"Te": true, "Trailer": true, "Transfer-Encoding": true, "Upgrade": true,
+	"X-Claude-Auth-Mode": true, "X-Claude-Credential": true,
 }
 
 // forwardHeaders copies client headers to dst except the skipped ones and any named in Connection.

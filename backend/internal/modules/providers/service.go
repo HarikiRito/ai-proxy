@@ -4,8 +4,10 @@ package providers
 import (
 	"context"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent"
 )
@@ -17,6 +19,21 @@ const (
 	KindAnthropic          Kind = "anthropic"
 	KindClaudeSubscription Kind = "claude_subscription"
 )
+
+type AuthMode string
+
+const (
+	AuthAPIKey     AuthMode = "api_key"
+	AuthSetupToken AuthMode = "setup_token"
+	AuthLoginDir   AuthMode = "login_dir"
+)
+
+const (
+	tokenLifetime = 365 * 24 * time.Hour
+	minTokenLen   = 20
+)
+
+var loginDirName = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
 
 const (
 	maskPrefix         = "••••"
@@ -55,7 +72,11 @@ type Key struct {
 	Enabled     bool
 	MaxInFlight int
 	Weight      int
-	MaskedKey   string
+	MaskedKey   string // a login dir name is not secret and shows in clear
+	AuthMode    AuthMode
+	// TokenCreatedAt and TokenExpiresAt are set for setup tokens only.
+	TokenCreatedAt *time.Time
+	TokenExpiresAt *time.Time
 }
 
 // ProviderInput is used for create (Name, Kind, BaseURL required) and update (nil fields stay unchanged).
@@ -69,12 +90,15 @@ type ProviderInput struct {
 }
 
 // KeyInput is used for add (Name, Secret, MaxInFlight required) and update (nil fields stay unchanged).
+// AuthMode must be given for claude_subscription providers and defaults to api_key for the others.
 type KeyInput struct {
-	Name        *string
-	Secret      *string
-	Enabled     *bool
-	MaxInFlight *int
-	Weight      *int
+	Name           *string
+	Secret         *string
+	Enabled        *bool
+	MaxInFlight    *int
+	Weight         *int
+	AuthMode       *AuthMode
+	TokenCreatedAt *time.Time
 }
 
 // UserError is safe to show to the owner (validation, not found, conflicts).
@@ -262,13 +286,15 @@ func cleanModels(models []string) []string {
 }
 
 // mask is computed on read from the ciphertext; the longer the secret, the more of it is safe to show.
-func (s *Service) mask(ciphertext []byte) string {
+func (s *Service) mask(mode AuthMode, ciphertext []byte) string {
 	plain, err := s.cipher.Decrypt(ciphertext)
 	if err != nil {
 		return maskPrefix
 	}
 	secret := string(plain)
 	switch {
+	case mode == AuthLoginDir:
+		return secret
 	case len(secret) >= longMaskKeyLen:
 		return secret[:maskHead] + "…" + secret[len(secret)-maskTail:]
 	case len(secret) >= shortMaskKeyLen:

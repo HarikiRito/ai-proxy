@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -12,7 +13,7 @@ import (
 
 type store struct {
 	db   *ent.Client
-	mask func(ciphertext []byte) string
+	mask func(mode AuthMode, ciphertext []byte) string
 }
 
 var errNotFound = userError("not found")
@@ -79,7 +80,7 @@ func (st *store) update(ctx context.Context, id string, in ProviderInput) (Provi
 	if err != nil {
 		return Provider{}, err
 	}
-	if err := st.rejectSubscriptionWithKeys(ctx, uid, in.Kind); err != nil {
+	if err := st.rejectKindSwitchWithKeys(ctx, uid, in.Kind); err != nil {
 		return Provider{}, err
 	}
 	u := st.db.Provider.UpdateOneID(uid)
@@ -111,8 +112,16 @@ func (st *store) update(ctx context.Context, id string, in ProviderInput) (Provi
 	return st.toProvider(row), nil
 }
 
-func (st *store) rejectSubscriptionWithKeys(ctx context.Context, id uuid.UUID, kind *Kind) error {
-	if kind == nil || *kind != KindClaudeSubscription {
+// rejectKindSwitchWithKeys keeps accounts and API keys apart: the kind may not cross the subscription line while keys exist.
+func (st *store) rejectKindSwitchWithKeys(ctx context.Context, id uuid.UUID, kind *Kind) error {
+	if kind == nil {
+		return nil
+	}
+	p, err := st.db.Provider.Get(ctx, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if (Kind(p.Kind) == KindClaudeSubscription) == (*kind == KindClaudeSubscription) {
 		return nil
 	}
 	n, err := st.db.ProviderKey.Query().Where(providerkey.HasProviderWith(entprovider.ID(id))).Count(ctx)
@@ -120,7 +129,7 @@ func (st *store) rejectSubscriptionWithKeys(ctx context.Context, id uuid.UUID, k
 		return err
 	}
 	if n > 0 {
-		return userError("claude subscription providers take no API keys: remove its keys first")
+		return userError("claude subscription accounts and API keys cannot mix: remove its keys first")
 	}
 	return nil
 }
@@ -142,13 +151,16 @@ func (st *store) addKey(ctx context.Context, providerID string, in KeyInput, sea
 	if err != nil {
 		return Key{}, mapErr(err)
 	}
-	if Kind(p.Kind) == KindClaudeSubscription {
-		return Key{}, userError("claude subscription providers do not take API keys; accounts are managed in a later release")
+	auth, err := resolveAuth(Kind(p.Kind), nil, in, time.Now())
+	if err != nil {
+		return Key{}, err
 	}
 	c := st.db.ProviderKey.Create().
 		SetProviderID(uid).
 		SetName(*in.Name).
 		SetCiphertext(sealed).
+		SetAuthMode(providerkey.AuthMode(auth.mode)).
+		SetNillableTokenCreatedAt(auth.created).
 		SetMaxInFlight(*in.MaxInFlight)
 	if in.Enabled != nil {
 		c.SetEnabled(*in.Enabled)
@@ -168,7 +180,18 @@ func (st *store) updateKey(ctx context.Context, id string, in KeyInput, sealed [
 	if err != nil {
 		return Key{}, err
 	}
-	u := st.db.ProviderKey.UpdateOneID(uid)
+	cur, err := st.db.ProviderKey.Query().Where(providerkey.ID(uid)).WithProvider().Only(ctx)
+	if err != nil {
+		return Key{}, mapErr(err)
+	}
+	auth, err := resolveAuth(Kind(cur.Edges.Provider.Kind), &keyAuth{AuthMode(cur.AuthMode), cur.TokenCreatedAt}, in, time.Now())
+	if err != nil {
+		return Key{}, err
+	}
+	u := st.db.ProviderKey.UpdateOneID(uid).SetAuthMode(providerkey.AuthMode(auth.mode)).SetNillableTokenCreatedAt(auth.created)
+	if auth.created == nil {
+		u.ClearTokenCreatedAt()
+	}
 	if in.Name != nil {
 		u.SetName(*in.Name)
 	}
@@ -232,14 +255,21 @@ func (st *store) toProvider(row *ent.Provider) Provider {
 }
 
 func (st *store) toKey(row *ent.ProviderKey) Key {
-	return Key{
-		ID:          row.ID.String(),
-		Name:        row.Name,
-		Enabled:     row.Enabled,
-		MaxInFlight: row.MaxInFlight,
-		Weight:      row.Weight,
-		MaskedKey:   st.mask(row.Ciphertext),
+	k := Key{
+		ID:             row.ID.String(),
+		Name:           row.Name,
+		Enabled:        row.Enabled,
+		MaxInFlight:    row.MaxInFlight,
+		Weight:         row.Weight,
+		AuthMode:       AuthMode(row.AuthMode),
+		MaskedKey:      st.mask(AuthMode(row.AuthMode), row.Ciphertext),
+		TokenCreatedAt: row.TokenCreatedAt,
 	}
+	if k.AuthMode == AuthSetupToken && row.TokenCreatedAt != nil {
+		expires := row.TokenCreatedAt.Add(tokenLifetime)
+		k.TokenExpiresAt = &expires
+	}
+	return k
 }
 
 func (st *store) byIDs(ctx context.Context, ids []string) (map[string]Provider, error) {

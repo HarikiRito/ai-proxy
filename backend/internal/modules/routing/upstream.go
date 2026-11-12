@@ -60,6 +60,10 @@ func (r *request) call(a attempt) (Result, error) {
 		d := r.cooldownFor(resp.Header.Get("Retry-After"))
 		r.e.cool(a.key.ID, d)
 		return Result{}, fmt.Errorf("provider %q: rate limited, key paused %ds", name, int(d.Seconds()))
+	case a.t.provider.Kind == providers.KindClaudeSubscription && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden):
+		r.e.flagKey(a.key.ID)
+		r.e.log.Warn("subscription account needs login", "provider", name, "key", a.key.Name, "status", resp.StatusCode)
+		return Result{}, fmt.Errorf("provider %q: account %q needs login (status %d)", name, a.key.Name, resp.StatusCode)
 	case resp.StatusCode >= http.StatusInternalServerError:
 		return Result{}, fmt.Errorf("provider %q: upstream status %d", name, resp.StatusCode)
 	}
@@ -68,7 +72,7 @@ func (r *request) call(a attempt) (Result, error) {
 
 // adapt answers a chat request served by a Claude target in chat completions format.
 func (r *request) adapt(a attempt, res Result) (Result, error) {
-	if r.pl.chat == nil || a.t.provider.Kind != providers.KindAnthropic {
+	if r.pl.chat == nil || !claudeShaped(a.t.provider.Kind) {
 		return res, nil
 	}
 	switch {
@@ -132,7 +136,7 @@ func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, erro
 	kind := a.t.provider.Kind
 	body, contentType := r.body(a)
 	path := r.pl.path
-	if r.pl.chat != nil && kind == providers.KindAnthropic {
+	if r.pl.chat != nil && claudeShaped(kind) {
 		path = claudePath
 	}
 	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost, upstreamURL(a.t.provider, path), bytes.NewReader(body))
@@ -150,14 +154,17 @@ func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, erro
 		if req.Header.Get("Anthropic-Version") == "" {
 			req.Header.Set("Anthropic-Version", defaultAnthropicVersion)
 		}
+	case providers.KindClaudeSubscription:
+		req.Header.Set("X-Claude-Auth-Mode", string(a.key.AuthMode))
+		req.Header.Set("X-Claude-Credential", secret)
 	}
 	return req, nil
 }
 
-// upstreamURL joins base and path; Anthropic bases may omit the /v1 prefix.
+// upstreamURL joins base and path; Claude-shaped bases may omit the /v1 prefix.
 func upstreamURL(p providers.Provider, path string) string {
 	base := strings.TrimRight(p.BaseURL, "/")
-	if p.Kind == providers.KindAnthropic && !strings.HasSuffix(base, "/v1") {
+	if claudeShaped(p.Kind) && !strings.HasSuffix(base, "/v1") {
 		base += "/v1"
 	}
 	return base + path

@@ -66,6 +66,11 @@ func Ciphertext(v []byte) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldEQ(FieldCiphertext, v))
 }
 
+// TokenCreatedAt applies equality check predicate on the "token_created_at" field. It's identical to TokenCreatedAtEQ.
+func TokenCreatedAt(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldEQ(FieldTokenCreatedAt, v))
+}
+
 // Enabled applies equality check predicate on the "enabled" field. It's identical to EnabledEQ.
 func Enabled(v bool) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldEQ(FieldEnabled, v))
@@ -194,6 +199,76 @@ func CiphertextLT(v []byte) predicate.ProviderKey {
 // CiphertextLTE applies the LTE predicate on the "ciphertext" field.
 func CiphertextLTE(v []byte) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldLTE(FieldCiphertext, v))
+}
+
+// AuthModeEQ applies the EQ predicate on the "auth_mode" field.
+func AuthModeEQ(v AuthMode) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldEQ(FieldAuthMode, v))
+}
+
+// AuthModeNEQ applies the NEQ predicate on the "auth_mode" field.
+func AuthModeNEQ(v AuthMode) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldNEQ(FieldAuthMode, v))
+}
+
+// AuthModeIn applies the In predicate on the "auth_mode" field.
+func AuthModeIn(vs ...AuthMode) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldIn(FieldAuthMode, vs...))
+}
+
+// AuthModeNotIn applies the NotIn predicate on the "auth_mode" field.
+func AuthModeNotIn(vs ...AuthMode) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldNotIn(FieldAuthMode, vs...))
+}
+
+// TokenCreatedAtEQ applies the EQ predicate on the "token_created_at" field.
+func TokenCreatedAtEQ(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldEQ(FieldTokenCreatedAt, v))
+}
+
+// TokenCreatedAtNEQ applies the NEQ predicate on the "token_created_at" field.
+func TokenCreatedAtNEQ(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldNEQ(FieldTokenCreatedAt, v))
+}
+
+// TokenCreatedAtIn applies the In predicate on the "token_created_at" field.
+func TokenCreatedAtIn(vs ...time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldIn(FieldTokenCreatedAt, vs...))
+}
+
+// TokenCreatedAtNotIn applies the NotIn predicate on the "token_created_at" field.
+func TokenCreatedAtNotIn(vs ...time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldNotIn(FieldTokenCreatedAt, vs...))
+}
+
+// TokenCreatedAtGT applies the GT predicate on the "token_created_at" field.
+func TokenCreatedAtGT(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldGT(FieldTokenCreatedAt, v))
+}
+
+// TokenCreatedAtGTE applies the GTE predicate on the "token_created_at" field.
+func TokenCreatedAtGTE(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldGTE(FieldTokenCreatedAt, v))
+}
+
+// TokenCreatedAtLT applies the LT predicate on the "token_created_at" field.
+func TokenCreatedAtLT(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldLT(FieldTokenCreatedAt, v))
+}
+
+// TokenCreatedAtLTE applies the LTE predicate on the "token_created_at" field.
+func TokenCreatedAtLTE(v time.Time) predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldLTE(FieldTokenCreatedAt, v))
+}
+
+// TokenCreatedAtIsNil applies the IsNil predicate on the "token_created_at" field.
+func TokenCreatedAtIsNil() predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldIsNull(FieldTokenCreatedAt))
+}
+
+// TokenCreatedAtNotNil applies the NotNil predicate on the "token_created_at" field.
+func TokenCreatedAtNotNil() predicate.ProviderKey {
+	return predicate.ProviderKey(sql.FieldNotNull(FieldTokenCreatedAt))
 }
 
 // EnabledEQ applies the EQ predicate on the "enabled" field.

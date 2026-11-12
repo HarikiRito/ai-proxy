@@ -77,7 +77,8 @@ type Result struct {
 	ContentType string
 	Body        []byte
 	Stream      io.ReadCloser
-	Affinity    string // hit, break or new for pinned conversations, "" when affinity does not apply
+	Header      http.Header // extra response headers for the client
+	Affinity    string      // hit, break or new for pinned conversations, "" when affinity does not apply
 	Meta        Meta
 }
 
@@ -94,6 +95,7 @@ type Engine struct {
 	leases   map[uint64]lease
 	lastID   uint64
 	cooldown map[string]time.Time // by provider key id
+	flags    map[string]time.Time // key id -> last 401/403 of a subscription account
 	changed  chan struct{}        // closed and replaced when capacity may have appeared
 	cursor   map[string]int       // round robin, by tier
 	credit   map[string]int       // smooth weighted round robin current weights
@@ -103,7 +105,7 @@ type Engine struct {
 func New(d Deps) *Engine {
 	e := &Engine{
 		models: d.Models, providers: d.Providers, settings: d.Settings, log: d.Log, client: d.Client, now: d.Now,
-		inflight: map[string]int{}, leases: map[uint64]lease{}, cooldown: map[string]time.Time{},
+		inflight: map[string]int{}, leases: map[uint64]lease{}, cooldown: map[string]time.Time{}, flags: map[string]time.Time{},
 		changed: make(chan struct{}), cursor: map[string]int{}, credit: map[string]int{}, pins: newPinStore(),
 	}
 	if e.log == nil {

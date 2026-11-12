@@ -55,6 +55,8 @@ func (ProviderKey) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.String("name").NotEmpty(),
 		field.Bytes("ciphertext").Sensitive(),
+		field.Enum("auth_mode").Values("api_key", "setup_token", "login_dir").Default("api_key"),
+		field.Time("token_created_at").Optional().Nillable(),
 		field.Bool("enabled").Default(true),
 		field.Int("max_in_flight").Positive(),
 		field.Int("weight").Default(1).Positive(),

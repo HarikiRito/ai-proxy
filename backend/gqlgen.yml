@@ -24,6 +24,15 @@ models:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.ProviderInput
   ProviderKeyInput:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.KeyInput
+  ProviderKeyAuthMode:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.AuthMode
+    enum_values:
+      API_KEY:
+        value: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.AuthAPIKey
+      SETUP_TOKEN:
+        value: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.AuthSetupToken
+      LOGIN_DIR:
+        value: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.AuthLoginDir
   ProviderKind:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/providers.Kind
   Time:

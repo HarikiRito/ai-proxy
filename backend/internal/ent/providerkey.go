@@ -23,6 +23,10 @@ type ProviderKey struct {
 	Name string `json:"name,omitempty"`
 	// Ciphertext holds the value of the "ciphertext" field.
 	Ciphertext []byte `json:"-"`
+	// AuthMode holds the value of the "auth_mode" field.
+	AuthMode providerkey.AuthMode `json:"auth_mode,omitempty"`
+	// TokenCreatedAt holds the value of the "token_created_at" field.
+	TokenCreatedAt *time.Time `json:"token_created_at,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
 	// MaxInFlight holds the value of the "max_in_flight" field.
@@ -71,9 +75,9 @@ func (*ProviderKey) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case providerkey.FieldMaxInFlight, providerkey.FieldWeight:
 			values[i] = new(sql.NullInt64)
-		case providerkey.FieldName:
+		case providerkey.FieldName, providerkey.FieldAuthMode:
 			values[i] = new(sql.NullString)
-		case providerkey.FieldCreatedAt, providerkey.FieldUpdatedAt:
+		case providerkey.FieldTokenCreatedAt, providerkey.FieldCreatedAt, providerkey.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case providerkey.FieldID:
 			values[i] = new(uuid.UUID)
@@ -111,6 +115,19 @@ func (_m *ProviderKey) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field ciphertext", values[i])
 			} else if value != nil {
 				_m.Ciphertext = *value
+			}
+		case providerkey.FieldAuthMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field auth_mode", values[i])
+			} else if value.Valid {
+				_m.AuthMode = providerkey.AuthMode(value.String)
+			}
+		case providerkey.FieldTokenCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field token_created_at", values[i])
+			} else if value.Valid {
+				_m.TokenCreatedAt = new(time.Time)
+				*_m.TokenCreatedAt = value.Time
 			}
 		case providerkey.FieldEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -194,6 +211,14 @@ func (_m *ProviderKey) String() string {
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
 	builder.WriteString("ciphertext=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("auth_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AuthMode))
+	builder.WriteString(", ")
+	if v := _m.TokenCreatedAt; v != nil {
+		builder.WriteString("token_created_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))

@@ -1,4 +1,4 @@
-h1:P5pR5ohl4ezMsHxjlnJcf9mjgFsKV7rZWvVq1xfukF8=
+h1:094rs//a8kzWsHZXiD19nTNQUTPXssal6B7z68sYVPE=
 20261111120131_init.sql h1:v/PLsnDWSS3pdUfJKWQJafyZs4bljD7XBp+w++N7DDc=
 20261111155902_providers.sql h1:WOCh9VxUN067BptPcXwwOUPN+RnvsY1j4NSO4PQ8R/I=
 20261111173632_proxykeys.sql h1:GwxzWj+rldEuJ8IvUvXz4uhFNRkO32AMg2zpM4AO5Nc=
@@ -6,3 +6,4 @@ h1:P5pR5ohl4ezMsHxjlnJcf9mjgFsKV7rZWvVq1xfukF8=
 20261112022146_provider_keys_models.sql h1:ipCqxdR2iCfs0Ya9OV0YX/HOCoiifpfHQNv9ne4g40s=
 20261112055537_settings.sql h1:bpjcB/ojwzvFwOq3nlVyNpTKr01PXnaHky7v2oeEW+Q=
 20261112095615_usage.sql h1:gwQttXDp3mEw5ZI3BdH0E3+khiLdhA7Ovqz8z0DmzHs=
+20261112105933_claude_accounts.sql h1:0l/do8VLMzOiN3KM5KsElZaaKCaJRhHyjvUxJZEvkHo=
