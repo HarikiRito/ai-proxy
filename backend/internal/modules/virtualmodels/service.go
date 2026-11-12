@@ -3,6 +3,7 @@ package virtualmodels
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -106,6 +107,9 @@ type UpdateInput struct {
 	Tiers         []TierInput
 }
 
+// ErrNotFound is returned by ByName when no virtual model has the name.
+var ErrNotFound = errors.New("virtual model not found")
+
 // UserError is safe to show to the owner (validation, not found, conflicts).
 type UserError struct{ Msg string }
 
@@ -133,6 +137,15 @@ func (s *Service) List(ctx context.Context) ([]Model, error) {
 		return nil, err
 	}
 	return s.present(ctx, models)
+}
+
+// ByName is the routing lookup; it returns ErrNotFound for unknown names.
+func (s *Service) ByName(ctx context.Context, name string) (Model, error) {
+	m, err := s.store.byName(ctx, name)
+	if err != nil {
+		return Model{}, err
+	}
+	return s.presentOne(ctx, m)
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (Model, error) {

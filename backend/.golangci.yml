@@ -120,6 +120,11 @@ linters:
           deny:
             - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/setting
               desc: settings owns this table; use its facade
+        gateway:
+          files: ["**/internal/gateway/**"]
+          deny:
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent
+              desc: the gateway calls module facades and the routing engine only
         graph:
           files: ["**/internal/graph/**", "!**/internal/graph/generated.go"]
           deny:

@@ -325,3 +325,21 @@ func TestDeleteCascadesAndUnknownIDsAreNotFound(t *testing.T) {
 	_, err := s.Update(ctx, uuid.NewString(), updateOf(chatInput("m", tier(entry(a, "x", 1)))))
 	wantUserError(t, err, "not found")
 }
+
+func TestByName(t *testing.T) {
+	s, dir := newService(t)
+	p := dir.add("alpha", "openai_compatible", true)
+	created := mustCreate(t, s, chatInput("fast", tier(entry(p, "gpt", 2))))
+	mustCreate(t, s, chatInput("other", tier(entry(p, "gpt", 1))))
+
+	got, err := s.ByName(context.Background(), "fast")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != created.ID || shape(got) != shape(created) || got.Tiers[0].Entries[0].Status != StatusOK {
+		t.Fatalf("got %+v", got)
+	}
+	if _, err := s.ByName(context.Background(), "nope"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+}
