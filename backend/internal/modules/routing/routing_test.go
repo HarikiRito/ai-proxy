@@ -84,7 +84,7 @@ func setup(t *testing.T, m virtualmodels.Model, provs ...providers.Provider) (*E
 	}
 	clk := &clock{t: time.Unix(1_000_000, 0)}
 	e := New(Deps{Providers: fp, Settings: fakeSettings(testCfg), Now: clk.now})
-	chain, err := e.chain(context.Background(), m)
+	chain, err := e.chain(context.Background(), m, chatPayload(nil))
 	if err != nil {
 		t.Fatal(err)
 	}

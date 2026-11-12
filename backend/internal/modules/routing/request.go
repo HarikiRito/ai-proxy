@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
-	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
@@ -29,7 +29,7 @@ type request struct {
 }
 
 // chain keeps only usable targets, tiers in ascending priority.
-func (e *Engine) chain(ctx context.Context, m virtualmodels.Model) ([]tier, error) {
+func (e *Engine) chain(ctx context.Context, m virtualmodels.Model, pl payload) ([]tier, error) {
 	var ids []string
 	for _, t := range m.Tiers {
 		for _, en := range t.Entries {
@@ -45,7 +45,7 @@ func (e *Engine) chain(ctx context.Context, m virtualmodels.Model) ([]tier, erro
 		cur := tier{key: fmt.Sprintf("%s#%d", m.Name, t.Priority)}
 		for _, en := range t.Entries {
 			p, ok := provs[en.ProviderID]
-			if en.Status != virtualmodels.StatusOK || !ok || !p.Enabled || p.Kind != providers.KindOpenAICompatible {
+			if en.Status != virtualmodels.StatusOK || !ok || !p.Enabled || !slices.Contains(pl.accepts, p.Kind) {
 				e.log.Debug("skipping target", "model", m.Name, "provider", en.ProviderID, "status", en.Status)
 				continue
 			}

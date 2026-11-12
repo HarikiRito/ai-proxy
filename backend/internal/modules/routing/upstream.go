@@ -16,7 +16,10 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 )
 
-const maxCooldown = 24 * time.Hour
+const (
+	maxCooldown             = 24 * time.Hour
+	defaultAnthropicVersion = "2023-06-01"
+)
 
 // call sends the request upstream and releases the lease unless a stream takes it over.
 // A non-nil error means try the next target.
@@ -103,8 +106,7 @@ func withModel(body map[string]json.RawMessage, model string) []byte {
 
 func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, error) {
 	body, contentType := r.pl.build(a.t.entry.Model)
-	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost,
-		strings.TrimRight(a.t.provider.BaseURL, "/")+r.pl.path, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost, upstreamURL(a.t.provider, r.pl.path), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +115,22 @@ func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, erro
 	switch a.t.provider.Kind {
 	case providers.KindOpenAICompatible:
 		req.Header.Set("Authorization", "Bearer "+secret)
+	case providers.KindAnthropic:
+		req.Header.Set("X-Api-Key", secret)
+		if req.Header.Get("Anthropic-Version") == "" {
+			req.Header.Set("Anthropic-Version", defaultAnthropicVersion)
+		}
 	}
 	return req, nil
+}
+
+// upstreamURL joins base and path; Anthropic bases may omit the /v1 prefix.
+func upstreamURL(p providers.Provider, path string) string {
+	base := strings.TrimRight(p.BaseURL, "/")
+	if p.Kind == providers.KindAnthropic && !strings.HasSuffix(base, "/v1") {
+		base += "/v1"
+	}
+	return base + path
 }
 
 // liveBody is a committed upstream stream; closing it frees the key lease and the request deadline.

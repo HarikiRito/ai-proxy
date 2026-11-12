@@ -108,6 +108,12 @@ func (e *env) newKey(t *testing.T, allowed ...string) (proxykeys.Key, string) {
 // upstream registers a fake provider with one key (limit, weight 1) and returns its call counter.
 func (e *env) upstream(t *testing.T, id string, limit int, h http.HandlerFunc) *atomic.Int32 {
 	t.Helper()
+	return e.upstreamAs(t, id, providers.KindOpenAICompatible, "/v1", limit, h)
+}
+
+// upstreamAs is upstream with a chosen provider kind and base URL suffix.
+func (e *env) upstreamAs(t *testing.T, id string, kind providers.Kind, baseSuffix string, limit int, h http.HandlerFunc) *atomic.Int32 {
+	t.Helper()
 	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
@@ -115,7 +121,7 @@ func (e *env) upstream(t *testing.T, id string, limit int, h http.HandlerFunc) *
 	}))
 	t.Cleanup(srv.Close)
 	e.provs[id] = providers.Provider{
-		ID: id, Name: id, Kind: providers.KindOpenAICompatible, Enabled: true, BaseURL: srv.URL + "/v1",
+		ID: id, Name: id, Kind: kind, Enabled: true, BaseURL: srv.URL + baseSuffix,
 		Keys: []providers.Key{{ID: "k-" + id, Enabled: true, MaxInFlight: limit, Weight: 1}},
 	}
 	return &hits

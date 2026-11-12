@@ -124,6 +124,16 @@ func (e *Engine) Stream(ctx context.Context, name string, hdr http.Header, body 
 	return e.route(ctx, name, hdr, chatPayload(body), true)
 }
 
+// Messages routes a native Anthropic messages body to anthropic targets, byte for byte except the model.
+func (e *Engine) Messages(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (Result, error) {
+	return e.route(ctx, name, hdr, messagesPayload(body), false)
+}
+
+// MessagesStream is Messages for streaming bodies, committed like Stream.
+func (e *Engine) MessagesStream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (Result, error) {
+	return e.route(ctx, name, hdr, messagesPayload(body), true)
+}
+
 func (e *Engine) route(ctx context.Context, name string, hdr http.Header, pl payload, stream bool) (res Result, err error) {
 	cfg, err := e.settings.Get(ctx)
 	if err != nil {
@@ -146,7 +156,7 @@ func (e *Engine) route(ctx context.Context, name string, hdr http.Header, pl pay
 	case m.Kind != pl.kind:
 		return Result{}, &Error{Status: http.StatusBadRequest, Code: "wrong_model_kind", Message: "model " + name + " is not a " + string(pl.kind) + " model"}
 	}
-	chain, err := e.chain(ctx, m)
+	chain, err := e.chain(ctx, m, pl)
 	if err != nil {
 		return Result{}, err
 	}
