@@ -36,7 +36,7 @@ func NewRouter(o Options) *chi.Mux {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins: o.AllowedOrigins,
 			AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-			AllowedHeaders: []string{"Authorization", "Content-Type"},
+			AllowedHeaders: []string{"Authorization", "Content-Type", "X-Api-Key"},
 		}))
 	}
 	r.Get("/healthz", func(w http.ResponseWriter, req *http.Request) {

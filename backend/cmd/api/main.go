@@ -12,10 +12,12 @@ import (
 	"time"
 
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent"
+	"github.com/HarikiRito/ai-proxy/backend/internal/gateway"
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/health"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/routing"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
@@ -76,7 +78,11 @@ func run() error {
 		return err
 	}
 
-	router := newRouter(cfg, log, authn, spa, resolver, healthSvc)
+	engine := routing.New(routing.Deps{Models: resolver.VirtualModels, Providers: resolver.Providers, Settings: resolver.Settings, Log: log})
+	go engine.Watch(ctx)
+	v1 := gateway.New(gateway.Deps{Keys: resolver.ProxyKeys, Models: resolver.VirtualModels, Chat: engine, Settings: resolver.Settings, Log: log})
+
+	router := newRouter(cfg, log, authn, spa, resolver, healthSvc, v1)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: 10 * time.Second}
 	serveErr := make(chan error, 1)
@@ -122,11 +128,12 @@ func (d providerDirectory) ProviderInfo(ctx context.Context, ids []string) (map[
 	return out, nil
 }
 
-func newRouter(cfg config.Config, log *slog.Logger, authn *auth.Authenticator, spa fs.FS, resolver *graph.Resolver, healthSvc *health.Service) http.Handler {
+func newRouter(cfg config.Config, log *slog.Logger, authn *auth.Authenticator, spa fs.FS, resolver *graph.Resolver, healthSvc *health.Service, v1 http.Handler) http.Handler {
 	router := httpx.NewRouter(httpx.Options{
 		Log: log, AllowedOrigins: cfg.CORSOrigins, Ready: healthSvc.Check, Static: spa,
 		WorkOSClientID: cfg.WorkOSClientID, DevMode: cfg.WorkOSDevMode,
 	})
+	router.Mount("/v1", v1)
 	router.Handle("/graphql", authn.Middleware(graph.NewHandler(resolver, cfg.Debug)))
 	if cfg.Debug {
 		router.Get("/playground", playground.ApolloSandboxHandler("GraphQL", "/graphql"))

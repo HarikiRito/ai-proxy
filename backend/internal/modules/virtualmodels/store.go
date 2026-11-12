@@ -80,6 +80,19 @@ func (st *store) get(ctx context.Context, id uuid.UUID) (Model, error) {
 	return toModel(row), nil
 }
 
+func (st *store) byName(ctx context.Context, name string) (Model, error) {
+	q := st.db.VirtualModel.Query().Where(entmodel.Name(name))
+	st.withTree()(q)
+	row, err := q.Only(ctx)
+	if ent.IsNotFound(err) {
+		return Model{}, ErrNotFound
+	}
+	if err != nil {
+		return Model{}, err
+	}
+	return toModel(row), nil
+}
+
 func (st *store) create(ctx context.Context, in CreateInput) (Model, error) {
 	var id uuid.UUID
 	err := st.inTx(ctx, func(tx *ent.Tx) error {
