@@ -38,6 +38,7 @@ type world struct {
 	served []string
 	reqs   map[string]*http.Request
 	bodies map[string]string
+	native bool // ask goes to the native messages endpoint
 }
 
 func reply(status int, body string) handler {
@@ -113,7 +114,12 @@ func (w *world) ask(pk, body string, hdr ...string) (Result, error) {
 	}
 	ctx := WithAffinity(context.Background(), pk)
 	call := w.e.Do
-	if string(in["stream"]) == "true" {
+	switch streaming := string(in["stream"]) == "true"; {
+	case w.native && streaming:
+		call = w.e.MessagesStream
+	case w.native:
+		call = w.e.Messages
+	case streaming:
 		call = w.e.Stream
 	}
 	res, err := call(ctx, "m", h, in)
@@ -155,7 +161,7 @@ func derive(scope, model, body string, hdr ...string) *affinity {
 	for i := 0; i+1 < len(hdr); i += 2 {
 		h.Set(hdr[i], hdr[i+1])
 	}
-	return New(Deps{}).newAffinity(WithAffinity(context.Background(), scope), model, h, b)
+	return New(Deps{}).newAffinity(WithAffinity(context.Background(), scope), model, h, chatPayload(b))
 }
 
 func keyOf(a *affinity) string {
@@ -507,7 +513,7 @@ func TestCacheTeeKeepsBytesAndFiresOnce(t *testing.T) {
 	line := `data: {"usage":{"prompt_tokens_details":{"cached_tokens":5}}}` + "\n\n"
 	input := "data: {\"a\":1}\n\n" + line + line + "data: [DONE]\n\n"
 	fired := 0
-	tee := watchCache(io.NopCloser(oneByte{strings.NewReader(input)}), func() { fired++ })
+	tee := watchCache(io.NopCloser(oneByte{strings.NewReader(input)}), cachedTokens, func() { fired++ })
 	got, err := io.ReadAll(tee)
 	if err != nil || string(got) != input || fired != 1 {
 		t.Fatalf("err=%v fired=%d identical=%v", err, fired, string(got) == input)

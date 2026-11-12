@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
@@ -72,4 +73,19 @@ func TestRestartRoutesAnew(t *testing.T) {
 	e.turns(t, 3, "conv-1")
 	e.serve(t)
 	e.turns(t, 3, "conv-1")
+}
+
+func TestMessagesConversationStaysOnOneTarget(t *testing.T) {
+	e := newEnv(t)
+	a := e.upstreamAs(t, "a", providers.KindAnthropic, "/v1", 9, ok(`{}`))
+	b := e.upstreamAs(t, "b", providers.KindAnthropic, "/v1", 9, ok(`{}`))
+	e.affine("a", "b")
+	for range 10 {
+		if resp, body := e.messages(t, claudeReq, "X-Session-Id", "conv-1"); resp.StatusCode != 200 {
+			t.Fatalf("%d %s", resp.StatusCode, body)
+		}
+	}
+	if got := a.Load() + b.Load(); got != 10 || (a.Load() != 0 && b.Load() != 0) {
+		t.Fatalf("a=%d b=%d", a.Load(), b.Load())
+	}
 }
