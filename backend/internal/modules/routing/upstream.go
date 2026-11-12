@@ -3,39 +3,48 @@ package routing
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 )
 
 const maxCooldown = 24 * time.Hour
 
-// call sends the request upstream and always releases the lease. A non-nil error means try the next target.
+// call sends the request upstream and releases the lease unless a stream takes it over.
+// A non-nil error means try the next target.
 func (r *request) call(a attempt) (Result, error) {
-	defer r.e.release(a.lease)
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			r.e.release(a.lease)
+		}
+	}()
 	name := a.t.provider.Name
 	secret, err := r.e.providers.Reveal(r.ctx, a.key.ID)
 	if err != nil {
 		r.e.log.Error("reveal provider key", "provider", name, "key", a.key.ID, "err", err)
 		return Result{}, fmt.Errorf("provider %q: key unavailable", name)
 	}
-	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost,
-		strings.TrimRight(a.t.provider.BaseURL, "/")+"/chat/completions", bytes.NewReader(withModel(r.body, a.t.entry.Model)))
+	req, err := r.upstreamRequest(a, secret)
 	if err != nil {
 		return Result{}, fmt.Errorf("provider %q: bad base URL", name)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+secret)
-
 	resp, err := r.e.client.Do(req)
 	if err != nil {
 		r.e.log.Warn("upstream request failed", "provider", name, "err", err)
 		return Result{}, fmt.Errorf("provider %q: request failed", name)
+	}
+	if r.stream && resp.StatusCode/100 == 2 {
+		handedOff = true
+		return Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Stream: &liveBody{ReadCloser: resp.Body, r: r, lease: a.lease}}, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
@@ -90,4 +99,49 @@ func withModel(body map[string]json.RawMessage, model string) []byte {
 	}
 	b.WriteByte('}')
 	return b.Bytes()
+}
+
+func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost,
+		strings.TrimRight(a.t.provider.BaseURL, "/")+"/chat/completions", bytes.NewReader(withModel(r.body, a.t.entry.Model)))
+	if err != nil {
+		return nil, err
+	}
+	forwardHeaders(req.Header, r.hdr)
+	if req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	switch a.t.provider.Kind {
+	case providers.KindOpenAICompatible:
+		req.Header.Set("Authorization", "Bearer "+secret)
+	}
+	return req, nil
+}
+
+// liveBody is a committed upstream stream; closing it frees the key lease and the request deadline.
+type liveBody struct {
+	io.ReadCloser
+	r     *request
+	lease uint64
+	once  sync.Once
+}
+
+// Read reports the request's own ctx error, so callers can tell a deadline or client exit from an upstream break.
+func (b *liveBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		if cerr := b.r.ctx.Err(); cerr != nil {
+			err = ctxError(cerr)
+		}
+	}
+	return n, err
+}
+
+func (b *liveBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.once.Do(func() {
+		b.r.cancel()
+		b.r.e.release(b.lease)
+	})
+	return err
 }

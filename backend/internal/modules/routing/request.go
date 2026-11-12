@@ -16,10 +16,13 @@ import (
 type request struct {
 	e         *Engine
 	ctx       context.Context //nolint:containedctx // request-scoped state, lives for one Do call
+	cancel    context.CancelFunc
 	cfg       settings.Settings
 	model     virtualmodels.Model
 	chain     []tier
+	hdr       http.Header
 	body      map[string]json.RawMessage
+	stream    bool
 	ttl       time.Duration
 	tried     map[string]bool
 	last      error

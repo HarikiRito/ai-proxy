@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/db"
+	"github.com/HarikiRito/ai-proxy/backend/internal/platform/httpx"
 )
 
 var keySeq atomic.Int32
@@ -86,9 +88,9 @@ func newEnv(t *testing.T) *env {
 	}
 	engine := routing.New(routing.Deps{Models: e.models, Providers: e.provs, Settings: e.settings})
 	h := New(Deps{Keys: e.keys, Models: e.models, Chat: engine, Settings: e.settings})
-	mux := http.NewServeMux()
-	mux.Handle("/v1/", http.StripPrefix("/v1", h))
-	e.srv = httptest.NewServer(mux)
+	router := httpx.NewRouter(httpx.Options{Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	router.Mount("/v1", h)
+	e.srv = httptest.NewServer(router)
 	t.Cleanup(e.srv.Close)
 	_, e.token = e.newKey(t)
 	return e
@@ -433,7 +435,6 @@ func TestRequestValidation(t *testing.T) {
 		code   string
 	}{
 		"too large":     {`{"model":"m","pad":"` + strings.Repeat("x", 300) + `"}`, 413, "request_too_large"},
-		"stream":        {`{"model":"m","stream":true}`, 400, "streaming_unsupported"},
 		"unknown model": {`{"model":"nope"}`, 404, "model_not_found"},
 		"wrong kind":    {`{"model":"audio"}`, 400, "wrong_model_kind"},
 		"no model":      {`{"messages":[]}`, 400, "invalid_request"},
