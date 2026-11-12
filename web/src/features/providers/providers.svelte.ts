@@ -1,9 +1,12 @@
 import { type ModelsDevPreset, presetModelIds } from '#src/features/modelsdev/modelsdev.svelte.js';
+import { createUsageStore, type Timers } from '#src/features/usage/usage.svelte.js';
 import {
 	ANTHROPIC_CACHE_AFFINITY_SECONDS,
 	DEFAULT_CACHE_AFFINITY_SECONDS,
 	type ProviderKind
 } from './presets';
+
+export type AuthMode = 'API_KEY' | 'SETUP_TOKEN' | 'LOGIN_DIR';
 
 export interface ProviderKey {
 	id: string;
@@ -12,6 +15,9 @@ export interface ProviderKey {
 	maxInFlight: number;
 	weight: number;
 	maskedKey: string;
+	authMode: AuthMode;
+	tokenCreatedAt: string | null;
+	tokenExpiresAt: string | null;
 }
 
 export interface Provider {
@@ -42,6 +48,8 @@ export interface NewKey {
 	secret: string;
 	maxInFlight: number;
 	weight: number;
+	authMode?: AuthMode;
+	tokenCreatedAt?: string;
 }
 
 export type KeyPatch = Partial<Omit<NewKey, 'name'>> & { name?: string; enabled?: boolean };
@@ -54,10 +62,13 @@ interface GraphQLBody {
 }
 
 const CUSTOM = 'custom';
+const SUBSCRIPTION: ProviderKind = 'claude_subscription';
+export const LIVE_INTERVAL_MS = 10_000;
+
 const REQUEST_FAILED = 'Request failed';
 
 const LIST_QUERY = `{ providers { id name kind baseUrl enabled models cacheAffinitySeconds capacity
-  keys { id name enabled maxInFlight weight maskedKey } } }`;
+  keys { id name enabled maxInFlight weight maskedKey authMode tokenCreatedAt tokenExpiresAt } } }`;
 
 const MUTATIONS = {
 	createProvider: 'mutation($input: ProviderInput!) { createProvider(input: $input) { id } }',
@@ -95,7 +106,11 @@ const emptyDraft = (): Draft => ({
 	cacheAffinitySeconds: DEFAULT_CACHE_AFFINITY_SECONDS
 });
 
-export function createProvidersStore(authFetch: AuthFetch = (input, init) => fetch(input, init)) {
+export function createProvidersStore(
+	authFetch: AuthFetch = (input, init) => fetch(input, init),
+	timers?: Timers
+) {
+	const usage = createUsageStore(authFetch, timers, LIVE_INTERVAL_MS);
 	let providers = $state<Provider[]>([]);
 	let error = $state('');
 	let loading = $state(false);
@@ -195,7 +210,7 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 			kind: draft.kind,
 			baseUrl: draft.baseUrl,
 			enabled: draft.enabled,
-			models: parseModels(draft.models),
+			models: draft.kind === SUBSCRIPTION ? [] : parseModels(draft.models),
 			cacheAffinitySeconds: draft.cacheAffinitySeconds
 		};
 		const ok = editingId
@@ -221,6 +236,14 @@ export function createProvidersStore(authFetch: AuthFetch = (input, init) => fet
 		get editingId() {
 			return editingId;
 		},
+		get live() {
+			return usage.live;
+		},
+		get liveError() {
+			return usage.errors.live;
+		},
+		startLive: usage.startLive,
+		stopLive: usage.stopLive,
 		load,
 		applyPreset,
 		updateDraft,

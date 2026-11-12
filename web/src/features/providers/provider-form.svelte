@@ -27,6 +27,7 @@
 	const presetLabel = $derived(
 		modelsDev.presets.find((p) => p.id === store.draft.presetId)?.name ?? 'Custom'
 	);
+	const subscription = $derived(store.draft.kind === 'claude_subscription');
 	const kindLabel = $derived(KINDS.find((k) => k.value === store.draft.kind)?.label);
 
 	function submit(event: SubmitEvent) {
@@ -44,7 +45,7 @@
 			<Dialog.Description>Pick a preset or enter any compatible address.</Dialog.Description>
 		</Dialog.Header>
 		<form class="flex flex-col gap-4" onsubmit={submit}>
-			{#if !store.editingId}
+			{#if !store.editingId && !subscription}
 				<div class="flex flex-col gap-2">
 					<Label>Preset</Label>
 					<Select.Root
@@ -89,22 +90,25 @@
 				</Select.Root>
 			</div>
 			<div class="flex flex-col gap-2">
-				<Label for="provider-url">Base URL</Label>
+				<Label for="provider-url">{subscription ? 'Sidecar address' : 'Base URL'}</Label>
 				<Input
 					id="provider-url"
+					placeholder={subscription ? 'http://sidecar:3000' : ''}
 					value={store.draft.baseUrl}
 					oninput={(e) => store.updateDraft({ baseUrl: e.currentTarget.value, presetId: 'custom' })}
 				/>
 			</div>
-			<div class="flex flex-col gap-2">
-				<Label for="provider-models">Models (one per line)</Label>
-				<Textarea
-					id="provider-models"
-					rows={5}
-					value={store.draft.models}
-					oninput={(e) => store.updateDraft({ models: e.currentTarget.value })}
-				/>
-			</div>
+			{#if !subscription}
+				<div class="flex flex-col gap-2">
+					<Label for="provider-models">Models (one per line)</Label>
+					<Textarea
+						id="provider-models"
+						rows={5}
+						value={store.draft.models}
+						oninput={(e) => store.updateDraft({ models: e.currentTarget.value })}
+					/>
+				</div>
+			{/if}
 			<div class="flex flex-col gap-2">
 				<Label for="provider-affinity">Cache affinity (seconds)</Label>
 				<Input

@@ -40,6 +40,7 @@ export interface LiveKey {
 	inFlight: number;
 	free: number;
 	cooldownUntil: string | null;
+	flag: string;
 }
 
 export const GROUPS = ['DAY', 'MODEL', 'PROVIDER'] as const;
@@ -82,7 +83,7 @@ const TOTALS_QUERY = `query($filter: UsageFilter, $groupBy: UsageGroup!) {
   usageTotals(filter: $filter, groupBy: $groupBy) { label requests inputTokens outputTokens
     cacheReadTokens cacheCreationTokens errors } }`;
 const LIVE_QUERY =
-	'{ liveStatus { providerId providerName keyId keyName enabled maxInFlight inFlight free cooldownUntil } }';
+	'{ liveStatus { providerId providerName keyId keyName enabled maxInFlight inFlight free cooldownUntil flag } }';
 
 export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
 
@@ -107,7 +108,8 @@ export function createUsageStore(
 	timers: Timers = {
 		setInterval: (fn, ms) => setInterval(fn, ms),
 		clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>)
-	}
+	},
+	liveIntervalMs = LIVE_INTERVAL_MS
 ) {
 	const proxyKeys = createProxyKeysStore(authFetch);
 	const virtualModels = createVirtualModelsStore(authFetch);
@@ -245,7 +247,7 @@ export function createUsageStore(
 		startLive: () => {
 			stopLive();
 			void refreshLive();
-			liveTimer = timers.setInterval(() => void refreshLive(), LIVE_INTERVAL_MS);
+			liveTimer = timers.setInterval(() => void refreshLive(), liveIntervalMs);
 		},
 		stopLive
 	};
