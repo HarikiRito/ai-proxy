@@ -18,6 +18,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph/model"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/routing"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/usage"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
@@ -50,6 +51,18 @@ type ComplexityRoot struct {
 
 	Health struct {
 		Ok func(childComplexity int) int
+	}
+
+	LiveKey struct {
+		CooldownUntil func(childComplexity int) int
+		Enabled       func(childComplexity int) int
+		Free          func(childComplexity int) int
+		InFlight      func(childComplexity int) int
+		KeyID         func(childComplexity int) int
+		KeyName       func(childComplexity int) int
+		MaxInFlight   func(childComplexity int) int
+		ProviderID    func(childComplexity int) int
+		ProviderName  func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -101,6 +114,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Health        func(childComplexity int) int
+		LiveStatus    func(childComplexity int) int
 		Providers     func(childComplexity int) int
 		ProxyKeys     func(childComplexity int) int
 		Settings      func(childComplexity int) int
@@ -204,6 +218,7 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (*model.Health, error)
+	LiveStatus(ctx context.Context) ([]*routing.KeyStatus, error)
 	Providers(ctx context.Context) ([]*providers.Provider, error)
 	ProxyKeys(ctx context.Context) ([]*proxykeys.Key, error)
 	Settings(ctx context.Context) (*settings.Settings, error)
@@ -250,6 +265,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Health.Ok(childComplexity), true
+
+	case "LiveKey.cooldownUntil":
+		if e.ComplexityRoot.LiveKey.CooldownUntil == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.CooldownUntil(childComplexity), true
+	case "LiveKey.enabled":
+		if e.ComplexityRoot.LiveKey.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.Enabled(childComplexity), true
+	case "LiveKey.free":
+		if e.ComplexityRoot.LiveKey.Free == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.Free(childComplexity), true
+	case "LiveKey.inFlight":
+		if e.ComplexityRoot.LiveKey.InFlight == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.InFlight(childComplexity), true
+	case "LiveKey.keyId":
+		if e.ComplexityRoot.LiveKey.KeyID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.KeyID(childComplexity), true
+	case "LiveKey.keyName":
+		if e.ComplexityRoot.LiveKey.KeyName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.KeyName(childComplexity), true
+	case "LiveKey.maxInFlight":
+		if e.ComplexityRoot.LiveKey.MaxInFlight == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.MaxInFlight(childComplexity), true
+	case "LiveKey.providerId":
+		if e.ComplexityRoot.LiveKey.ProviderID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.ProviderID(childComplexity), true
+	case "LiveKey.providerName":
+		if e.ComplexityRoot.LiveKey.ProviderName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LiveKey.ProviderName(childComplexity), true
 
 	case "Mutation.addProviderKey":
 		if e.ComplexityRoot.Mutation.AddProviderKey == nil {
@@ -537,6 +607,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Query.Health(childComplexity), true
 
+	case "Query.liveStatus":
+		if e.ComplexityRoot.Query.LiveStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.LiveStatus(childComplexity), true
 	case "Query.providers":
 		if e.ComplexityRoot.Query.Providers == nil {
 			break
@@ -979,7 +1055,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/settings.gql" "schema/usage.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
+//go:embed "schema/health.gql" "schema/live.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/settings.gql" "schema/usage.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -992,6 +1068,7 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "schema/health.gql", Input: sourceData("schema/health.gql"), BuiltIn: false},
+	{Name: "schema/live.gql", Input: sourceData("schema/live.gql"), BuiltIn: false},
 	{Name: "schema/providers.gql", Input: sourceData("schema/providers.gql"), BuiltIn: false},
 	{Name: "schema/proxykeys.gql", Input: sourceData("schema/proxykeys.gql"), BuiltIn: false},
 	{Name: "schema/settings.gql", Input: sourceData("schema/settings.gql"), BuiltIn: false},
@@ -1021,6 +1098,30 @@ func (ec *executionContext) childFields_Health(ctx context.Context, field graphq
 		return ec.fieldContext_Health_ok(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Health", field.Name)
+}
+
+func (ec *executionContext) childFields_LiveKey(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "providerId":
+		return ec.fieldContext_LiveKey_providerId(ctx, field)
+	case "providerName":
+		return ec.fieldContext_LiveKey_providerName(ctx, field)
+	case "keyId":
+		return ec.fieldContext_LiveKey_keyId(ctx, field)
+	case "keyName":
+		return ec.fieldContext_LiveKey_keyName(ctx, field)
+	case "enabled":
+		return ec.fieldContext_LiveKey_enabled(ctx, field)
+	case "maxInFlight":
+		return ec.fieldContext_LiveKey_maxInFlight(ctx, field)
+	case "inFlight":
+		return ec.fieldContext_LiveKey_inFlight(ctx, field)
+	case "free":
+		return ec.fieldContext_LiveKey_free(ctx, field)
+	case "cooldownUntil":
+		return ec.fieldContext_LiveKey_cooldownUntil(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type LiveKey", field.Name)
 }
 
 func (ec *executionContext) childFields_Provider(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1783,6 +1884,213 @@ func (ec *executionContext) _Health_ok(ctx context.Context, field graphql.Collec
 }
 func (ec *executionContext) fieldContext_Health_ok(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Health", field, false, false, "Boolean")
+}
+
+func (ec *executionContext) _LiveKey_providerId(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_providerId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProviderID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_providerId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "ID")
+}
+
+func (ec *executionContext) _LiveKey_providerName(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_providerName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProviderName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_providerName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "String")
+}
+
+func (ec *executionContext) _LiveKey_keyId(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_keyId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_keyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "ID")
+}
+
+func (ec *executionContext) _LiveKey_keyName(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_keyName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_keyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "String")
+}
+
+func (ec *executionContext) _LiveKey_enabled(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_enabled(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled(), nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, true, false, "Boolean")
+}
+
+func (ec *executionContext) _LiveKey_maxInFlight(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_maxInFlight(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxInFlight, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_maxInFlight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "Int")
+}
+
+func (ec *executionContext) _LiveKey_inFlight(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_inFlight(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InFlight, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_inFlight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "Int")
+}
+
+func (ec *executionContext) _LiveKey_free(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_free(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Free, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_free(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "Int")
+}
+
+func (ec *executionContext) _LiveKey_cooldownUntil(ctx context.Context, field graphql.CollectedField, obj *routing.KeyStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LiveKey_cooldownUntil(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CooldownUntil, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_LiveKey_cooldownUntil(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LiveKey", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Mutation_createProvider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2899,6 +3207,38 @@ func (ec *executionContext) fieldContext_Query_health(_ context.Context, field g
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Health(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_liveStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_liveStatus(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().LiveStatus(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*routing.KeyStatus) graphql.Marshaler {
+			return ec.marshalNLiveKey2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋroutingᚐKeyStatusᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_liveStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_LiveKey(ctx, field)
 		},
 	}
 	return fc, nil
@@ -6064,6 +6404,79 @@ func (ec *executionContext) _Health(ctx context.Context, sel ast.SelectionSet, o
 	return out
 }
 
+var liveKeyImplementors = []string{"LiveKey"}
+
+func (ec *executionContext) _LiveKey(ctx context.Context, sel ast.SelectionSet, obj *routing.KeyStatus) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, liveKeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LiveKey")
+		case "providerId":
+			out.Values[i] = ec._LiveKey_providerId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "providerName":
+			out.Values[i] = ec._LiveKey_providerName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyId":
+			out.Values[i] = ec._LiveKey_keyId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyName":
+			out.Values[i] = ec._LiveKey_keyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._LiveKey_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxInFlight":
+			out.Values[i] = ec._LiveKey_maxInFlight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inFlight":
+			out.Values[i] = ec._LiveKey_inFlight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "free":
+			out.Values[i] = ec._LiveKey_free(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cooldownUntil":
+			out.Values[i] = ec._LiveKey_cooldownUntil(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -6409,6 +6822,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_health(ctx, field)
+				})
+		case "liveStatus":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_liveStatus(ctx, field)
 				})
 		case "providers":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
@@ -7424,6 +7843,30 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 		graphql.AddInvalidNullFromMarshaler(ctx, "Int!")
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNLiveKey2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋroutingᚐKeyStatusᚄ(ctx context.Context, sel ast.SelectionSet, v []*routing.KeyStatus) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNLiveKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋroutingᚐKeyStatus(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNLiveKey2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋroutingᚐKeyStatus(ctx context.Context, sel ast.SelectionSet, v *routing.KeyStatus) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "LiveKey!")
+		return graphql.Null
+	}
+	return ec._LiveKey(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNProvider2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋprovidersᚐProviderᚄ(ctx context.Context, sel ast.SelectionSet, v []*providers.Provider) graphql.Marshaler {

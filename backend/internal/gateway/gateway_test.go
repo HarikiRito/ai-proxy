@@ -58,6 +58,14 @@ func (f fakeProviders) ByIDs(_ context.Context, ids []string) (map[string]provid
 	return out, nil
 }
 
+func (f fakeProviders) ListProviders(context.Context) ([]providers.Provider, error) {
+	var out []providers.Provider
+	for _, p := range f {
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func (f fakeProviders) Reveal(_ context.Context, keyID string) (string, error) {
 	return "real-" + keyID, nil
 }
@@ -66,9 +74,27 @@ type fakeSettings struct{ s settings.Settings }
 
 func (f *fakeSettings) Get(context.Context) (settings.Settings, error) { return f.s, nil }
 
+// trackedKeys lets tests wait for the gateway's async last-used writes before the db goes away.
+type trackedKeys struct {
+	*proxykeys.Service
+	touching atomic.Int32
+}
+
+func (k *trackedKeys) waitIdle() {
+	for deadline := time.Now().Add(6 * time.Second); k.touching.Load() > 0 && time.Now().Before(deadline); {
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func (k *trackedKeys) Touch(ctx context.Context, id string) error {
+	k.touching.Add(1)
+	defer k.touching.Add(-1)
+	return k.Service.Touch(ctx, id)
+}
+
 type env struct {
 	srv      *httptest.Server
-	keys     *proxykeys.Service
+	keys     *trackedKeys
 	token    string
 	models   fakeModels
 	provs    fakeProviders
@@ -86,8 +112,10 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
+	keys := &trackedKeys{Service: proxykeys.New(proxykeys.Deps{DB: client})}
+	t.Cleanup(keys.waitIdle)
 	e := &env{
-		keys: proxykeys.New(proxykeys.Deps{DB: client}), models: fakeModels{}, provs: fakeProviders{}, rec: &fakeRecorder{},
+		keys: keys, models: fakeModels{}, provs: fakeProviders{}, rec: &fakeRecorder{},
 		settings: &fakeSettings{s: settings.Settings{MaxBodyBytes: 1 << 20, RequestTimeoutSeconds: 30, QueueWaitSeconds: 1, DefaultCooldownSeconds: 60}},
 	}
 	e.serve(t)
