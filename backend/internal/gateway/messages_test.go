@@ -145,7 +145,7 @@ func TestMessagesStreamBreakSendsAnthropicErrorEventAndFreesLease(t *testing.T) 
 	}, ok(`{"ok":true}`)))
 	e.route([]string{"a"})
 	_, body := e.messages(t, claudeStreamReq)
-	want := "event: ping\ndata: {}\n\n\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"message\":\"upstream stream interrupted\",\"type\":\"api_error\"}}\n\n"
+	want := "event: ping\ndata: {}\n\n\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"upstream stream interrupted\"}}\n\n"
 	if body != want {
 		t.Fatalf("got %q", body)
 	}
