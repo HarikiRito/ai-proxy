@@ -34,7 +34,7 @@
 	const subscription = $derived(target?.provider.kind === 'claude_subscription');
 	const noun = $derived(subscription ? 'account' : 'key');
 	const setupToken = $derived(authMode === 'SETUP_TOKEN');
-	const modeChanged = $derived(editing !== null && authMode !== editing.authMode);
+	const modeChanged = $derived(subscription && editing !== null && authMode !== editing.authMode);
 	const modeLabel = $derived(MODES.find((m) => m.value === authMode)?.label);
 
 	// Every open creates a new target object, so this resets the fields on each open.
