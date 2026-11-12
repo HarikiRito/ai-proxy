@@ -47,7 +47,7 @@ func (r *request) call(a attempt) (Result, error) {
 	}
 	if r.stream && resp.StatusCode/100 == 2 {
 		handedOff = true
-		return Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Stream: &liveBody{ReadCloser: resp.Body, r: r, lease: a.lease}}, nil
+		return r.adapt(a, Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Stream: &liveBody{ReadCloser: resp.Body, r: r, lease: a.lease}})
 	}
 	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
@@ -63,7 +63,31 @@ func (r *request) call(a attempt) (Result, error) {
 	case resp.StatusCode >= http.StatusInternalServerError:
 		return Result{}, fmt.Errorf("provider %q: upstream status %d", name, resp.StatusCode)
 	}
-	return Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Body: data}, nil
+	return r.adapt(a, Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Body: data})
+}
+
+// adapt answers a chat request served by a Claude target in chat completions format.
+func (r *request) adapt(a attempt, res Result) (Result, error) {
+	if r.pl.chat == nil || a.t.provider.Kind != providers.KindAnthropic {
+		return res, nil
+	}
+	switch {
+	case res.Stream != nil:
+		res.Stream = newChatStream(res.Stream, r.e.now().Unix(), r.pl.chat.includeUsage)
+	case res.Status/100 == 2:
+		body, ok := chatReply(res.Body, r.e.now().Unix())
+		if !ok {
+			return Result{}, fmt.Errorf("provider %q: unreadable response", a.t.provider.Name)
+		}
+		res.Body = body
+	default:
+		res.Body = chatErrorFromBody(res.Status, res.Body)
+	}
+	res.ContentType = "application/json"
+	if res.Stream != nil {
+		res.ContentType = "text/event-stream"
+	}
+	return res, nil
 }
 
 // cooldownFor reads Retry-After (seconds or HTTP date), else the configured default.
@@ -105,14 +129,19 @@ func withModel(body map[string]json.RawMessage, model string) []byte {
 }
 
 func (r *request) upstreamRequest(a attempt, secret string) (*http.Request, error) {
-	body, contentType := r.pl.build(a.t.entry.Model)
-	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost, upstreamURL(a.t.provider, r.pl.path), bytes.NewReader(body))
+	kind := a.t.provider.Kind
+	body, contentType := r.pl.build(a.t.entry.Model, kind)
+	path := r.pl.path
+	if r.pl.chat != nil && kind == providers.KindAnthropic {
+		path = claudePath
+	}
+	req, err := http.NewRequestWithContext(r.ctx, http.MethodPost, upstreamURL(a.t.provider, path), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	forwardHeaders(req.Header, r.hdr)
 	req.Header.Set("Content-Type", contentType)
-	switch a.t.provider.Kind {
+	switch kind {
 	case providers.KindOpenAICompatible:
 		req.Header.Set("Authorization", "Bearer "+secret)
 	case providers.KindAnthropic:

@@ -23,27 +23,45 @@ type payload struct {
 	kind    virtualmodels.Kind
 	accepts []providers.Kind
 	path    string
-	build   func(model string) (body []byte, contentType string)
+	build   func(model string, kind providers.Kind) (body []byte, contentType string)
+	chat    *chatTranslation // set when Claude targets can serve this chat request; their answers are translated back
 }
 
-var openAIOnly = []providers.Kind{providers.KindOpenAICompatible}
+const claudePath = "/messages"
 
+var (
+	openAIOnly     = []providers.Kind{providers.KindOpenAICompatible}
+	openAIOrClaude = []providers.Kind{providers.KindOpenAICompatible, providers.KindAnthropic}
+)
+
+// chatPayload also reaches Claude targets when the body can be translated.
 func chatPayload(body map[string]json.RawMessage) payload {
-	return payload{virtualmodels.KindChat, openAIOnly, "/chat/completions", func(model string) ([]byte, string) {
+	pl := payload{kind: virtualmodels.KindChat, accepts: openAIOnly, path: "/chat/completions", chat: translateChat(body)}
+	pl.build = func(model string, kind providers.Kind) ([]byte, string) {
+		if kind == providers.KindAnthropic {
+			req := pl.chat.req
+			req.Model = model
+			out, _ := json.Marshal(req)
+			return out, "application/json"
+		}
 		return withModel(body, model), "application/json"
-	}}
+	}
+	if pl.chat != nil {
+		pl.accepts = openAIOrClaude
+	}
+	return pl
 }
 
 // messagesPayload is the native Anthropic messages body, passed through with only the model rewritten.
 func messagesPayload(body map[string]json.RawMessage) payload {
-	return payload{virtualmodels.KindChat, []providers.Kind{providers.KindAnthropic}, "/messages", func(model string) ([]byte, string) {
+	return payload{kind: virtualmodels.KindChat, accepts: []providers.Kind{providers.KindAnthropic}, path: claudePath, build: func(model string, _ providers.Kind) ([]byte, string) {
 		return withModel(body, model), "application/json"
 	}}
 }
 
 // formPayload re-emits the parts under a fresh boundary; only the "model" field value changes.
 func formPayload(parts []Part) payload {
-	return payload{virtualmodels.KindTranscription, openAIOnly, "/audio/transcriptions", func(model string) ([]byte, string) {
+	return payload{kind: virtualmodels.KindTranscription, accepts: openAIOnly, path: "/audio/transcriptions", build: func(model string, _ providers.Kind) ([]byte, string) {
 		size := 1024
 		for _, p := range parts {
 			size += len(p.Data) + 256
