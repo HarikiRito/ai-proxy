@@ -36,7 +36,8 @@ type (
 		List(ctx context.Context) ([]virtualmodels.Model, error)
 	}
 	Chat interface {
-		Do(ctx context.Context, name string, body map[string]json.RawMessage) (routing.Result, error)
+		Do(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
+		Stream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (routing.Result, error)
 	}
 	Settings interface {
 		Get(ctx context.Context) (settings.Settings, error)
@@ -160,15 +161,17 @@ func (g *gateway) chatCompletions(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case !r.Context().Value(keyCtx{}).(proxykeys.Key).AllowsModel(model):
 		writeError(w, http.StatusForbidden, "model_not_allowed", "this key may not use model "+model, 0)
-	case stream:
-		writeError(w, http.StatusBadRequest, "streaming_unsupported", "streaming is not supported yet", 0)
 	default:
-		g.forward(w, r, model, body)
+		g.forward(w, r, model, body, stream)
 	}
 }
 
-func (g *gateway) forward(w http.ResponseWriter, r *http.Request, model string, body map[string]json.RawMessage) {
-	res, err := g.Chat.Do(r.Context(), model, body)
+func (g *gateway) forward(w http.ResponseWriter, r *http.Request, model string, body map[string]json.RawMessage, stream bool) {
+	call := g.Chat.Do
+	if stream {
+		call = g.Chat.Stream
+	}
+	res, err := call(r.Context(), model, r.Header, body)
 	if err != nil {
 		g.fail(w, r, err)
 		return
@@ -177,8 +180,55 @@ func (g *gateway) forward(w http.ResponseWriter, r *http.Request, model string, 
 		res.ContentType = "application/json"
 	}
 	w.Header().Set("Content-Type", res.ContentType)
+	if res.Stream != nil {
+		g.pipe(w, r, res)
+		return
+	}
 	w.WriteHeader(res.Status)
 	_, _ = w.Write(res.Body)
+}
+
+// pipe commits to the upstream stream: headers out, then bytes flushed as they arrive; no failover from here.
+func (g *gateway) pipe(w http.ResponseWriter, r *http.Request, res routing.Result) {
+	defer func() { _ = res.Stream.Close() }()
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(res.Status)
+	rc := http.NewResponseController(w)
+	_ = rc.Flush()
+	err := copyFlushing(w, rc, res.Stream)
+	if err == nil || errors.Is(err, context.Canceled) {
+		return
+	}
+	g.Log.WarnContext(r.Context(), "upstream stream broke", "err", err)
+	code, msg := "stream_interrupted", "upstream stream interrupted"
+	var re *routing.Error
+	if errors.As(err, &re) {
+		code, msg = re.Code, re.Message
+	}
+	event, _ := json.Marshal(map[string]any{"error": map[string]string{"message": msg, "type": "upstream_error", "code": code}})
+	_, _ = w.Write(append(append([]byte("data: "), event...), "\n\n"...))
+	_ = rc.Flush()
+}
+
+// copyFlushing returns the read error that ended the copy; a client write failure counts as cancelled.
+func copyFlushing(w io.Writer, rc *http.ResponseController, src io.Reader) error {
+	buf := make([]byte, 32<<10)
+	for {
+		n, err := src.Read(buf)
+		if n > 0 {
+			if _, werr := w.Write(buf[:n]); werr != nil {
+				return context.Canceled
+			}
+			_ = rc.Flush()
+		}
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // fail maps engine errors to their status; a vanished client gets nothing, anything else is a 500.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -55,11 +56,13 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Message }
 
-// Result is a buffered upstream response, passed through as is.
+// Result is an upstream response passed through as is: buffered in Body, or live in Stream.
+// A non-nil Stream holds the key lease until it is closed.
 type Result struct {
 	Status      int
 	ContentType string
 	Body        []byte
+	Stream      io.ReadCloser
 }
 
 type Engine struct {
@@ -106,14 +109,28 @@ func New(d Deps) *Engine {
 
 // Do routes a chat completion body to the virtual model's targets and returns the upstream answer.
 // Errors are *Error, or the context error when the caller went away.
-func (e *Engine) Do(ctx context.Context, name string, body map[string]json.RawMessage) (Result, error) {
+func (e *Engine) Do(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (Result, error) {
+	return e.route(ctx, name, hdr, body, false)
+}
+
+// Stream is Do for streaming bodies: a 2xx answer comes back as Result.Stream, committed to that target.
+// Callers must close it; read errors are *Error (timeout) or the context error.
+func (e *Engine) Stream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (Result, error) {
+	return e.route(ctx, name, hdr, body, true)
+}
+
+func (e *Engine) route(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage, stream bool) (res Result, err error) {
 	cfg, err := e.settings.Get(ctx)
 	if err != nil {
 		return Result{}, err
 	}
 	timeout := time.Duration(cfg.RequestTimeoutSeconds) * time.Second
 	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	defer func() {
+		if res.Stream == nil {
+			cancel()
+		}
+	}()
 
 	m, err := e.models.ByName(ctx, name)
 	switch {
@@ -128,6 +145,9 @@ func (e *Engine) Do(ctx context.Context, name string, body map[string]json.RawMe
 	if err != nil {
 		return Result{}, err
 	}
-	r := &request{e: e, ctx: ctx, cfg: cfg, model: m, chain: chain, body: body, ttl: timeout + leaseGrace, tried: map[string]bool{}}
+	r := &request{
+		e: e, ctx: ctx, cancel: cancel, cfg: cfg, model: m, chain: chain, hdr: hdr, body: body, stream: stream,
+		ttl: timeout + leaseGrace, tried: map[string]bool{},
+	}
 	return r.run()
 }

@@ -122,3 +122,27 @@ func TestV1RoutesStayOutsideAuth(t *testing.T) {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
 }
+
+func TestMiddlewareStackKeepsResponsesFlushable(t *testing.T) {
+	r := NewRouter(Options{Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	release := make(chan struct{})
+	r.Get("/stream", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("first\n"))
+		if err := http.NewResponseController(w).Flush(); err != nil {
+			t.Error(err)
+		}
+		<-release
+	})
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/stream")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	buf := make([]byte, 6)
+	if _, err := io.ReadFull(resp.Body, buf); err != nil || string(buf) != "first\n" {
+		t.Fatalf("%q %v", buf, err)
+	}
+	close(release)
+}
