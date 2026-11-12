@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ModelsDevPreset } from '#src/features/modelsdev/modelsdev.svelte.js';
 import { capacityOf, createProvidersStore, type Provider } from './providers.svelte';
 
 const SECRET = 'sk-DISTINCTIVE-secret-abcd1234';
@@ -15,6 +16,21 @@ const provider = (over: Partial<Provider> = {}): Provider => ({
 	keys: [],
 	...over
 });
+
+const openai: ModelsDevPreset = {
+	id: 'openai',
+	name: 'OpenAI',
+	api: 'https://api.openai.com/v1',
+	kind: 'openai_compatible',
+	models: []
+};
+const anthropic: ModelsDevPreset = {
+	id: 'anthropic',
+	name: 'Anthropic',
+	api: 'https://api.anthropic.com',
+	kind: 'anthropic',
+	models: []
+};
 
 const key = (over = {}) => ({
 	id: 'k1',
@@ -93,7 +109,7 @@ describe('load', () => {
 describe('presets and draft', () => {
 	it('applyPreset prefills kind, base URL, cache affinity and name, all still editable', () => {
 		const { store } = setup();
-		store.applyPreset('anthropic');
+		store.applyPreset(anthropic);
 		expect(store.draft).toMatchObject({
 			presetId: 'anthropic',
 			name: 'Anthropic',
@@ -108,14 +124,14 @@ describe('presets and draft', () => {
 	it('keeps a typed name when a preset is applied', () => {
 		const { store } = setup();
 		store.updateDraft({ name: 'my-groq' });
-		store.applyPreset('groq');
+		store.applyPreset(openai);
 		expect(store.draft.name).toBe('my-groq');
 	});
 
 	it('custom preset keeps whatever address was typed', () => {
 		const { store } = setup();
-		store.applyPreset('openai');
-		store.applyPreset('custom');
+		store.applyPreset(openai);
+		store.applyPreset(undefined);
 		expect(store.draft).toMatchObject({ presetId: 'custom', baseUrl: 'https://api.openai.com/v1' });
 	});
 
@@ -129,7 +145,7 @@ describe('presets and draft', () => {
 describe('submitDraft', () => {
 	it('creates the provider from the draft, reloads and resets the draft', async () => {
 		const { store, calls } = setup([provider()]);
-		store.applyPreset('openai');
+		store.applyPreset(openai);
 		await store.submitDraft();
 		expect(calls[0].op).toBe('createProvider');
 		expect(calls[0].variables.input).toMatchObject({

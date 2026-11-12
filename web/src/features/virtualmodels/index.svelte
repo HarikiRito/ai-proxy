@@ -4,6 +4,10 @@
 	import { Button } from '#src/components/ui/button/index.js';
 	import * as Card from '#src/components/ui/card/index.js';
 	import { AUTH_FETCH_KEY } from '#src/features/auth/auth.svelte.js';
+	import {
+		MODELS_DEV_KEY,
+		type createModelsDevStore
+	} from '#src/features/modelsdev/modelsdev.svelte.js';
 	import ModelForm from './model-form.svelte';
 	import {
 		createVirtualModelsStore,
@@ -16,10 +20,13 @@
 
 	const store = createVirtualModelsStore(getContext<AuthFetch>(AUTH_FETCH_KEY));
 
+	const modelsDev = getContext<ReturnType<typeof createModelsDevStore>>(MODELS_DEV_KEY);
+
 	let formOpen = $state(false);
 
 	onMount(() => {
 		void store.load();
+		void modelsDev.load();
 	});
 
 	function openCreate() {
@@ -91,4 +98,4 @@
 	{/each}
 </div>
 
-<ModelForm {store} bind:open={formOpen} />
+<ModelForm {store} {modelsDev} bind:open={formOpen} />

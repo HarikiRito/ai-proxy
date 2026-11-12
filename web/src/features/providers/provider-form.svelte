@@ -5,15 +5,17 @@
 	import { Input } from '#src/components/ui/input/index.js';
 	import { Label } from '#src/components/ui/label/index.js';
 	import { Switch } from '#src/components/ui/switch/index.js';
-	import { PRESETS, type ProviderKind } from './presets';
+	import type { createModelsDevStore } from '#src/features/modelsdev/modelsdev.svelte.js';
+	import type { ProviderKind } from './presets';
 	import { ROTATIONS, type createProvidersStore, type Rotation } from './providers.svelte';
 
 	interface Props {
 		store: ReturnType<typeof createProvidersStore>;
+		modelsDev: ReturnType<typeof createModelsDevStore>;
 		open?: boolean;
 	}
 
-	let { store, open = $bindable(false) }: Props = $props();
+	let { store, modelsDev, open = $bindable(false) }: Props = $props();
 
 	const KINDS: { value: ProviderKind; label: string }[] = [
 		{ value: 'openai_compatible', label: 'OpenAI compatible' },
@@ -28,7 +30,7 @@
 	};
 
 	const presetLabel = $derived(
-		PRESETS.find((p) => p.id === store.draft.presetId)?.label ?? 'Custom'
+		modelsDev.presets.find((p) => p.id === store.draft.presetId)?.name ?? 'Custom'
 	);
 	const kindLabel = $derived(KINDS.find((k) => k.value === store.draft.kind)?.label);
 
@@ -53,16 +55,19 @@
 					<Select.Root
 						type="single"
 						value={store.draft.presetId}
-						onValueChange={(v) => store.applyPreset(v)}
+						onValueChange={(v) => store.applyPreset(modelsDev.presets.find((p) => p.id === v))}
 					>
 						<Select.Trigger class="w-full">{presetLabel}</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="custom" label="Custom">Custom</Select.Item>
-							{#each PRESETS as preset (preset.id)}
-								<Select.Item value={preset.id} label={preset.label}>{preset.label}</Select.Item>
+							{#each modelsDev.presets as preset (preset.id)}
+								<Select.Item value={preset.id} label={preset.name}>{preset.name}</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
+					{#if modelsDev.status === 'error'}
+						<p class="text-sm text-muted-foreground">Could not load presets from models.dev.</p>
+					{/if}
 				</div>
 			{/if}
 			<div class="flex flex-col gap-2">

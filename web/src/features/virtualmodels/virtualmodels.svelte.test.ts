@@ -21,10 +21,34 @@ const tier = (...models: string[]): DraftTier => ({
 const names = (tiers: DraftTier[]) => tiers.map((t) => t.entries.map((e) => e.model).join(','));
 
 const providers: ProviderOption[] = [
-	{ id: 'p1', name: 'openai', kind: 'openai_compatible', enabled: true },
-	{ id: 'p2', name: 'claude', kind: 'anthropic', enabled: true },
-	{ id: 'p3', name: 'sub', kind: 'claude_subscription', enabled: true },
-	{ id: 'p4', name: 'sleepy', kind: 'openai_compatible', enabled: false }
+	{
+		id: 'p1',
+		name: 'openai',
+		kind: 'openai_compatible',
+		baseUrl: 'https://api.example.com',
+		enabled: true
+	},
+	{
+		id: 'p2',
+		name: 'claude',
+		kind: 'anthropic',
+		baseUrl: 'https://api.example.com',
+		enabled: true
+	},
+	{
+		id: 'p3',
+		name: 'sub',
+		kind: 'claude_subscription',
+		baseUrl: 'https://api.example.com',
+		enabled: true
+	},
+	{
+		id: 'p4',
+		name: 'sleepy',
+		kind: 'openai_compatible',
+		baseUrl: 'https://api.example.com',
+		enabled: false
+	}
 ];
 
 const model = (over: Partial<VirtualModel> = {}): VirtualModel => ({
