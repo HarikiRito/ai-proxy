@@ -203,11 +203,11 @@ func TestMessagesOnlyHitsAnthropicTargets(t *testing.T) {
 	}
 }
 
-func TestChatSkipsAnthropicTargets(t *testing.T) {
+func TestChatSkipsAnthropicTargetsForUntranslatableRequests(t *testing.T) {
 	e := newEnv(t)
 	hits := e.upstreamAs(t, "a", providers.KindAnthropic, "/v1", 1, ok("{}"))
 	e.route([]string{"a"})
-	resp, out := e.chat(t, simple)
+	resp, out := e.chat(t, `{"model":"m","messages":[{"role":"user","content":"hi"}],"tools":[]}`)
 	wantError(t, resp, out, http.StatusServiceUnavailable, "no_available_provider")
 	if hits.Load() != 0 {
 		t.Fatal("anthropic target contacted by chat")
