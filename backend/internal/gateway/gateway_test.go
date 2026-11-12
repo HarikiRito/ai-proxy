@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -58,6 +59,14 @@ func (f fakeProviders) ByIDs(_ context.Context, ids []string) (map[string]provid
 	return out, nil
 }
 
+func (f fakeProviders) ListProviders(context.Context) ([]providers.Provider, error) {
+	var out []providers.Provider
+	for _, p := range f {
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func (f fakeProviders) Reveal(_ context.Context, keyID string) (string, error) {
 	return "real-" + keyID, nil
 }
@@ -66,9 +75,61 @@ type fakeSettings struct{ s settings.Settings }
 
 func (f *fakeSettings) Get(context.Context) (settings.Settings, error) { return f.s, nil }
 
+// trackedKeys lets tests wait for the gateway's async last-used write of each key before the db goes away.
+// Verify runs before the gateway spawns the write, so the wait cannot miss a write that is about to start.
+type trackedKeys struct {
+	*proxykeys.Service
+	mu      sync.Mutex
+	pending map[string]chan struct{}
+}
+
+func (k *trackedKeys) Verify(ctx context.Context, token string) (proxykeys.Key, error) {
+	key, err := k.Service.Verify(ctx, token)
+	if err == nil {
+		k.mu.Lock()
+		if k.pending[key.ID] == nil {
+			k.pending[key.ID] = make(chan struct{})
+		}
+		k.mu.Unlock()
+	}
+	return key, err
+}
+
+func (k *trackedKeys) Touch(ctx context.Context, id string) error {
+	defer func() {
+		k.mu.Lock()
+		defer k.mu.Unlock()
+		if ch := k.pending[id]; ch != nil {
+			select {
+			case <-ch:
+			default:
+				close(ch)
+			}
+		}
+	}()
+	return k.Service.Touch(ctx, id)
+}
+
+func (k *trackedKeys) waitIdle() {
+	k.mu.Lock()
+	chans := make([]chan struct{}, 0, len(k.pending))
+	for _, ch := range k.pending {
+		chans = append(chans, ch)
+	}
+	k.mu.Unlock()
+	timeout := time.After(6 * time.Second)
+	for _, ch := range chans {
+		select {
+		case <-ch:
+		case <-timeout:
+			return
+		}
+	}
+}
+
 type env struct {
 	srv      *httptest.Server
-	keys     *proxykeys.Service
+	keys     *trackedKeys
 	token    string
 	models   fakeModels
 	provs    fakeProviders
@@ -86,8 +147,10 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
+	keys := &trackedKeys{Service: proxykeys.New(proxykeys.Deps{DB: client}), pending: map[string]chan struct{}{}}
+	t.Cleanup(keys.waitIdle)
 	e := &env{
-		keys: proxykeys.New(proxykeys.Deps{DB: client}), models: fakeModels{}, provs: fakeProviders{}, rec: &fakeRecorder{},
+		keys: keys, models: fakeModels{}, provs: fakeProviders{}, rec: &fakeRecorder{},
 		settings: &fakeSettings{s: settings.Settings{MaxBodyBytes: 1 << 20, RequestTimeoutSeconds: 30, QueueWaitSeconds: 1, DefaultCooldownSeconds: 60}},
 	}
 	e.serve(t)

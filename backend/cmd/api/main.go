@@ -103,9 +103,11 @@ func run() error {
 	return nil
 }
 
+// newGateway also hands the engine to the resolver for liveStatus.
 func newGateway(ctx context.Context, resolver *graph.Resolver, log *slog.Logger) http.Handler {
 	engine := routing.New(routing.Deps{Models: resolver.VirtualModels, Providers: resolver.Providers, Settings: resolver.Settings, Log: log})
 	go engine.Watch(ctx)
+	resolver.Live = engine
 	return gateway.New(gateway.Deps{Keys: resolver.ProxyKeys, Models: resolver.VirtualModels, Chat: engine, Settings: resolver.Settings, Recorder: resolver.Usage, Log: log})
 }
 

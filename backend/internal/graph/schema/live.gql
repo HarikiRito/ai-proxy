@@ -1,0 +1,18 @@
+"Live state of one provider key, from the routing engine."
+type LiveKey {
+  providerId: ID!
+  providerName: String!
+  keyId: ID!
+  keyName: String!
+  "True when both the provider and the key are enabled."
+  enabled: Boolean!
+  maxInFlight: Int!
+  inFlight: Int!
+  free: Int!
+  "Set only while the key is cooling down."
+  cooldownUntil: Time
+}
+
+extend type Query {
+  liveStatus: [LiveKey!]!
+}

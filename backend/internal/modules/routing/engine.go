@@ -29,6 +29,7 @@ type (
 		ByName(ctx context.Context, name string) (virtualmodels.Model, error)
 	}
 	Providers interface {
+		ListProviders(ctx context.Context) ([]providers.Provider, error)
 		ByIDs(ctx context.Context, ids []string) (map[string]providers.Provider, error)
 		Reveal(ctx context.Context, keyID string) (string, error)
 	}

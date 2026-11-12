@@ -27,6 +27,14 @@ func (f fakeProviders) ByIDs(_ context.Context, ids []string) (map[string]provid
 	return out, nil
 }
 
+func (f fakeProviders) ListProviders(context.Context) ([]providers.Provider, error) {
+	var out []providers.Provider
+	for _, p := range f {
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func (f fakeProviders) Reveal(_ context.Context, keyID string) (string, error) {
 	return "secret-" + keyID, nil
 }
