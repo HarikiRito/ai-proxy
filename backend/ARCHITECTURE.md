@@ -10,6 +10,7 @@ Modular monolith, one binary, split-ready. `cmd/api/main.go` is the composition 
 - `internal/gateway/` OpenAI-compatible `/v1` HTTP (proxy-key auth middleware, `GET /models`, `POST /chat/completions`, `POST /audio/transcriptions`, native Anthropic `POST /messages` with Anthropic-format errors); calls facades and the routing engine only, never ent.
 - `internal/graph/` gqlgen, follow-schema layout, `schema/<module>.gql`, flat resolvers that call facades only. Add a dataloader package when cross-module reads appear.
 - `internal/ent/` one schema package, one `*ent.Client`, schema files and tables prefixed per module. Atlas versioned migrations in `backend/migrations`, authored by `cmd/migrate`, applied with the atlas CLI. Only `cmd/api` imports `web` (the embedded SPA). Generated code is committed.
+- `sidecar/` (outside the Go module): Node service wrapping the Claude Agent SDK, speaks a Messages API subset to serve Claude subscription accounts; internal compose service, no published port.
 
 ## Rules (enforced by depguard where possible)
 
