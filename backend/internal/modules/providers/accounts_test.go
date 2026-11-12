@@ -105,6 +105,10 @@ func TestUpdateAccountSecretAndDate(t *testing.T) {
 	if got, _ := s.Reveal(ctx, k.ID); got != token {
 		t.Fatal("blank secret must keep the secret")
 	}
+	k2, err = s.UpdateKey(ctx, k.ID, KeyInput{AuthMode: ptr(AuthSetupToken), Enabled: ptr(false)})
+	if err != nil || !k2.TokenCreatedAt.Equal(old) {
+		t.Fatalf("restating the same mode must keep the date: %+v %v", k2, err)
+	}
 
 	k3, err := s.UpdateKey(ctx, k.ID, KeyInput{Secret: ptr(token + "-2")})
 	if err != nil || time.Since(*k3.TokenCreatedAt) > time.Minute {

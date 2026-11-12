@@ -15,12 +15,13 @@ type keyAuth struct {
 // resolveAuth merges the input over the current auth (nil on add) and checks it against the provider kind.
 func resolveAuth(kind Kind, cur *keyAuth, in KeyInput, now time.Time) (keyAuth, error) {
 	out := keyAuth{mode: AuthAPIKey}
+	if cur != nil {
+		out = *cur
+	}
 	switch {
 	case in.AuthMode != nil:
 		out.mode = *in.AuthMode
-	case cur != nil:
-		out = *cur
-	case kind == KindClaudeSubscription:
+	case cur == nil && kind == KindClaudeSubscription:
 		return keyAuth{}, userError("auth mode is required for claude subscription accounts")
 	}
 	if err := checkMode(kind, out.mode); err != nil {
