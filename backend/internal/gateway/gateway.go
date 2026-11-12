@@ -207,7 +207,8 @@ func (g *gateway) pipe(w http.ResponseWriter, r *http.Request, res routing.Resul
 		code, msg = re.Code, re.Message
 	}
 	event, _ := json.Marshal(map[string]any{"error": map[string]string{"message": msg, "type": "upstream_error", "code": code}})
-	_, _ = w.Write(append(append([]byte("data: "), event...), "\n\n"...))
+	// leading blank line closes a frame the break may have cut short
+	_, _ = w.Write(append(append([]byte("\n\ndata: "), event...), "\n\n"...))
 	_ = rc.Flush()
 }
 

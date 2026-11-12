@@ -131,7 +131,7 @@ func TestStreamUpstreamBreakSendsErrorEventAndFreesLease(t *testing.T) {
 	e.route([]string{"a"})
 
 	_, body := e.chat(t, streamReq)
-	want := "data: partial\n\ndata: {\"error\":{\"code\":\"stream_interrupted\",\"message\":\"upstream stream interrupted\",\"type\":\"upstream_error\"}}\n\n"
+	want := "data: partial\n\n\n\ndata: {\"error\":{\"code\":\"stream_interrupted\",\"message\":\"upstream stream interrupted\",\"type\":\"upstream_error\"}}\n\n"
 	if body != want {
 		t.Fatalf("got %q", body)
 	}
@@ -177,7 +177,7 @@ func TestStreamTimeoutMidStreamSendsTimeoutEvent(t *testing.T) {
 	})
 	e.route([]string{"a"})
 	_, body := e.chat(t, streamReq)
-	if !strings.HasPrefix(body, "data: slow\n\ndata: {") || !strings.Contains(body, `"code":"timeout"`) || !strings.HasSuffix(body, "\n\n") {
+	if !strings.HasPrefix(body, "data: slow\n\n\n\ndata: {") || !strings.Contains(body, `"code":"timeout"`) || !strings.HasSuffix(body, "\n\n") {
 		t.Fatalf("got %q", body)
 	}
 }
