@@ -65,6 +65,7 @@ WorkOS dashboard (per origin; add the `http://localhost:5173` ones for local dev
 - URL: https://ai-proxy.harikidev.win (`/healthz` for status)
 - Dokploy compose app `ai-proxy`, built from `docker-compose.yml` on `main`
 - Every push to `main` auto-deploys via Dokploy
+- `sidecar` compose service (Claude Agent SDK, [sidecar/README.md](sidecar/README.md)): internal only, no published port; volume `sidecar-data` holds Claude account credentials, exclude it from backups or encrypt them
 - Dokploy env must define `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_ISSUER`, `OWNER_EMAIL`, `MASTER_KEY`, `WORKOS_DEV_MODE=true` (see Admin login; back up `MASTER_KEY`)
 
 ## Checks
