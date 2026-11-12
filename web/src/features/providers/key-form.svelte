@@ -22,11 +22,13 @@
 
 	const editing = $derived(target?.key ?? null);
 
+	// Every open creates a new target object, so this resets the fields on each open.
 	$effect(() => {
-		name = editing?.name ?? '';
-		maxInFlight = editing?.maxInFlight ?? 4;
-		weight = editing?.weight ?? 1;
-		enabled = editing?.enabled ?? true;
+		const key = target?.key;
+		name = key?.name ?? '';
+		maxInFlight = key?.maxInFlight ?? 4;
+		weight = key?.weight ?? 1;
+		enabled = key?.enabled ?? true;
 		secret = '';
 	});
 
