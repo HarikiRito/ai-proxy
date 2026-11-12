@@ -8,7 +8,8 @@ status: bootstrapping
 
 - `backend/` Go api (chi, gqlgen, ent, SQLite via pure-Go `modernc.org/sqlite`, Atlas migrations)
 - `web/` SvelteKit SPA; its build is embedded into the api binary (`web/embed.go`)
-- `sidecar/` placeholder
+- `sidecar/` Claude Agent SDK service for subscription accounts
+- `scripts/smoke.sh` post-deploy smoke test (`scripts/smoke_test.sh` tests it)
 
 ## Start up
 
@@ -39,7 +40,7 @@ The standalone image (`docker build .`) does not migrate itself: run `atlas migr
 
 ## Admin login (WorkOS AuthKit, owner only)
 
-`/graphql` requires a WorkOS access token whose user is the owner. `/healthz`, `/config.json` and the SPA stay public; `/v1/*` is the OpenAI-compatible API behind proxy keys (`POST /v1/chat/completions`, `POST /v1/audio/transcriptions`, native Anthropic `POST /v1/messages` and `GET /v1/models` are live, including SSE streaming for chat and messages; chat completions also route to Anthropic targets when the request has no tools, JSON mode or audio). The api refuses to start without any variable in the table below except `WORKOS_DEV_MODE`.
+`/graphql` requires a WorkOS access token whose user is the owner. `/healthz`, `/config.json` and the SPA stay public; `/v1/*` is the OpenAI-compatible API behind proxy keys (`POST /v1/chat/completions`, `POST /v1/audio/transcriptions`, native Anthropic `POST /v1/messages` and `GET /v1/models` are live, including SSE streaming for chat and messages; chat completions also route to Anthropic targets when the request has no tools, JSON mode or audio). The api refuses to start without any variable in the table below except `WORKOS_DEV_MODE` (which must be `true` or `false` when set). Full list incl. `DATABASE_URL`, `PORT`, `CORS_ORIGINS`, `DEBUG`: [docs/deploy.md](docs/deploy.md).
 
 | Env | Meaning |
 | --- | --- |
@@ -57,7 +58,7 @@ WorkOS dashboard (per origin; add the `http://localhost:5173` ones for local dev
 - Redirect URI: `<origin>/auth/callback`
 - Initiate login URL: `<origin>/auth/login`
 - Sign-out redirect: `<origin>/`
-- CORS (allowed web origin): `<origin>`
+- Web origin (CORS): `<origin>`; the api itself sets no CORS (compose passes no `CORS_ORIGINS`)
 - Sign-up disabled; invite the owner account only.
 
 ## Deployment
@@ -66,6 +67,7 @@ WorkOS dashboard (per origin; add the `http://localhost:5173` ones for local dev
 - Dokploy compose app `ai-proxy`, built from `docker-compose.yml` on `main`
 - Every push to `main` auto-deploys via Dokploy
 - `sidecar` compose service (Claude Agent SDK, [sidecar/README.md](sidecar/README.md)): internal only, no published port; volume `sidecar-data` holds Claude account credentials, exclude it from backups or encrypt them
+- Setup, backup and first-run checklist: [docs/deploy.md](docs/deploy.md)
 - Dokploy env must define `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_ISSUER`, `OWNER_EMAIL`, `MASTER_KEY`, `WORKOS_DEV_MODE=true` (see Admin login; back up `MASTER_KEY`)
 
 ## Checks
