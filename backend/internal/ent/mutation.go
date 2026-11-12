@@ -16,6 +16,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/usagerecord"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
@@ -35,6 +36,7 @@ const (
 	TypeProviderKey       = "ProviderKey"
 	TypeProxyKey          = "ProxyKey"
 	TypeSetting           = "Setting"
+	TypeUsageRecord       = "UsageRecord"
 	TypeVirtualModel      = "VirtualModel"
 	TypeVirtualModelEntry = "VirtualModelEntry"
 	TypeVirtualModelTier  = "VirtualModelTier"
@@ -2996,6 +2998,1633 @@ func (m *SettingMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *SettingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Setting edge %s", name)
+}
+
+// UsageRecordMutation represents an operation that mutates the UsageRecord nodes in the graph.
+type UsageRecordMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *uuid.UUID
+	created_at               *time.Time
+	proxy_key_id             *string
+	proxy_key_name           *string
+	virtual_model            *string
+	provider_id              *string
+	provider_name            *string
+	key_id                   *string
+	key_name                 *string
+	model                    *string
+	status                   *int
+	addstatus                *int
+	duration_ms              *int
+	addduration_ms           *int
+	input_tokens             *int
+	addinput_tokens          *int
+	output_tokens            *int
+	addoutput_tokens         *int
+	cache_read_tokens        *int
+	addcache_read_tokens     *int
+	cache_creation_tokens    *int
+	addcache_creation_tokens *int
+	steps                    *int
+	addsteps                 *int
+	affinity                 *string
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*UsageRecord, error)
+	predicates               []predicate.UsageRecord
+}
+
+var _ ent.Mutation = (*UsageRecordMutation)(nil)
+
+// usagerecordOption allows management of the mutation configuration using functional options.
+type usagerecordOption func(*UsageRecordMutation)
+
+// newUsageRecordMutation creates new mutation for the UsageRecord entity.
+func newUsageRecordMutation(c config, op Op, opts ...usagerecordOption) *UsageRecordMutation {
+	m := &UsageRecordMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUsageRecord,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUsageRecordID sets the ID field of the mutation.
+func withUsageRecordID(id uuid.UUID) usagerecordOption {
+	return func(m *UsageRecordMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UsageRecord
+		)
+		m.oldValue = func(ctx context.Context) (*UsageRecord, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UsageRecord.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUsageRecord sets the old UsageRecord of the mutation.
+func withUsageRecord(node *UsageRecord) usagerecordOption {
+	return func(m *UsageRecordMutation) {
+		m.oldValue = func(context.Context) (*UsageRecord, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UsageRecordMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UsageRecordMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of UsageRecord entities.
+func (m *UsageRecordMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UsageRecordMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UsageRecordMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UsageRecord.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UsageRecordMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UsageRecordMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UsageRecordMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetProxyKeyID sets the "proxy_key_id" field.
+func (m *UsageRecordMutation) SetProxyKeyID(s string) {
+	m.proxy_key_id = &s
+}
+
+// ProxyKeyID returns the value of the "proxy_key_id" field in the mutation.
+func (m *UsageRecordMutation) ProxyKeyID() (r string, exists bool) {
+	v := m.proxy_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProxyKeyID returns the old "proxy_key_id" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldProxyKeyID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProxyKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProxyKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProxyKeyID: %w", err)
+	}
+	return oldValue.ProxyKeyID, nil
+}
+
+// ResetProxyKeyID resets all changes to the "proxy_key_id" field.
+func (m *UsageRecordMutation) ResetProxyKeyID() {
+	m.proxy_key_id = nil
+}
+
+// SetProxyKeyName sets the "proxy_key_name" field.
+func (m *UsageRecordMutation) SetProxyKeyName(s string) {
+	m.proxy_key_name = &s
+}
+
+// ProxyKeyName returns the value of the "proxy_key_name" field in the mutation.
+func (m *UsageRecordMutation) ProxyKeyName() (r string, exists bool) {
+	v := m.proxy_key_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProxyKeyName returns the old "proxy_key_name" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldProxyKeyName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProxyKeyName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProxyKeyName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProxyKeyName: %w", err)
+	}
+	return oldValue.ProxyKeyName, nil
+}
+
+// ResetProxyKeyName resets all changes to the "proxy_key_name" field.
+func (m *UsageRecordMutation) ResetProxyKeyName() {
+	m.proxy_key_name = nil
+}
+
+// SetVirtualModel sets the "virtual_model" field.
+func (m *UsageRecordMutation) SetVirtualModel(s string) {
+	m.virtual_model = &s
+}
+
+// VirtualModel returns the value of the "virtual_model" field in the mutation.
+func (m *UsageRecordMutation) VirtualModel() (r string, exists bool) {
+	v := m.virtual_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVirtualModel returns the old "virtual_model" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldVirtualModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVirtualModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVirtualModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVirtualModel: %w", err)
+	}
+	return oldValue.VirtualModel, nil
+}
+
+// ResetVirtualModel resets all changes to the "virtual_model" field.
+func (m *UsageRecordMutation) ResetVirtualModel() {
+	m.virtual_model = nil
+}
+
+// SetProviderID sets the "provider_id" field.
+func (m *UsageRecordMutation) SetProviderID(s string) {
+	m.provider_id = &s
+}
+
+// ProviderID returns the value of the "provider_id" field in the mutation.
+func (m *UsageRecordMutation) ProviderID() (r string, exists bool) {
+	v := m.provider_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderID returns the old "provider_id" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldProviderID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderID: %w", err)
+	}
+	return oldValue.ProviderID, nil
+}
+
+// ClearProviderID clears the value of the "provider_id" field.
+func (m *UsageRecordMutation) ClearProviderID() {
+	m.provider_id = nil
+	m.clearedFields[usagerecord.FieldProviderID] = struct{}{}
+}
+
+// ProviderIDCleared returns if the "provider_id" field was cleared in this mutation.
+func (m *UsageRecordMutation) ProviderIDCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldProviderID]
+	return ok
+}
+
+// ResetProviderID resets all changes to the "provider_id" field.
+func (m *UsageRecordMutation) ResetProviderID() {
+	m.provider_id = nil
+	delete(m.clearedFields, usagerecord.FieldProviderID)
+}
+
+// SetProviderName sets the "provider_name" field.
+func (m *UsageRecordMutation) SetProviderName(s string) {
+	m.provider_name = &s
+}
+
+// ProviderName returns the value of the "provider_name" field in the mutation.
+func (m *UsageRecordMutation) ProviderName() (r string, exists bool) {
+	v := m.provider_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderName returns the old "provider_name" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldProviderName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderName: %w", err)
+	}
+	return oldValue.ProviderName, nil
+}
+
+// ClearProviderName clears the value of the "provider_name" field.
+func (m *UsageRecordMutation) ClearProviderName() {
+	m.provider_name = nil
+	m.clearedFields[usagerecord.FieldProviderName] = struct{}{}
+}
+
+// ProviderNameCleared returns if the "provider_name" field was cleared in this mutation.
+func (m *UsageRecordMutation) ProviderNameCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldProviderName]
+	return ok
+}
+
+// ResetProviderName resets all changes to the "provider_name" field.
+func (m *UsageRecordMutation) ResetProviderName() {
+	m.provider_name = nil
+	delete(m.clearedFields, usagerecord.FieldProviderName)
+}
+
+// SetKeyID sets the "key_id" field.
+func (m *UsageRecordMutation) SetKeyID(s string) {
+	m.key_id = &s
+}
+
+// KeyID returns the value of the "key_id" field in the mutation.
+func (m *UsageRecordMutation) KeyID() (r string, exists bool) {
+	v := m.key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyID returns the old "key_id" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldKeyID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyID: %w", err)
+	}
+	return oldValue.KeyID, nil
+}
+
+// ClearKeyID clears the value of the "key_id" field.
+func (m *UsageRecordMutation) ClearKeyID() {
+	m.key_id = nil
+	m.clearedFields[usagerecord.FieldKeyID] = struct{}{}
+}
+
+// KeyIDCleared returns if the "key_id" field was cleared in this mutation.
+func (m *UsageRecordMutation) KeyIDCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldKeyID]
+	return ok
+}
+
+// ResetKeyID resets all changes to the "key_id" field.
+func (m *UsageRecordMutation) ResetKeyID() {
+	m.key_id = nil
+	delete(m.clearedFields, usagerecord.FieldKeyID)
+}
+
+// SetKeyName sets the "key_name" field.
+func (m *UsageRecordMutation) SetKeyName(s string) {
+	m.key_name = &s
+}
+
+// KeyName returns the value of the "key_name" field in the mutation.
+func (m *UsageRecordMutation) KeyName() (r string, exists bool) {
+	v := m.key_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyName returns the old "key_name" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldKeyName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyName: %w", err)
+	}
+	return oldValue.KeyName, nil
+}
+
+// ClearKeyName clears the value of the "key_name" field.
+func (m *UsageRecordMutation) ClearKeyName() {
+	m.key_name = nil
+	m.clearedFields[usagerecord.FieldKeyName] = struct{}{}
+}
+
+// KeyNameCleared returns if the "key_name" field was cleared in this mutation.
+func (m *UsageRecordMutation) KeyNameCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldKeyName]
+	return ok
+}
+
+// ResetKeyName resets all changes to the "key_name" field.
+func (m *UsageRecordMutation) ResetKeyName() {
+	m.key_name = nil
+	delete(m.clearedFields, usagerecord.FieldKeyName)
+}
+
+// SetModel sets the "model" field.
+func (m *UsageRecordMutation) SetModel(s string) {
+	m.model = &s
+}
+
+// Model returns the value of the "model" field in the mutation.
+func (m *UsageRecordMutation) Model() (r string, exists bool) {
+	v := m.model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel returns the old "model" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldModel(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel: %w", err)
+	}
+	return oldValue.Model, nil
+}
+
+// ClearModel clears the value of the "model" field.
+func (m *UsageRecordMutation) ClearModel() {
+	m.model = nil
+	m.clearedFields[usagerecord.FieldModel] = struct{}{}
+}
+
+// ModelCleared returns if the "model" field was cleared in this mutation.
+func (m *UsageRecordMutation) ModelCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldModel]
+	return ok
+}
+
+// ResetModel resets all changes to the "model" field.
+func (m *UsageRecordMutation) ResetModel() {
+	m.model = nil
+	delete(m.clearedFields, usagerecord.FieldModel)
+}
+
+// SetStatus sets the "status" field.
+func (m *UsageRecordMutation) SetStatus(i int) {
+	m.status = &i
+	m.addstatus = nil
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *UsageRecordMutation) Status() (r int, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldStatus(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// AddStatus adds i to the "status" field.
+func (m *UsageRecordMutation) AddStatus(i int) {
+	if m.addstatus != nil {
+		*m.addstatus += i
+	} else {
+		m.addstatus = &i
+	}
+}
+
+// AddedStatus returns the value that was added to the "status" field in this mutation.
+func (m *UsageRecordMutation) AddedStatus() (r int, exists bool) {
+	v := m.addstatus
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *UsageRecordMutation) ResetStatus() {
+	m.status = nil
+	m.addstatus = nil
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (m *UsageRecordMutation) SetDurationMs(i int) {
+	m.duration_ms = &i
+	m.addduration_ms = nil
+}
+
+// DurationMs returns the value of the "duration_ms" field in the mutation.
+func (m *UsageRecordMutation) DurationMs() (r int, exists bool) {
+	v := m.duration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationMs returns the old "duration_ms" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldDurationMs(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationMs: %w", err)
+	}
+	return oldValue.DurationMs, nil
+}
+
+// AddDurationMs adds i to the "duration_ms" field.
+func (m *UsageRecordMutation) AddDurationMs(i int) {
+	if m.addduration_ms != nil {
+		*m.addduration_ms += i
+	} else {
+		m.addduration_ms = &i
+	}
+}
+
+// AddedDurationMs returns the value that was added to the "duration_ms" field in this mutation.
+func (m *UsageRecordMutation) AddedDurationMs() (r int, exists bool) {
+	v := m.addduration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationMs resets all changes to the "duration_ms" field.
+func (m *UsageRecordMutation) ResetDurationMs() {
+	m.duration_ms = nil
+	m.addduration_ms = nil
+}
+
+// SetInputTokens sets the "input_tokens" field.
+func (m *UsageRecordMutation) SetInputTokens(i int) {
+	m.input_tokens = &i
+	m.addinput_tokens = nil
+}
+
+// InputTokens returns the value of the "input_tokens" field in the mutation.
+func (m *UsageRecordMutation) InputTokens() (r int, exists bool) {
+	v := m.input_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInputTokens returns the old "input_tokens" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldInputTokens(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInputTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInputTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInputTokens: %w", err)
+	}
+	return oldValue.InputTokens, nil
+}
+
+// AddInputTokens adds i to the "input_tokens" field.
+func (m *UsageRecordMutation) AddInputTokens(i int) {
+	if m.addinput_tokens != nil {
+		*m.addinput_tokens += i
+	} else {
+		m.addinput_tokens = &i
+	}
+}
+
+// AddedInputTokens returns the value that was added to the "input_tokens" field in this mutation.
+func (m *UsageRecordMutation) AddedInputTokens() (r int, exists bool) {
+	v := m.addinput_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInputTokens clears the value of the "input_tokens" field.
+func (m *UsageRecordMutation) ClearInputTokens() {
+	m.input_tokens = nil
+	m.addinput_tokens = nil
+	m.clearedFields[usagerecord.FieldInputTokens] = struct{}{}
+}
+
+// InputTokensCleared returns if the "input_tokens" field was cleared in this mutation.
+func (m *UsageRecordMutation) InputTokensCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldInputTokens]
+	return ok
+}
+
+// ResetInputTokens resets all changes to the "input_tokens" field.
+func (m *UsageRecordMutation) ResetInputTokens() {
+	m.input_tokens = nil
+	m.addinput_tokens = nil
+	delete(m.clearedFields, usagerecord.FieldInputTokens)
+}
+
+// SetOutputTokens sets the "output_tokens" field.
+func (m *UsageRecordMutation) SetOutputTokens(i int) {
+	m.output_tokens = &i
+	m.addoutput_tokens = nil
+}
+
+// OutputTokens returns the value of the "output_tokens" field in the mutation.
+func (m *UsageRecordMutation) OutputTokens() (r int, exists bool) {
+	v := m.output_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutputTokens returns the old "output_tokens" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldOutputTokens(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutputTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutputTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutputTokens: %w", err)
+	}
+	return oldValue.OutputTokens, nil
+}
+
+// AddOutputTokens adds i to the "output_tokens" field.
+func (m *UsageRecordMutation) AddOutputTokens(i int) {
+	if m.addoutput_tokens != nil {
+		*m.addoutput_tokens += i
+	} else {
+		m.addoutput_tokens = &i
+	}
+}
+
+// AddedOutputTokens returns the value that was added to the "output_tokens" field in this mutation.
+func (m *UsageRecordMutation) AddedOutputTokens() (r int, exists bool) {
+	v := m.addoutput_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearOutputTokens clears the value of the "output_tokens" field.
+func (m *UsageRecordMutation) ClearOutputTokens() {
+	m.output_tokens = nil
+	m.addoutput_tokens = nil
+	m.clearedFields[usagerecord.FieldOutputTokens] = struct{}{}
+}
+
+// OutputTokensCleared returns if the "output_tokens" field was cleared in this mutation.
+func (m *UsageRecordMutation) OutputTokensCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldOutputTokens]
+	return ok
+}
+
+// ResetOutputTokens resets all changes to the "output_tokens" field.
+func (m *UsageRecordMutation) ResetOutputTokens() {
+	m.output_tokens = nil
+	m.addoutput_tokens = nil
+	delete(m.clearedFields, usagerecord.FieldOutputTokens)
+}
+
+// SetCacheReadTokens sets the "cache_read_tokens" field.
+func (m *UsageRecordMutation) SetCacheReadTokens(i int) {
+	m.cache_read_tokens = &i
+	m.addcache_read_tokens = nil
+}
+
+// CacheReadTokens returns the value of the "cache_read_tokens" field in the mutation.
+func (m *UsageRecordMutation) CacheReadTokens() (r int, exists bool) {
+	v := m.cache_read_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheReadTokens returns the old "cache_read_tokens" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldCacheReadTokens(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheReadTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheReadTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheReadTokens: %w", err)
+	}
+	return oldValue.CacheReadTokens, nil
+}
+
+// AddCacheReadTokens adds i to the "cache_read_tokens" field.
+func (m *UsageRecordMutation) AddCacheReadTokens(i int) {
+	if m.addcache_read_tokens != nil {
+		*m.addcache_read_tokens += i
+	} else {
+		m.addcache_read_tokens = &i
+	}
+}
+
+// AddedCacheReadTokens returns the value that was added to the "cache_read_tokens" field in this mutation.
+func (m *UsageRecordMutation) AddedCacheReadTokens() (r int, exists bool) {
+	v := m.addcache_read_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCacheReadTokens clears the value of the "cache_read_tokens" field.
+func (m *UsageRecordMutation) ClearCacheReadTokens() {
+	m.cache_read_tokens = nil
+	m.addcache_read_tokens = nil
+	m.clearedFields[usagerecord.FieldCacheReadTokens] = struct{}{}
+}
+
+// CacheReadTokensCleared returns if the "cache_read_tokens" field was cleared in this mutation.
+func (m *UsageRecordMutation) CacheReadTokensCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldCacheReadTokens]
+	return ok
+}
+
+// ResetCacheReadTokens resets all changes to the "cache_read_tokens" field.
+func (m *UsageRecordMutation) ResetCacheReadTokens() {
+	m.cache_read_tokens = nil
+	m.addcache_read_tokens = nil
+	delete(m.clearedFields, usagerecord.FieldCacheReadTokens)
+}
+
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (m *UsageRecordMutation) SetCacheCreationTokens(i int) {
+	m.cache_creation_tokens = &i
+	m.addcache_creation_tokens = nil
+}
+
+// CacheCreationTokens returns the value of the "cache_creation_tokens" field in the mutation.
+func (m *UsageRecordMutation) CacheCreationTokens() (r int, exists bool) {
+	v := m.cache_creation_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheCreationTokens returns the old "cache_creation_tokens" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldCacheCreationTokens(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheCreationTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheCreationTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheCreationTokens: %w", err)
+	}
+	return oldValue.CacheCreationTokens, nil
+}
+
+// AddCacheCreationTokens adds i to the "cache_creation_tokens" field.
+func (m *UsageRecordMutation) AddCacheCreationTokens(i int) {
+	if m.addcache_creation_tokens != nil {
+		*m.addcache_creation_tokens += i
+	} else {
+		m.addcache_creation_tokens = &i
+	}
+}
+
+// AddedCacheCreationTokens returns the value that was added to the "cache_creation_tokens" field in this mutation.
+func (m *UsageRecordMutation) AddedCacheCreationTokens() (r int, exists bool) {
+	v := m.addcache_creation_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCacheCreationTokens clears the value of the "cache_creation_tokens" field.
+func (m *UsageRecordMutation) ClearCacheCreationTokens() {
+	m.cache_creation_tokens = nil
+	m.addcache_creation_tokens = nil
+	m.clearedFields[usagerecord.FieldCacheCreationTokens] = struct{}{}
+}
+
+// CacheCreationTokensCleared returns if the "cache_creation_tokens" field was cleared in this mutation.
+func (m *UsageRecordMutation) CacheCreationTokensCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldCacheCreationTokens]
+	return ok
+}
+
+// ResetCacheCreationTokens resets all changes to the "cache_creation_tokens" field.
+func (m *UsageRecordMutation) ResetCacheCreationTokens() {
+	m.cache_creation_tokens = nil
+	m.addcache_creation_tokens = nil
+	delete(m.clearedFields, usagerecord.FieldCacheCreationTokens)
+}
+
+// SetSteps sets the "steps" field.
+func (m *UsageRecordMutation) SetSteps(i int) {
+	m.steps = &i
+	m.addsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *UsageRecordMutation) Steps() (r int, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldSteps(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AddSteps adds i to the "steps" field.
+func (m *UsageRecordMutation) AddSteps(i int) {
+	if m.addsteps != nil {
+		*m.addsteps += i
+	} else {
+		m.addsteps = &i
+	}
+}
+
+// AddedSteps returns the value that was added to the "steps" field in this mutation.
+func (m *UsageRecordMutation) AddedSteps() (r int, exists bool) {
+	v := m.addsteps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *UsageRecordMutation) ResetSteps() {
+	m.steps = nil
+	m.addsteps = nil
+}
+
+// SetAffinity sets the "affinity" field.
+func (m *UsageRecordMutation) SetAffinity(s string) {
+	m.affinity = &s
+}
+
+// Affinity returns the value of the "affinity" field in the mutation.
+func (m *UsageRecordMutation) Affinity() (r string, exists bool) {
+	v := m.affinity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffinity returns the old "affinity" field's value of the UsageRecord entity.
+// If the UsageRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageRecordMutation) OldAffinity(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffinity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffinity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffinity: %w", err)
+	}
+	return oldValue.Affinity, nil
+}
+
+// ClearAffinity clears the value of the "affinity" field.
+func (m *UsageRecordMutation) ClearAffinity() {
+	m.affinity = nil
+	m.clearedFields[usagerecord.FieldAffinity] = struct{}{}
+}
+
+// AffinityCleared returns if the "affinity" field was cleared in this mutation.
+func (m *UsageRecordMutation) AffinityCleared() bool {
+	_, ok := m.clearedFields[usagerecord.FieldAffinity]
+	return ok
+}
+
+// ResetAffinity resets all changes to the "affinity" field.
+func (m *UsageRecordMutation) ResetAffinity() {
+	m.affinity = nil
+	delete(m.clearedFields, usagerecord.FieldAffinity)
+}
+
+// Where appends a list predicates to the UsageRecordMutation builder.
+func (m *UsageRecordMutation) Where(ps ...predicate.UsageRecord) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UsageRecordMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UsageRecordMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UsageRecord, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UsageRecordMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UsageRecordMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UsageRecord).
+func (m *UsageRecordMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UsageRecordMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.created_at != nil {
+		fields = append(fields, usagerecord.FieldCreatedAt)
+	}
+	if m.proxy_key_id != nil {
+		fields = append(fields, usagerecord.FieldProxyKeyID)
+	}
+	if m.proxy_key_name != nil {
+		fields = append(fields, usagerecord.FieldProxyKeyName)
+	}
+	if m.virtual_model != nil {
+		fields = append(fields, usagerecord.FieldVirtualModel)
+	}
+	if m.provider_id != nil {
+		fields = append(fields, usagerecord.FieldProviderID)
+	}
+	if m.provider_name != nil {
+		fields = append(fields, usagerecord.FieldProviderName)
+	}
+	if m.key_id != nil {
+		fields = append(fields, usagerecord.FieldKeyID)
+	}
+	if m.key_name != nil {
+		fields = append(fields, usagerecord.FieldKeyName)
+	}
+	if m.model != nil {
+		fields = append(fields, usagerecord.FieldModel)
+	}
+	if m.status != nil {
+		fields = append(fields, usagerecord.FieldStatus)
+	}
+	if m.duration_ms != nil {
+		fields = append(fields, usagerecord.FieldDurationMs)
+	}
+	if m.input_tokens != nil {
+		fields = append(fields, usagerecord.FieldInputTokens)
+	}
+	if m.output_tokens != nil {
+		fields = append(fields, usagerecord.FieldOutputTokens)
+	}
+	if m.cache_read_tokens != nil {
+		fields = append(fields, usagerecord.FieldCacheReadTokens)
+	}
+	if m.cache_creation_tokens != nil {
+		fields = append(fields, usagerecord.FieldCacheCreationTokens)
+	}
+	if m.steps != nil {
+		fields = append(fields, usagerecord.FieldSteps)
+	}
+	if m.affinity != nil {
+		fields = append(fields, usagerecord.FieldAffinity)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UsageRecordMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usagerecord.FieldCreatedAt:
+		return m.CreatedAt()
+	case usagerecord.FieldProxyKeyID:
+		return m.ProxyKeyID()
+	case usagerecord.FieldProxyKeyName:
+		return m.ProxyKeyName()
+	case usagerecord.FieldVirtualModel:
+		return m.VirtualModel()
+	case usagerecord.FieldProviderID:
+		return m.ProviderID()
+	case usagerecord.FieldProviderName:
+		return m.ProviderName()
+	case usagerecord.FieldKeyID:
+		return m.KeyID()
+	case usagerecord.FieldKeyName:
+		return m.KeyName()
+	case usagerecord.FieldModel:
+		return m.Model()
+	case usagerecord.FieldStatus:
+		return m.Status()
+	case usagerecord.FieldDurationMs:
+		return m.DurationMs()
+	case usagerecord.FieldInputTokens:
+		return m.InputTokens()
+	case usagerecord.FieldOutputTokens:
+		return m.OutputTokens()
+	case usagerecord.FieldCacheReadTokens:
+		return m.CacheReadTokens()
+	case usagerecord.FieldCacheCreationTokens:
+		return m.CacheCreationTokens()
+	case usagerecord.FieldSteps:
+		return m.Steps()
+	case usagerecord.FieldAffinity:
+		return m.Affinity()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UsageRecordMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usagerecord.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case usagerecord.FieldProxyKeyID:
+		return m.OldProxyKeyID(ctx)
+	case usagerecord.FieldProxyKeyName:
+		return m.OldProxyKeyName(ctx)
+	case usagerecord.FieldVirtualModel:
+		return m.OldVirtualModel(ctx)
+	case usagerecord.FieldProviderID:
+		return m.OldProviderID(ctx)
+	case usagerecord.FieldProviderName:
+		return m.OldProviderName(ctx)
+	case usagerecord.FieldKeyID:
+		return m.OldKeyID(ctx)
+	case usagerecord.FieldKeyName:
+		return m.OldKeyName(ctx)
+	case usagerecord.FieldModel:
+		return m.OldModel(ctx)
+	case usagerecord.FieldStatus:
+		return m.OldStatus(ctx)
+	case usagerecord.FieldDurationMs:
+		return m.OldDurationMs(ctx)
+	case usagerecord.FieldInputTokens:
+		return m.OldInputTokens(ctx)
+	case usagerecord.FieldOutputTokens:
+		return m.OldOutputTokens(ctx)
+	case usagerecord.FieldCacheReadTokens:
+		return m.OldCacheReadTokens(ctx)
+	case usagerecord.FieldCacheCreationTokens:
+		return m.OldCacheCreationTokens(ctx)
+	case usagerecord.FieldSteps:
+		return m.OldSteps(ctx)
+	case usagerecord.FieldAffinity:
+		return m.OldAffinity(ctx)
+	}
+	return nil, fmt.Errorf("unknown UsageRecord field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UsageRecordMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usagerecord.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case usagerecord.FieldProxyKeyID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProxyKeyID(v)
+		return nil
+	case usagerecord.FieldProxyKeyName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProxyKeyName(v)
+		return nil
+	case usagerecord.FieldVirtualModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVirtualModel(v)
+		return nil
+	case usagerecord.FieldProviderID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderID(v)
+		return nil
+	case usagerecord.FieldProviderName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderName(v)
+		return nil
+	case usagerecord.FieldKeyID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyID(v)
+		return nil
+	case usagerecord.FieldKeyName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyName(v)
+		return nil
+	case usagerecord.FieldModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel(v)
+		return nil
+	case usagerecord.FieldStatus:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case usagerecord.FieldDurationMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationMs(v)
+		return nil
+	case usagerecord.FieldInputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInputTokens(v)
+		return nil
+	case usagerecord.FieldOutputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutputTokens(v)
+		return nil
+	case usagerecord.FieldCacheReadTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheReadTokens(v)
+		return nil
+	case usagerecord.FieldCacheCreationTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheCreationTokens(v)
+		return nil
+	case usagerecord.FieldSteps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	case usagerecord.FieldAffinity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffinity(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UsageRecord field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UsageRecordMutation) AddedFields() []string {
+	var fields []string
+	if m.addstatus != nil {
+		fields = append(fields, usagerecord.FieldStatus)
+	}
+	if m.addduration_ms != nil {
+		fields = append(fields, usagerecord.FieldDurationMs)
+	}
+	if m.addinput_tokens != nil {
+		fields = append(fields, usagerecord.FieldInputTokens)
+	}
+	if m.addoutput_tokens != nil {
+		fields = append(fields, usagerecord.FieldOutputTokens)
+	}
+	if m.addcache_read_tokens != nil {
+		fields = append(fields, usagerecord.FieldCacheReadTokens)
+	}
+	if m.addcache_creation_tokens != nil {
+		fields = append(fields, usagerecord.FieldCacheCreationTokens)
+	}
+	if m.addsteps != nil {
+		fields = append(fields, usagerecord.FieldSteps)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UsageRecordMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usagerecord.FieldStatus:
+		return m.AddedStatus()
+	case usagerecord.FieldDurationMs:
+		return m.AddedDurationMs()
+	case usagerecord.FieldInputTokens:
+		return m.AddedInputTokens()
+	case usagerecord.FieldOutputTokens:
+		return m.AddedOutputTokens()
+	case usagerecord.FieldCacheReadTokens:
+		return m.AddedCacheReadTokens()
+	case usagerecord.FieldCacheCreationTokens:
+		return m.AddedCacheCreationTokens()
+	case usagerecord.FieldSteps:
+		return m.AddedSteps()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UsageRecordMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usagerecord.FieldStatus:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatus(v)
+		return nil
+	case usagerecord.FieldDurationMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationMs(v)
+		return nil
+	case usagerecord.FieldInputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInputTokens(v)
+		return nil
+	case usagerecord.FieldOutputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOutputTokens(v)
+		return nil
+	case usagerecord.FieldCacheReadTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheReadTokens(v)
+		return nil
+	case usagerecord.FieldCacheCreationTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheCreationTokens(v)
+		return nil
+	case usagerecord.FieldSteps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSteps(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UsageRecord numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UsageRecordMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(usagerecord.FieldProviderID) {
+		fields = append(fields, usagerecord.FieldProviderID)
+	}
+	if m.FieldCleared(usagerecord.FieldProviderName) {
+		fields = append(fields, usagerecord.FieldProviderName)
+	}
+	if m.FieldCleared(usagerecord.FieldKeyID) {
+		fields = append(fields, usagerecord.FieldKeyID)
+	}
+	if m.FieldCleared(usagerecord.FieldKeyName) {
+		fields = append(fields, usagerecord.FieldKeyName)
+	}
+	if m.FieldCleared(usagerecord.FieldModel) {
+		fields = append(fields, usagerecord.FieldModel)
+	}
+	if m.FieldCleared(usagerecord.FieldInputTokens) {
+		fields = append(fields, usagerecord.FieldInputTokens)
+	}
+	if m.FieldCleared(usagerecord.FieldOutputTokens) {
+		fields = append(fields, usagerecord.FieldOutputTokens)
+	}
+	if m.FieldCleared(usagerecord.FieldCacheReadTokens) {
+		fields = append(fields, usagerecord.FieldCacheReadTokens)
+	}
+	if m.FieldCleared(usagerecord.FieldCacheCreationTokens) {
+		fields = append(fields, usagerecord.FieldCacheCreationTokens)
+	}
+	if m.FieldCleared(usagerecord.FieldAffinity) {
+		fields = append(fields, usagerecord.FieldAffinity)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UsageRecordMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UsageRecordMutation) ClearField(name string) error {
+	switch name {
+	case usagerecord.FieldProviderID:
+		m.ClearProviderID()
+		return nil
+	case usagerecord.FieldProviderName:
+		m.ClearProviderName()
+		return nil
+	case usagerecord.FieldKeyID:
+		m.ClearKeyID()
+		return nil
+	case usagerecord.FieldKeyName:
+		m.ClearKeyName()
+		return nil
+	case usagerecord.FieldModel:
+		m.ClearModel()
+		return nil
+	case usagerecord.FieldInputTokens:
+		m.ClearInputTokens()
+		return nil
+	case usagerecord.FieldOutputTokens:
+		m.ClearOutputTokens()
+		return nil
+	case usagerecord.FieldCacheReadTokens:
+		m.ClearCacheReadTokens()
+		return nil
+	case usagerecord.FieldCacheCreationTokens:
+		m.ClearCacheCreationTokens()
+		return nil
+	case usagerecord.FieldAffinity:
+		m.ClearAffinity()
+		return nil
+	}
+	return fmt.Errorf("unknown UsageRecord nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UsageRecordMutation) ResetField(name string) error {
+	switch name {
+	case usagerecord.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case usagerecord.FieldProxyKeyID:
+		m.ResetProxyKeyID()
+		return nil
+	case usagerecord.FieldProxyKeyName:
+		m.ResetProxyKeyName()
+		return nil
+	case usagerecord.FieldVirtualModel:
+		m.ResetVirtualModel()
+		return nil
+	case usagerecord.FieldProviderID:
+		m.ResetProviderID()
+		return nil
+	case usagerecord.FieldProviderName:
+		m.ResetProviderName()
+		return nil
+	case usagerecord.FieldKeyID:
+		m.ResetKeyID()
+		return nil
+	case usagerecord.FieldKeyName:
+		m.ResetKeyName()
+		return nil
+	case usagerecord.FieldModel:
+		m.ResetModel()
+		return nil
+	case usagerecord.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case usagerecord.FieldDurationMs:
+		m.ResetDurationMs()
+		return nil
+	case usagerecord.FieldInputTokens:
+		m.ResetInputTokens()
+		return nil
+	case usagerecord.FieldOutputTokens:
+		m.ResetOutputTokens()
+		return nil
+	case usagerecord.FieldCacheReadTokens:
+		m.ResetCacheReadTokens()
+		return nil
+	case usagerecord.FieldCacheCreationTokens:
+		m.ResetCacheCreationTokens()
+		return nil
+	case usagerecord.FieldSteps:
+		m.ResetSteps()
+		return nil
+	case usagerecord.FieldAffinity:
+		m.ResetAffinity()
+		return nil
+	}
+	return fmt.Errorf("unknown UsageRecord field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UsageRecordMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UsageRecordMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UsageRecordMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UsageRecordMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UsageRecordMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UsageRecordMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UsageRecordMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown UsageRecord unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UsageRecordMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown UsageRecord edge %s", name)
 }
 
 // VirtualModelMutation represents an operation that mutates the VirtualModel nodes in the graph.

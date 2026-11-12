@@ -90,6 +90,55 @@ var (
 		Columns:    SettingsSettingsColumns,
 		PrimaryKey: []*schema.Column{SettingsSettingsColumns[0]},
 	}
+	// UsageRecordsColumns holds the columns for the "usage_records" table.
+	UsageRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "proxy_key_id", Type: field.TypeString},
+		{Name: "proxy_key_name", Type: field.TypeString},
+		{Name: "virtual_model", Type: field.TypeString},
+		{Name: "provider_id", Type: field.TypeString, Nullable: true},
+		{Name: "provider_name", Type: field.TypeString, Nullable: true},
+		{Name: "key_id", Type: field.TypeString, Nullable: true},
+		{Name: "key_name", Type: field.TypeString, Nullable: true},
+		{Name: "model", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeInt},
+		{Name: "duration_ms", Type: field.TypeInt},
+		{Name: "input_tokens", Type: field.TypeInt, Nullable: true},
+		{Name: "output_tokens", Type: field.TypeInt, Nullable: true},
+		{Name: "cache_read_tokens", Type: field.TypeInt, Nullable: true},
+		{Name: "cache_creation_tokens", Type: field.TypeInt, Nullable: true},
+		{Name: "steps", Type: field.TypeInt},
+		{Name: "affinity", Type: field.TypeString, Nullable: true},
+	}
+	// UsageRecordsTable holds the schema information for the "usage_records" table.
+	UsageRecordsTable = &schema.Table{
+		Name:       "usage_records",
+		Columns:    UsageRecordsColumns,
+		PrimaryKey: []*schema.Column{UsageRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usagerecord_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[1]},
+			},
+			{
+				Name:    "usagerecord_proxy_key_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[2], UsageRecordsColumns[1]},
+			},
+			{
+				Name:    "usagerecord_virtual_model_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[4], UsageRecordsColumns[1]},
+			},
+			{
+				Name:    "usagerecord_provider_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[5], UsageRecordsColumns[1]},
+			},
+		},
+	}
 	// VirtualmodelsModelsColumns holds the columns for the "virtualmodels_models" table.
 	VirtualmodelsModelsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -173,6 +222,7 @@ var (
 		ProvidersKeysTable,
 		ProxykeysKeysTable,
 		SettingsSettingsTable,
+		UsageRecordsTable,
 		VirtualmodelsModelsTable,
 		VirtualmodelsEntriesTable,
 		VirtualmodelsTiersTable,
@@ -192,6 +242,9 @@ func init() {
 	}
 	SettingsSettingsTable.Annotation = &entsql.Annotation{
 		Table: "settings_settings",
+	}
+	UsageRecordsTable.Annotation = &entsql.Annotation{
+		Table: "usage_records",
 	}
 	VirtualmodelsModelsTable.Annotation = &entsql.Annotation{
 		Table: "virtualmodels_models",

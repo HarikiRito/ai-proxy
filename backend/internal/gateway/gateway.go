@@ -22,6 +22,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/routing"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/usage"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
@@ -52,6 +53,9 @@ type (
 	Settings interface {
 		Get(ctx context.Context) (settings.Settings, error)
 	}
+	Recorder interface {
+		Record(usage.Record)
+	}
 )
 
 type Deps struct {
@@ -59,6 +63,7 @@ type Deps struct {
 	Models   Models
 	Chat     Chat
 	Settings Settings
+	Recorder Recorder // optional
 	Log      *slog.Logger
 }
 
@@ -105,12 +110,12 @@ func New(d Deps) http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(withFormat(openAI), g.auth)
 		r.Get("/models", g.models)
-		r.Post("/chat/completions", g.completions(withAffinity(g.Chat.Do), withAffinity(g.Chat.Stream)))
+		r.Post("/chat/completions", g.completions(g.recorded(withAffinity(g.Chat.Do)), g.recorded(withAffinity(g.Chat.Stream))))
 		r.Post("/audio/transcriptions", g.transcriptions)
 	})
 	r.Group(func(r chi.Router) {
 		r.Use(withFormat(anthropic), g.auth)
-		r.Post("/messages", g.completions(withAffinity(g.Chat.Messages), withAffinity(g.Chat.MessagesStream)))
+		r.Post("/messages", g.completions(g.recorded(withAffinity(g.Chat.Messages)), g.recorded(withAffinity(g.Chat.MessagesStream))))
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusNotFound, "not_found", "unknown endpoint", 0)
@@ -266,7 +271,9 @@ func (g *gateway) transcriptions(w http.ResponseWriter, r *http.Request) {
 	case !allowed(w, r, model):
 		return
 	}
-	res, err := g.Chat.Transcribe(r.Context(), model, r.Header, parts)
+	res, err := g.observe(r.Context(), model, func(ctx context.Context) (routing.Result, error) {
+		return g.Chat.Transcribe(ctx, model, r.Header, parts)
+	})
 	g.respond(w, r, res, err)
 }
 

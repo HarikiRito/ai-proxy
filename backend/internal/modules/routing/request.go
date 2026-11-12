@@ -25,6 +25,7 @@ type request struct {
 	ttl       time.Duration
 	tried     map[string]bool
 	last      error
+	meta      Meta // identity of the latest attempt
 	waitUntil time.Time
 	aff       *affinity
 }
@@ -64,24 +65,44 @@ func (r *request) run() (Result, error) {
 		a, out, ok := r.pick()
 		if !ok {
 			if !out.untried {
-				return Result{}, r.exhausted()
+				return Result{}, r.withMeta(r.exhausted())
 			}
 			if err := r.wait(out); err != nil {
-				return Result{}, err
+				return Result{}, r.withMeta(err)
 			}
 			continue
 		}
+		r.attempted(a)
 		res, err := r.call(a)
 		if err == nil {
+			usage := res.Meta.Usage
+			res.Meta, res.Meta.Usage = r.meta, usage
 			return r.served(a, res), nil
 		}
 		r.failed(a)
 		if cerr := r.ctx.Err(); cerr != nil {
-			return Result{}, ctxError(cerr)
+			return Result{}, r.withMeta(ctxError(cerr))
 		}
 		r.tried[pairKey(a.t, a.key)] = true
 		r.last = err
 	}
+}
+
+// attempted records the target about to be called.
+func (r *request) attempted(a attempt) {
+	r.meta = Meta{
+		ProviderID: a.t.provider.ID, ProviderName: a.t.provider.Name, KeyID: a.key.ID, KeyName: a.key.Name,
+		EntryID: a.t.entry.ID, Model: a.t.entry.Model, Steps: r.meta.Steps + 1,
+	}
+}
+
+// withMeta attaches the attempts so far to an engine error; other errors pass through.
+func (r *request) withMeta(err error) error {
+	var re *Error
+	if errors.As(err, &re) {
+		re.Meta = r.meta
+	}
+	return err
 }
 
 func (r *request) exhausted() error {

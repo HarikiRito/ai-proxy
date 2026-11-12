@@ -125,6 +125,11 @@ linters:
           deny:
             - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/setting
               desc: settings owns this table; use its facade
+        usage-tables:
+          files: ["**/internal/modules/**", "!**/internal/modules/usage/**"]
+          deny:
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent/usagerecord
+              desc: usage owns this table; use its facade
         gateway:
           files: ["**/internal/gateway/**"]
           deny:

@@ -46,8 +46,12 @@ type claudeUsage struct {
 	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 }
 
+func (u claudeUsage) prompt() int {
+	return u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
+}
+
 func (u claudeUsage) chat() *chatUsage {
-	prompt := u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
+	prompt := u.prompt()
 	out := &chatUsage{PromptTokens: prompt, CompletionTokens: u.OutputTokens, TotalTokens: prompt + u.OutputTokens}
 	out.PromptTokensDetails.CachedTokens = u.CacheReadInputTokens
 	return out

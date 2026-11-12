@@ -20,8 +20,9 @@ import (
 // VirtualModelTierUpdate is the builder for updating VirtualModelTier entities.
 type VirtualModelTierUpdate struct {
 	config
-	hooks    []Hook
-	mutation *VirtualModelTierMutation
+	hooks     []Hook
+	mutation  *VirtualModelTierMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the VirtualModelTierUpdate builder.
@@ -149,6 +150,12 @@ func (_u *VirtualModelTierUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *VirtualModelTierUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *VirtualModelTierUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *VirtualModelTierUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -241,6 +248,7 @@ func (_u *VirtualModelTierUpdate) sqlSave(ctx context.Context) (_node int, err e
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{virtualmodeltier.Label}
@@ -256,9 +264,10 @@ func (_u *VirtualModelTierUpdate) sqlSave(ctx context.Context) (_node int, err e
 // VirtualModelTierUpdateOne is the builder for updating a single VirtualModelTier entity.
 type VirtualModelTierUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *VirtualModelTierMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *VirtualModelTierMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetPriority sets the "priority" field.
@@ -393,6 +402,12 @@ func (_u *VirtualModelTierUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *VirtualModelTierUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *VirtualModelTierUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *VirtualModelTierUpdateOne) sqlSave(ctx context.Context) (_node *VirtualModelTier, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -502,6 +517,7 @@ func (_u *VirtualModelTierUpdateOne) sqlSave(ctx context.Context) (_node *Virtua
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &VirtualModelTier{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

@@ -19,6 +19,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/routing"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/usage"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/auth"
 	"github.com/HarikiRito/ai-proxy/backend/internal/platform/config"
@@ -62,6 +63,8 @@ func run() error {
 
 	healthSvc := health.New(health.Deps{DB: pool})
 	resolver := newResolver(client, healthSvc, cipher)
+	resolver.Usage.Start(ctx)
+	defer resolver.Usage.Close() // runs before client.Close, after srv.Shutdown has stopped new requests
 
 	spa, err := web.Build()
 	if err != nil {
@@ -78,9 +81,7 @@ func run() error {
 		return err
 	}
 
-	engine := routing.New(routing.Deps{Models: resolver.VirtualModels, Providers: resolver.Providers, Settings: resolver.Settings, Log: log})
-	go engine.Watch(ctx)
-	v1 := gateway.New(gateway.Deps{Keys: resolver.ProxyKeys, Models: resolver.VirtualModels, Chat: engine, Settings: resolver.Settings, Log: log})
+	v1 := newGateway(ctx, resolver, log)
 
 	router := newRouter(cfg, log, authn, spa, resolver, healthSvc, v1)
 
@@ -102,6 +103,12 @@ func run() error {
 	return nil
 }
 
+func newGateway(ctx context.Context, resolver *graph.Resolver, log *slog.Logger) http.Handler {
+	engine := routing.New(routing.Deps{Models: resolver.VirtualModels, Providers: resolver.Providers, Settings: resolver.Settings, Log: log})
+	go engine.Watch(ctx)
+	return gateway.New(gateway.Deps{Keys: resolver.ProxyKeys, Models: resolver.VirtualModels, Chat: engine, Settings: resolver.Settings, Recorder: resolver.Usage, Log: log})
+}
+
 func newResolver(client *ent.Client, healthSvc *health.Service, cipher providers.Cipher) *graph.Resolver {
 	providerSvc := providers.New(providers.Deps{DB: client, Cipher: cipher})
 	return &graph.Resolver{
@@ -109,6 +116,7 @@ func newResolver(client *ent.Client, healthSvc *health.Service, cipher providers
 		Providers:     providerSvc,
 		ProxyKeys:     proxykeys.New(proxykeys.Deps{DB: client}),
 		Settings:      settings.New(settings.Deps{DB: client}),
+		Usage:         usage.New(usage.Deps{DB: client}),
 		VirtualModels: virtualmodels.New(virtualmodels.Deps{DB: client, Providers: providerDirectory{providerSvc}}),
 	}
 }
