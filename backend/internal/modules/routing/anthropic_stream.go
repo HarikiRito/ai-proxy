@@ -60,6 +60,9 @@ func (s *chatStream) readEvent() ([]byte, error) {
 			return data, nil
 		}
 		if value, ok := bytes.CutPrefix(line, []byte("data:")); ok {
+			if len(data) > 0 {
+				data = append(data, '\n')
+			}
 			data = append(data, bytes.TrimPrefix(value, []byte(" "))...)
 		}
 	}

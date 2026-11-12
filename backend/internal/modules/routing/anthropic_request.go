@@ -2,13 +2,14 @@ package routing
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 )
 
 const defaultMaxTokens = 8192
 
 // Chat fields with no Claude equivalent here; sending any of them keeps Claude targets out of the chain.
-var claudeUnsupported = []string{"tools", "tool_choice", "functions", "function_call", "parallel_tool_calls", "audio", "modalities"}
+var claudeUnsupported = []string{"tools", "tool_choice", "functions", "function_call", "parallel_tool_calls", "audio", "modalities", "top_logprobs", "web_search_options"}
 
 type claudeRequest struct {
 	Model         string          `json:"model"`
@@ -80,6 +81,9 @@ func translateChat(body map[string]json.RawMessage) *chatTranslation {
 			return nil
 		}
 	}
+	if string(body["logprobs"]) == "true" {
+		return nil
+	}
 	raw, _ := json.Marshal(body)
 	var in chatIn
 	if json.Unmarshal(raw, &in) != nil || len(in.Messages) == 0 || in.N > 1 || (in.ResponseFormat.Type != "" && in.ResponseFormat.Type != "text") {
@@ -90,6 +94,9 @@ func translateChat(body map[string]json.RawMessage) *chatTranslation {
 		req.CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
 	}
 	if present(body["temperature"]) {
+		if temp, err := strconv.ParseFloat(string(body["temperature"]), 64); err != nil || temp > 1 {
+			return nil // Claude accepts 0 to 1 only
+		}
 		req.Temperature = body["temperature"]
 	}
 	if present(body["top_p"]) {
@@ -102,7 +109,7 @@ func translateChat(body map[string]json.RawMessage) *chatTranslation {
 	if req.StopSequences, ok = stopSequences(in.Stop); !ok {
 		return nil
 	}
-	if req.System, req.Messages, ok = in.turns(); !ok {
+	if req.System, req.Messages, ok = in.turns(); !ok || len(req.Messages) == 0 {
 		return nil
 	}
 	return &chatTranslation{req: req, includeUsage: in.StreamOptions.IncludeUsage}
