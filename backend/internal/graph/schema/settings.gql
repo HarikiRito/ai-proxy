@@ -1,0 +1,23 @@
+type Settings {
+  "Largest accepted request body, in bytes."
+  maxBodyBytes: Int!
+  requestTimeoutSeconds: Int!
+  queueWaitSeconds: Int!
+  defaultCooldownSeconds: Int!
+}
+
+"Update changes only the fields given."
+input SettingsInput {
+  maxBodyBytes: Int
+  requestTimeoutSeconds: Int
+  queueWaitSeconds: Int
+  defaultCooldownSeconds: Int
+}
+
+extend type Query {
+  settings: Settings!
+}
+
+extend type Mutation {
+  updateSettings(input: SettingsInput!): Settings!
+}

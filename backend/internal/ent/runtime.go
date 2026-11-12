@@ -9,6 +9,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/schema"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
@@ -109,6 +110,12 @@ func init() {
 	proxykeyDescID := proxykeyFields[0].Descriptor()
 	// proxykey.DefaultID holds the default value on creation for the id field.
 	proxykey.DefaultID = proxykeyDescID.Default.(func() uuid.UUID)
+	settingFields := schema.Setting{}.Fields()
+	_ = settingFields
+	// settingDescID is the schema descriptor for id field.
+	settingDescID := settingFields[0].Descriptor()
+	// setting.DefaultID holds the default value on creation for the id field.
+	setting.DefaultID = settingDescID.Default.(int)
 	virtualmodelFields := schema.VirtualModel{}.Fields()
 	_ = virtualmodelFields
 	// virtualmodelDescName is the schema descriptor for name field.

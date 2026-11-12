@@ -18,6 +18,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/graph/model"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -62,6 +63,7 @@ type ComplexityRoot struct {
 		SetProxyKeyAllowedModels func(childComplexity int, id string, models []string) int
 		UpdateProvider           func(childComplexity int, id string, input providers.ProviderInput) int
 		UpdateProviderKey        func(childComplexity int, id string, input providers.KeyInput) int
+		UpdateSettings           func(childComplexity int, input settings.Input) int
 		UpdateVirtualModel       func(childComplexity int, id string, input virtualmodels.UpdateInput) int
 	}
 
@@ -100,8 +102,16 @@ type ComplexityRoot struct {
 		Health        func(childComplexity int) int
 		Providers     func(childComplexity int) int
 		ProxyKeys     func(childComplexity int) int
+		Settings      func(childComplexity int) int
 		Viewer        func(childComplexity int) int
 		VirtualModels func(childComplexity int) int
+	}
+
+	Settings struct {
+		DefaultCooldownSeconds func(childComplexity int) int
+		MaxBodyBytes           func(childComplexity int) int
+		QueueWaitSeconds       func(childComplexity int) int
+		RequestTimeoutSeconds  func(childComplexity int) int
 	}
 
 	Viewer struct {
@@ -148,6 +158,7 @@ type MutationResolver interface {
 	CreateProxyKey(ctx context.Context, input proxykeys.CreateInput) (*model.CreatedProxyKey, error)
 	SetProxyKeyAllowedModels(ctx context.Context, id string, models []string) (*proxykeys.Key, error)
 	RevokeProxyKey(ctx context.Context, id string) (*proxykeys.Key, error)
+	UpdateSettings(ctx context.Context, input settings.Input) (*settings.Settings, error)
 	CreateVirtualModel(ctx context.Context, input virtualmodels.CreateInput) (*virtualmodels.Model, error)
 	UpdateVirtualModel(ctx context.Context, id string, input virtualmodels.UpdateInput) (*virtualmodels.Model, error)
 	DeleteVirtualModel(ctx context.Context, id string) (bool, error)
@@ -156,6 +167,7 @@ type QueryResolver interface {
 	Health(ctx context.Context) (*model.Health, error)
 	Providers(ctx context.Context) ([]*providers.Provider, error)
 	ProxyKeys(ctx context.Context) ([]*proxykeys.Key, error)
+	Settings(ctx context.Context) (*settings.Settings, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
 	VirtualModels(ctx context.Context) ([]*virtualmodels.Model, error)
 }
@@ -319,6 +331,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateProviderKey(childComplexity, args["id"].(string), args["input"].(providers.KeyInput)), true
+	case "Mutation.updateSettings":
+		if e.ComplexityRoot.Mutation.UpdateSettings == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateSettings_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateSettings(childComplexity, args["input"].(settings.Input)), true
 	case "Mutation.updateVirtualModel":
 		if e.ComplexityRoot.Mutation.UpdateVirtualModel == nil {
 			break
@@ -485,6 +508,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ProxyKeys(childComplexity), true
+	case "Query.settings":
+		if e.ComplexityRoot.Query.Settings == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Settings(childComplexity), true
 	case "Query.viewer":
 		if e.ComplexityRoot.Query.Viewer == nil {
 			break
@@ -497,6 +526,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.VirtualModels(childComplexity), true
+
+	case "Settings.defaultCooldownSeconds":
+		if e.ComplexityRoot.Settings.DefaultCooldownSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Settings.DefaultCooldownSeconds(childComplexity), true
+	case "Settings.maxBodyBytes":
+		if e.ComplexityRoot.Settings.MaxBodyBytes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Settings.MaxBodyBytes(childComplexity), true
+	case "Settings.queueWaitSeconds":
+		if e.ComplexityRoot.Settings.QueueWaitSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Settings.QueueWaitSeconds(childComplexity), true
+	case "Settings.requestTimeoutSeconds":
+		if e.ComplexityRoot.Settings.RequestTimeoutSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Settings.RequestTimeoutSeconds(childComplexity), true
 
 	case "Viewer.email":
 		if e.ComplexityRoot.Viewer.Email == nil {
@@ -618,6 +672,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			graphql.NewInputUnmarshaler("EntryInput", ec.unmarshalInputEntryInput),
 			graphql.NewInputUnmarshaler("ProviderInput", ec.unmarshalInputProviderInput),
 			graphql.NewInputUnmarshaler("ProviderKeyInput", ec.unmarshalInputProviderKeyInput),
+			graphql.NewInputUnmarshaler("SettingsInput", ec.unmarshalInputSettingsInput),
 			graphql.NewInputUnmarshaler("TierInput", ec.unmarshalInputTierInput),
 			graphql.NewInputUnmarshaler("UpdateVirtualModelInput", ec.unmarshalInputUpdateVirtualModelInput),
 		)
@@ -695,7 +750,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
+//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/settings.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -710,6 +765,7 @@ var sources = []*ast.Source{
 	{Name: "schema/health.gql", Input: sourceData("schema/health.gql"), BuiltIn: false},
 	{Name: "schema/providers.gql", Input: sourceData("schema/providers.gql"), BuiltIn: false},
 	{Name: "schema/proxykeys.gql", Input: sourceData("schema/proxykeys.gql"), BuiltIn: false},
+	{Name: "schema/settings.gql", Input: sourceData("schema/settings.gql"), BuiltIn: false},
 	{Name: "schema/viewer.gql", Input: sourceData("schema/viewer.gql"), BuiltIn: false},
 	{Name: "schema/virtualmodels.gql", Input: sourceData("schema/virtualmodels.gql"), BuiltIn: false},
 }
@@ -797,6 +853,20 @@ func (ec *executionContext) childFields_ProxyKey(ctx context.Context, field grap
 		return ec.fieldContext_ProxyKey_status(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ProxyKey", field.Name)
+}
+
+func (ec *executionContext) childFields_Settings(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "maxBodyBytes":
+		return ec.fieldContext_Settings_maxBodyBytes(ctx, field)
+	case "requestTimeoutSeconds":
+		return ec.fieldContext_Settings_requestTimeoutSeconds(ctx, field)
+	case "queueWaitSeconds":
+		return ec.fieldContext_Settings_queueWaitSeconds(ctx, field)
+	case "defaultCooldownSeconds":
+		return ec.fieldContext_Settings_defaultCooldownSeconds(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Settings", field.Name)
 }
 
 func (ec *executionContext) childFields_Viewer(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1156,6 +1226,20 @@ func (ec *executionContext) field_Mutation_updateProvider_args(ctx context.Conte
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSettings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (settings.Input, error) {
+			return ec.unmarshalNSettingsInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋsettingsᚐInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -1737,6 +1821,50 @@ func (ec *executionContext) fieldContext_Mutation_revokeProxyKey(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_revokeProxyKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateSettings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateSettings(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateSettings(ctx, fc.Args["input"].(settings.Input))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *settings.Settings) graphql.Marshaler {
+			return ec.marshalNSettings2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋsettingsᚐSettings(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateSettings(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Settings(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateSettings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2486,6 +2614,38 @@ func (ec *executionContext) fieldContext_Query_proxyKeys(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_settings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_settings(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Settings(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *settings.Settings) graphql.Marshaler {
+			return ec.marshalNSettings2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋsettingsᚐSettings(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_settings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Settings(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_viewer(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2624,6 +2784,98 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Settings_maxBodyBytes(ctx context.Context, field graphql.CollectedField, obj *settings.Settings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Settings_maxBodyBytes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxBodyBytes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Settings_maxBodyBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Settings", field, false, false, "Int")
+}
+
+func (ec *executionContext) _Settings_requestTimeoutSeconds(ctx context.Context, field graphql.CollectedField, obj *settings.Settings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Settings_requestTimeoutSeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RequestTimeoutSeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Settings_requestTimeoutSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Settings", field, false, false, "Int")
+}
+
+func (ec *executionContext) _Settings_queueWaitSeconds(ctx context.Context, field graphql.CollectedField, obj *settings.Settings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Settings_queueWaitSeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.QueueWaitSeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Settings_queueWaitSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Settings", field, false, false, "Int")
+}
+
+func (ec *executionContext) _Settings_defaultCooldownSeconds(ctx context.Context, field graphql.CollectedField, obj *settings.Settings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Settings_defaultCooldownSeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DefaultCooldownSeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Settings_defaultCooldownSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Settings", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Viewer_email(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
@@ -4430,6 +4682,69 @@ func UnmarshalProviderKeyInput(ctx context.Context, raw any) (providers.KeyInput
 	return out, err
 }
 
+func (ec *executionContext) unmarshalInputSettingsInput(ctx context.Context, obj any) (settings.Input, error) {
+	var it settings.Input
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"maxBodyBytes", "requestTimeoutSeconds", "queueWaitSeconds", "defaultCooldownSeconds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "maxBodyBytes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxBodyBytes"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxBodyBytes = data
+		case "requestTimeoutSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("requestTimeoutSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RequestTimeoutSeconds = data
+		case "queueWaitSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("queueWaitSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.QueueWaitSeconds = data
+		case "defaultCooldownSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("defaultCooldownSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DefaultCooldownSeconds = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalSettingsInput unmarshals raw into the SettingsInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalSettingsInput(ctx context.Context, raw any) (settings.Input, error) {
+	var out settings.Input
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "SettingsInput", raw, &out)
+	return out, err
+}
+
 func (ec *executionContext) unmarshalInputTierInput(ctx context.Context, obj any) (virtualmodels.TierInput, error) {
 	var it virtualmodels.TierInput
 	if obj == nil {
@@ -4692,6 +5007,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "revokeProxyKey":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_revokeProxyKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateSettings":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateSettings(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -4965,6 +5287,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_proxyKeys(ctx, field)
 				})
+		case "settings":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_settings(ctx, field)
+				})
 		case "viewer":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
 				true, true,
@@ -4990,6 +5318,54 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			})
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var settingsImplementors = []string{"Settings"}
+
+func (ec *executionContext) _Settings(ctx context.Context, sel ast.SelectionSet, obj *settings.Settings) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, settingsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Settings")
+		case "maxBodyBytes":
+			out.Values[i] = ec._Settings_maxBodyBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestTimeoutSeconds":
+			out.Values[i] = ec._Settings_requestTimeoutSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "queueWaitSeconds":
+			out.Values[i] = ec._Settings_queueWaitSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "defaultCooldownSeconds":
+			out.Values[i] = ec._Settings_defaultCooldownSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -5798,6 +6174,19 @@ func (ec *executionContext) marshalNProxyKeyStatus2githubᚗcomᚋHarikiRitoᚋa
 		graphql.AddInvalidNullFromMarshaler(ctx, "ProxyKeyStatus!")
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNSettings2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋsettingsᚐSettings(ctx context.Context, sel ast.SelectionSet, v *settings.Settings) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "Settings!")
+		return graphql.Null
+	}
+	return ec._Settings(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSettingsInput2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋsettingsᚐInput(ctx context.Context, v any) (settings.Input, error) {
+	res, err := ec.unmarshalInputSettingsInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {

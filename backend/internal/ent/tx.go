@@ -18,6 +18,8 @@ type Tx struct {
 	ProviderKey *ProviderKeyClient
 	// ProxyKey is the client for interacting with the ProxyKey builders.
 	ProxyKey *ProxyKeyClient
+	// Setting is the client for interacting with the Setting builders.
+	Setting *SettingClient
 	// VirtualModel is the client for interacting with the VirtualModel builders.
 	VirtualModel *VirtualModelClient
 	// VirtualModelEntry is the client for interacting with the VirtualModelEntry builders.
@@ -158,6 +160,7 @@ func (tx *Tx) init() {
 	tx.Provider = NewProviderClient(tx.config)
 	tx.ProviderKey = NewProviderKeyClient(tx.config)
 	tx.ProxyKey = NewProxyKeyClient(tx.config)
+	tx.Setting = NewSettingClient(tx.config)
 	tx.VirtualModel = NewVirtualModelClient(tx.config)
 	tx.VirtualModelEntry = NewVirtualModelEntryClient(tx.config)
 	tx.VirtualModelTier = NewVirtualModelTierClient(tx.config)

@@ -76,6 +76,20 @@ var (
 		Columns:    ProxykeysKeysColumns,
 		PrimaryKey: []*schema.Column{ProxykeysKeysColumns[0]},
 	}
+	// SettingsSettingsColumns holds the columns for the "settings_settings" table.
+	SettingsSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "max_body_bytes", Type: field.TypeInt},
+		{Name: "request_timeout_seconds", Type: field.TypeInt},
+		{Name: "queue_wait_seconds", Type: field.TypeInt},
+		{Name: "default_cooldown_seconds", Type: field.TypeInt},
+	}
+	// SettingsSettingsTable holds the schema information for the "settings_settings" table.
+	SettingsSettingsTable = &schema.Table{
+		Name:       "settings_settings",
+		Columns:    SettingsSettingsColumns,
+		PrimaryKey: []*schema.Column{SettingsSettingsColumns[0]},
+	}
 	// VirtualmodelsModelsColumns holds the columns for the "virtualmodels_models" table.
 	VirtualmodelsModelsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -158,6 +172,7 @@ var (
 		ProvidersProvidersTable,
 		ProvidersKeysTable,
 		ProxykeysKeysTable,
+		SettingsSettingsTable,
 		VirtualmodelsModelsTable,
 		VirtualmodelsEntriesTable,
 		VirtualmodelsTiersTable,
@@ -174,6 +189,9 @@ func init() {
 	}
 	ProxykeysKeysTable.Annotation = &entsql.Annotation{
 		Table: "proxykeys_keys",
+	}
+	SettingsSettingsTable.Annotation = &entsql.Annotation{
+		Table: "settings_settings",
 	}
 	VirtualmodelsModelsTable.Annotation = &entsql.Annotation{
 		Table: "virtualmodels_models",

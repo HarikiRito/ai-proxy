@@ -54,3 +54,7 @@ models:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.TierInput
   EntryInput:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels.EntryInput
+  Settings:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/settings.Settings
+  SettingsInput:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/settings.Input

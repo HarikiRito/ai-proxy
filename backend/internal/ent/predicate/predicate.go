@@ -15,6 +15,9 @@ type ProviderKey func(*sql.Selector)
 // ProxyKey is the predicate function for proxykey builders.
 type ProxyKey func(*sql.Selector)
 
+// Setting is the predicate function for setting builders.
+type Setting func(*sql.Selector)
+
 // VirtualModel is the predicate function for virtualmodel builders.
 type VirtualModel func(*sql.Selector)
 
