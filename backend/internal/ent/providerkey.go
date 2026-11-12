@@ -23,16 +23,12 @@ type ProviderKey struct {
 	Name string `json:"name,omitempty"`
 	// Ciphertext holds the value of the "ciphertext" field.
 	Ciphertext []byte `json:"-"`
-	// Last4 holds the value of the "last4" field.
-	Last4 string `json:"last4,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
 	// MaxInFlight holds the value of the "max_in_flight" field.
 	MaxInFlight int `json:"max_in_flight,omitempty"`
 	// Weight holds the value of the "weight" field.
 	Weight int `json:"weight,omitempty"`
-	// Priority holds the value of the "priority" field.
-	Priority int `json:"priority,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -73,9 +69,9 @@ func (*ProviderKey) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case providerkey.FieldEnabled:
 			values[i] = new(sql.NullBool)
-		case providerkey.FieldMaxInFlight, providerkey.FieldWeight, providerkey.FieldPriority:
+		case providerkey.FieldMaxInFlight, providerkey.FieldWeight:
 			values[i] = new(sql.NullInt64)
-		case providerkey.FieldName, providerkey.FieldLast4:
+		case providerkey.FieldName:
 			values[i] = new(sql.NullString)
 		case providerkey.FieldCreatedAt, providerkey.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -116,12 +112,6 @@ func (_m *ProviderKey) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.Ciphertext = *value
 			}
-		case providerkey.FieldLast4:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field last4", values[i])
-			} else if value.Valid {
-				_m.Last4 = value.String
-			}
 		case providerkey.FieldEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field enabled", values[i])
@@ -139,12 +129,6 @@ func (_m *ProviderKey) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field weight", values[i])
 			} else if value.Valid {
 				_m.Weight = int(value.Int64)
-			}
-		case providerkey.FieldPriority:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field priority", values[i])
-			} else if value.Valid {
-				_m.Priority = int(value.Int64)
 			}
 		case providerkey.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -211,9 +195,6 @@ func (_m *ProviderKey) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ciphertext=<sensitive>")
 	builder.WriteString(", ")
-	builder.WriteString("last4=")
-	builder.WriteString(_m.Last4)
-	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
 	builder.WriteString(", ")
@@ -222,9 +203,6 @@ func (_m *ProviderKey) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("weight=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Weight))
-	builder.WriteString(", ")
-	builder.WriteString("priority=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Priority))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

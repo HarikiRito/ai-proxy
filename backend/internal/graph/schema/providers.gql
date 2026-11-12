@@ -4,20 +4,14 @@ enum ProviderKind {
   claude_subscription
 }
 
-enum RotationStrategy {
-  round_robin
-  weighted_round_robin
-  priority_overflow
-  least_in_flight
-}
-
 type Provider {
   id: ID!
   name: String!
   kind: ProviderKind!
   baseUrl: String!
   enabled: Boolean!
-  rotation: RotationStrategy!
+  "Model ids this provider serves; suggestions only, not enforced."
+  models: [String!]!
   cacheAffinitySeconds: Int!
   "Sum of max in flight over enabled keys."
   capacity: Int!
@@ -30,8 +24,7 @@ type ProviderKey {
   enabled: Boolean!
   maxInFlight: Int!
   weight: Int!
-  priority: Int!
-  "Never the secret: bullets plus the last 4 characters when the key is long enough."
+  "Never the secret: a partial hint that reveals more only for longer keys."
   maskedKey: String!
 }
 
@@ -41,7 +34,7 @@ input ProviderInput {
   kind: ProviderKind
   baseUrl: String
   enabled: Boolean
-  rotation: RotationStrategy
+  models: [String!]
   cacheAffinitySeconds: Int
 }
 
@@ -52,7 +45,6 @@ input ProviderKeyInput {
   enabled: Boolean
   maxInFlight: Int
   weight: Int
-  priority: Int
 }
 
 extend type Query {

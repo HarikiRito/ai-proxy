@@ -61,5 +61,7 @@ func diff(dir *atlas.LocalDir, name string) error {
 	return client.Schema.NamedDiff(ctx, name,
 		entschema.WithDir(dir),
 		entschema.WithMigrationMode(entschema.ModeReplay),
+		entschema.WithDropColumn(true),
+		entschema.WithDropIndex(true),
 		entschema.WithFormatter(atlas.DefaultFormatter))
 }

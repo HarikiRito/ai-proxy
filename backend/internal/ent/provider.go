@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,8 +27,8 @@ type Provider struct {
 	BaseURL string `json:"base_url,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
-	// Rotation holds the value of the "rotation" field.
-	Rotation provider.Rotation `json:"rotation,omitempty"`
+	// Models holds the value of the "models" field.
+	Models []string `json:"models,omitempty"`
 	// CacheAffinitySeconds holds the value of the "cache_affinity_seconds" field.
 	CacheAffinitySeconds int `json:"cache_affinity_seconds,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -63,11 +64,13 @@ func (*Provider) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case provider.FieldModels:
+			values[i] = new([]byte)
 		case provider.FieldEnabled:
 			values[i] = new(sql.NullBool)
 		case provider.FieldCacheAffinitySeconds:
 			values[i] = new(sql.NullInt64)
-		case provider.FieldName, provider.FieldKind, provider.FieldBaseURL, provider.FieldRotation:
+		case provider.FieldName, provider.FieldKind, provider.FieldBaseURL:
 			values[i] = new(sql.NullString)
 		case provider.FieldCreatedAt, provider.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -118,11 +121,13 @@ func (_m *Provider) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Enabled = value.Bool
 			}
-		case provider.FieldRotation:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field rotation", values[i])
-			} else if value.Valid {
-				_m.Rotation = provider.Rotation(value.String)
+		case provider.FieldModels:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field models", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Models); err != nil {
+					return fmt.Errorf("unmarshal field models: %w", err)
+				}
 			}
 		case provider.FieldCacheAffinitySeconds:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -195,8 +200,8 @@ func (_m *Provider) String() string {
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
 	builder.WriteString(", ")
-	builder.WriteString("rotation=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Rotation))
+	builder.WriteString("models=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Models))
 	builder.WriteString(", ")
 	builder.WriteString("cache_affinity_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CacheAffinitySeconds))

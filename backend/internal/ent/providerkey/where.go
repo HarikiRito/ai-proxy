@@ -66,11 +66,6 @@ func Ciphertext(v []byte) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldEQ(FieldCiphertext, v))
 }
 
-// Last4 applies equality check predicate on the "last4" field. It's identical to Last4EQ.
-func Last4(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldEQ(FieldLast4, v))
-}
-
 // Enabled applies equality check predicate on the "enabled" field. It's identical to EnabledEQ.
 func Enabled(v bool) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldEQ(FieldEnabled, v))
@@ -84,11 +79,6 @@ func MaxInFlight(v int) predicate.ProviderKey {
 // Weight applies equality check predicate on the "weight" field. It's identical to WeightEQ.
 func Weight(v int) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldEQ(FieldWeight, v))
-}
-
-// Priority applies equality check predicate on the "priority" field. It's identical to PriorityEQ.
-func Priority(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldEQ(FieldPriority, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -206,71 +196,6 @@ func CiphertextLTE(v []byte) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldLTE(FieldCiphertext, v))
 }
 
-// Last4EQ applies the EQ predicate on the "last4" field.
-func Last4EQ(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldEQ(FieldLast4, v))
-}
-
-// Last4NEQ applies the NEQ predicate on the "last4" field.
-func Last4NEQ(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldNEQ(FieldLast4, v))
-}
-
-// Last4In applies the In predicate on the "last4" field.
-func Last4In(vs ...string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldIn(FieldLast4, vs...))
-}
-
-// Last4NotIn applies the NotIn predicate on the "last4" field.
-func Last4NotIn(vs ...string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldNotIn(FieldLast4, vs...))
-}
-
-// Last4GT applies the GT predicate on the "last4" field.
-func Last4GT(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldGT(FieldLast4, v))
-}
-
-// Last4GTE applies the GTE predicate on the "last4" field.
-func Last4GTE(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldGTE(FieldLast4, v))
-}
-
-// Last4LT applies the LT predicate on the "last4" field.
-func Last4LT(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldLT(FieldLast4, v))
-}
-
-// Last4LTE applies the LTE predicate on the "last4" field.
-func Last4LTE(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldLTE(FieldLast4, v))
-}
-
-// Last4Contains applies the Contains predicate on the "last4" field.
-func Last4Contains(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldContains(FieldLast4, v))
-}
-
-// Last4HasPrefix applies the HasPrefix predicate on the "last4" field.
-func Last4HasPrefix(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldHasPrefix(FieldLast4, v))
-}
-
-// Last4HasSuffix applies the HasSuffix predicate on the "last4" field.
-func Last4HasSuffix(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldHasSuffix(FieldLast4, v))
-}
-
-// Last4EqualFold applies the EqualFold predicate on the "last4" field.
-func Last4EqualFold(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldEqualFold(FieldLast4, v))
-}
-
-// Last4ContainsFold applies the ContainsFold predicate on the "last4" field.
-func Last4ContainsFold(v string) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldContainsFold(FieldLast4, v))
-}
-
 // EnabledEQ applies the EQ predicate on the "enabled" field.
 func EnabledEQ(v bool) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldEQ(FieldEnabled, v))
@@ -359,46 +284,6 @@ func WeightLT(v int) predicate.ProviderKey {
 // WeightLTE applies the LTE predicate on the "weight" field.
 func WeightLTE(v int) predicate.ProviderKey {
 	return predicate.ProviderKey(sql.FieldLTE(FieldWeight, v))
-}
-
-// PriorityEQ applies the EQ predicate on the "priority" field.
-func PriorityEQ(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldEQ(FieldPriority, v))
-}
-
-// PriorityNEQ applies the NEQ predicate on the "priority" field.
-func PriorityNEQ(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldNEQ(FieldPriority, v))
-}
-
-// PriorityIn applies the In predicate on the "priority" field.
-func PriorityIn(vs ...int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldIn(FieldPriority, vs...))
-}
-
-// PriorityNotIn applies the NotIn predicate on the "priority" field.
-func PriorityNotIn(vs ...int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldNotIn(FieldPriority, vs...))
-}
-
-// PriorityGT applies the GT predicate on the "priority" field.
-func PriorityGT(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldGT(FieldPriority, v))
-}
-
-// PriorityGTE applies the GTE predicate on the "priority" field.
-func PriorityGTE(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldGTE(FieldPriority, v))
-}
-
-// PriorityLT applies the LT predicate on the "priority" field.
-func PriorityLT(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldLT(FieldPriority, v))
-}
-
-// PriorityLTE applies the LTE predicate on the "priority" field.
-func PriorityLTE(v int) predicate.ProviderKey {
-	return predicate.ProviderKey(sql.FieldLTE(FieldPriority, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

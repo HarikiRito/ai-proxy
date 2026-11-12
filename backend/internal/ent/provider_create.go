@@ -54,17 +54,9 @@ func (_c *ProviderCreate) SetNillableEnabled(v *bool) *ProviderCreate {
 	return _c
 }
 
-// SetRotation sets the "rotation" field.
-func (_c *ProviderCreate) SetRotation(v provider.Rotation) *ProviderCreate {
-	_c.mutation.SetRotation(v)
-	return _c
-}
-
-// SetNillableRotation sets the "rotation" field if the given value is not nil.
-func (_c *ProviderCreate) SetNillableRotation(v *provider.Rotation) *ProviderCreate {
-	if v != nil {
-		_c.SetRotation(*v)
-	}
+// SetModels sets the "models" field.
+func (_c *ProviderCreate) SetModels(v []string) *ProviderCreate {
+	_c.mutation.SetModels(v)
 	return _c
 }
 
@@ -178,10 +170,6 @@ func (_c *ProviderCreate) defaults() {
 		v := provider.DefaultEnabled
 		_c.mutation.SetEnabled(v)
 	}
-	if _, ok := _c.mutation.Rotation(); !ok {
-		v := provider.DefaultRotation
-		_c.mutation.SetRotation(v)
-	}
 	if _, ok := _c.mutation.CacheAffinitySeconds(); !ok {
 		v := provider.DefaultCacheAffinitySeconds
 		_c.mutation.SetCacheAffinitySeconds(v)
@@ -228,14 +216,6 @@ func (_c *ProviderCreate) check() error {
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "Provider.enabled"`)}
-	}
-	if _, ok := _c.mutation.Rotation(); !ok {
-		return &ValidationError{Name: "rotation", err: errors.New(`ent: missing required field "Provider.rotation"`)}
-	}
-	if v, ok := _c.mutation.Rotation(); ok {
-		if err := provider.RotationValidator(v); err != nil {
-			return &ValidationError{Name: "rotation", err: fmt.Errorf(`ent: validator failed for field "Provider.rotation": %w`, err)}
-		}
 	}
 	if _, ok := _c.mutation.CacheAffinitySeconds(); !ok {
 		return &ValidationError{Name: "cache_affinity_seconds", err: errors.New(`ent: missing required field "Provider.cache_affinity_seconds"`)}
@@ -302,9 +282,9 @@ func (_c *ProviderCreate) createSpec() (*Provider, *sqlgraph.CreateSpec) {
 		_spec.SetField(provider.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
 	}
-	if value, ok := _c.mutation.Rotation(); ok {
-		_spec.SetField(provider.FieldRotation, field.TypeEnum, value)
-		_node.Rotation = value
+	if value, ok := _c.mutation.Models(); ok {
+		_spec.SetField(provider.FieldModels, field.TypeJSON, value)
+		_node.Models = value
 	}
 	if value, ok := _c.mutation.CacheAffinitySeconds(); ok {
 		_spec.SetField(provider.FieldCacheAffinitySeconds, field.TypeInt, value)

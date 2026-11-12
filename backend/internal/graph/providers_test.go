@@ -46,8 +46,8 @@ func gql(t *testing.T, h http.Handler, query string, vars map[string]any) string
 
 func TestProviderLifecycleNeverReturnsSecret(t *testing.T) {
 	h := providersHandler(t)
-	out := gql(t, h, `mutation($i: ProviderInput!) { createProvider(input: $i) { id kind capacity } }`,
-		map[string]any{"i": map[string]any{"name": "openai", "kind": "openai_compatible", "baseUrl": "https://api.openai.com/v1"}})
+	out := gql(t, h, `mutation($i: ProviderInput!) { createProvider(input: $i) { id kind capacity models } }`,
+		map[string]any{"i": map[string]any{"name": "openai", "kind": "openai_compatible", "baseUrl": "https://api.openai.com/v1", "models": []string{"gpt-4o"}}})
 	var created struct {
 		Data struct{ CreateProvider struct{ ID string } }
 	}
@@ -57,12 +57,12 @@ func TestProviderLifecycleNeverReturnsSecret(t *testing.T) {
 
 	out = gql(t, h, `mutation($p: ID!, $i: ProviderKeyInput!) { addProviderKey(providerId: $p, input: $i) { name maskedKey maxInFlight } }`,
 		map[string]any{"p": created.Data.CreateProvider.ID, "i": map[string]any{"name": "main", "secret": secret, "maxInFlight": 5}})
-	if !strings.Contains(out, `"maskedKey":"••••1234"`) || strings.Contains(out, secret) {
+	if !strings.Contains(out, `"maskedKey":"sk-DIS…1234"`) || strings.Contains(out, secret) {
 		t.Fatalf("add key: %s", out)
 	}
 
-	out = gql(t, h, `{ providers { name capacity keys { name maskedKey } } }`, nil)
-	if !strings.Contains(out, `"capacity":5`) || !strings.Contains(out, `"maskedKey":"••••1234"`) || strings.Contains(out, secret) {
+	out = gql(t, h, `{ providers { name capacity models keys { name maskedKey } } }`, nil)
+	if !strings.Contains(out, `"models":["gpt-4o"]`) || !strings.Contains(out, `"capacity":5`) || !strings.Contains(out, `"maskedKey":"sk-DIS…1234"`) || strings.Contains(out, secret) {
 		t.Fatalf("list: %s", out)
 	}
 }

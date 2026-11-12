@@ -77,21 +77,11 @@ export const trim = (raw: Record<string, RawProvider>): ModelsDevPreset[] =>
 		)
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-const normalizeUrl = (url: string) => url.trim().toLowerCase().replace(/\/+$/, '');
-
-export function modelSuggestions(
-	presets: ModelsDevPreset[],
-	baseUrl: string,
-	kind: 'chat' | 'transcription'
-): string[] {
-	const url = normalizeUrl(baseUrl);
-	const models = presets.find((p) => normalizeUrl(p.api) === url)?.models ?? [];
-	return models
-		.filter((m) =>
-			kind === 'transcription' ? m.type === 'transcription' : !NON_CHAT_TYPES.has(m.type ?? '')
-		)
+// Chat and transcription models: the kinds a virtual model can route to.
+export const presetModelIds = (preset: ModelsDevPreset): string[] =>
+	preset.models
+		.filter((m) => m.type === 'transcription' || !NON_CHAT_TYPES.has(m.type ?? ''))
 		.map((m) => m.id);
-}
 
 export function createModelsDevStore(
 	fetchFn: typeof fetch = (input, init) => fetch(input, init),

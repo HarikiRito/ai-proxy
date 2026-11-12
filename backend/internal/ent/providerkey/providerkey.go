@@ -19,16 +19,12 @@ const (
 	FieldName = "name"
 	// FieldCiphertext holds the string denoting the ciphertext field in the database.
 	FieldCiphertext = "ciphertext"
-	// FieldLast4 holds the string denoting the last4 field in the database.
-	FieldLast4 = "last4"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
 	// FieldMaxInFlight holds the string denoting the max_in_flight field in the database.
 	FieldMaxInFlight = "max_in_flight"
 	// FieldWeight holds the string denoting the weight field in the database.
 	FieldWeight = "weight"
-	// FieldPriority holds the string denoting the priority field in the database.
-	FieldPriority = "priority"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -51,11 +47,9 @@ var Columns = []string{
 	FieldID,
 	FieldName,
 	FieldCiphertext,
-	FieldLast4,
 	FieldEnabled,
 	FieldMaxInFlight,
 	FieldWeight,
-	FieldPriority,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -84,8 +78,6 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
-	// DefaultLast4 holds the default value on creation for the "last4" field.
-	DefaultLast4 string
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
 	// MaxInFlightValidator is a validator for the "max_in_flight" field. It is called by the builders before save.
@@ -94,8 +86,6 @@ var (
 	DefaultWeight int
 	// WeightValidator is a validator for the "weight" field. It is called by the builders before save.
 	WeightValidator func(int) error
-	// DefaultPriority holds the default value on creation for the "priority" field.
-	DefaultPriority int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -119,11 +109,6 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
-// ByLast4 orders the results by the last4 field.
-func ByLast4(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLast4, opts...).ToFunc()
-}
-
 // ByEnabled orders the results by the enabled field.
 func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
@@ -137,11 +122,6 @@ func ByMaxInFlight(opts ...sql.OrderTermOption) OrderOption {
 // ByWeight orders the results by the weight field.
 func ByWeight(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldWeight, opts...).ToFunc()
-}
-
-// ByPriority orders the results by the priority field.
-func ByPriority(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPriority, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

@@ -18,18 +18,11 @@ const (
 	KindClaudeSubscription Kind = "claude_subscription"
 )
 
-type Rotation string
-
 const (
-	RotationRoundRobin         Rotation = "round_robin"
-	RotationWeightedRoundRobin Rotation = "weighted_round_robin"
-	RotationPriorityOverflow   Rotation = "priority_overflow"
-	RotationLeastInFlight      Rotation = "least_in_flight"
-)
-
-const (
-	minMaskedKeyLen = 12
-	maskPrefix      = "••••"
+	maskPrefix         = "••••"
+	shortMaskKeyLen    = 12
+	longMaskKeyLen     = 24
+	maskHead, maskTail = 6, 4
 )
 
 // Cipher seals and opens secrets; defined here so the module does not depend on a concrete implementation.
@@ -50,7 +43,7 @@ type Provider struct {
 	Kind                 Kind
 	BaseURL              string
 	Enabled              bool
-	Rotation             Rotation
+	Models               []string
 	CacheAffinitySeconds int
 	Capacity             int
 	Keys                 []Key
@@ -62,7 +55,6 @@ type Key struct {
 	Enabled     bool
 	MaxInFlight int
 	Weight      int
-	Priority    int
 	MaskedKey   string
 }
 
@@ -72,7 +64,7 @@ type ProviderInput struct {
 	Kind                 *Kind
 	BaseURL              *string
 	Enabled              *bool
-	Rotation             *Rotation
+	Models               []string // nil = unchanged
 	CacheAffinitySeconds *int
 }
 
@@ -83,7 +75,6 @@ type KeyInput struct {
 	Enabled     *bool
 	MaxInFlight *int
 	Weight      *int
-	Priority    *int
 }
 
 // UserError is safe to show to the owner (validation, not found, conflicts).
@@ -99,7 +90,9 @@ type Service struct {
 }
 
 func New(d Deps) *Service {
-	return &Service{store: &store{db: d.DB}, cipher: d.Cipher}
+	s := &Service{cipher: d.Cipher}
+	s.store = &store{db: d.DB, mask: s.mask}
+	return s
 }
 
 func (s *Service) ListProviders(ctx context.Context) ([]Provider, error) {
@@ -143,7 +136,7 @@ func (s *Service) UpdateKey(ctx context.Context, id string, in KeyInput) (Key, e
 	if err := validateKey(in); err != nil {
 		return Key{}, err
 	}
-	var sealed *sealedSecret
+	var sealed []byte
 	if in.Secret != nil {
 		var err error
 		if sealed, err = s.seal(*in.Secret); err != nil {
@@ -153,12 +146,12 @@ func (s *Service) UpdateKey(ctx context.Context, id string, in KeyInput) (Key, e
 	return s.store.updateKey(ctx, id, in, sealed)
 }
 
-func (s *Service) seal(secret string) (*sealedSecret, error) {
+func (s *Service) seal(secret string) ([]byte, error) {
 	ciphertext, err := s.cipher.Encrypt([]byte(secret))
 	if err != nil {
 		return nil, err
 	}
-	return &sealedSecret{ciphertext: ciphertext, last4: last4Of(secret)}, nil
+	return ciphertext, nil
 }
 
 func (s *Service) DeleteKey(ctx context.Context, id string) error {
@@ -197,9 +190,6 @@ func validateProvider(in ProviderInput) error {
 	if in.BaseURL != nil && !validBaseURL(*in.BaseURL) {
 		return userError("base URL must be an http(s) URL with a host and no credentials, query or fragment")
 	}
-	if in.Rotation != nil && !slices.Contains([]Rotation{RotationRoundRobin, RotationWeightedRoundRobin, RotationPriorityOverflow, RotationLeastInFlight}, *in.Rotation) {
-		return userError("unknown rotation")
-	}
 	if in.CacheAffinitySeconds != nil && *in.CacheAffinitySeconds < 0 {
 		return userError("cache affinity seconds must be 0 or more")
 	}
@@ -222,6 +212,9 @@ func trim(p *string) *string {
 
 func trimProvider(in ProviderInput) ProviderInput {
 	in.Name, in.BaseURL = trim(in.Name), trim(in.BaseURL)
+	if in.Models != nil {
+		in.Models = cleanModels(in.Models)
+	}
 	return in
 }
 
@@ -258,14 +251,30 @@ func validateKey(in KeyInput) error {
 	return nil
 }
 
-func maskedKey(last4 string) string { return maskPrefix + last4 }
-
-// last4Of keeps the tail only for secrets long enough that the tail reveals little.
-func last4Of(secret string) string {
-	if len(secret) < minMaskedKeyLen {
-		return ""
+func cleanModels(models []string) []string {
+	out := make([]string, 0, len(models))
+	for _, m := range models {
+		if m = strings.TrimSpace(m); m != "" && !slices.Contains(out, m) {
+			out = append(out, m)
+		}
 	}
-	return secret[len(secret)-4:]
+	return out
+}
+
+// mask is computed on read from the ciphertext; the longer the secret, the more of it is safe to show.
+func (s *Service) mask(ciphertext []byte) string {
+	plain, err := s.cipher.Decrypt(ciphertext)
+	if err != nil {
+		return maskPrefix
+	}
+	secret := string(plain)
+	switch {
+	case len(secret) >= longMaskKeyLen:
+		return secret[:maskHead] + "…" + secret[len(secret)-maskTail:]
+	case len(secret) >= shortMaskKeyLen:
+		return maskPrefix + secret[len(secret)-maskTail:]
+	}
+	return maskPrefix
 }
 
 // ByIDs is the batch lookup for other modules; unknown or malformed ids are ignored.

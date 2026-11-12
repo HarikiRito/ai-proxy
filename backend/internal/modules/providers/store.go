@@ -10,11 +10,9 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 )
 
-type store struct{ db *ent.Client }
-
-type sealedSecret struct {
-	ciphertext []byte
-	last4      string
+type store struct {
+	db   *ent.Client
+	mask func(ciphertext []byte) string
 }
 
 var errNotFound = userError("not found")
@@ -50,7 +48,7 @@ func (st *store) list(ctx context.Context) ([]Provider, error) {
 	}
 	out := make([]Provider, len(rows))
 	for i, row := range rows {
-		out[i] = toProvider(row)
+		out[i] = st.toProvider(row)
 	}
 	return out, nil
 }
@@ -63,8 +61,8 @@ func (st *store) create(ctx context.Context, in ProviderInput) (Provider, error)
 	if in.Enabled != nil {
 		c.SetEnabled(*in.Enabled)
 	}
-	if in.Rotation != nil {
-		c.SetRotation(entprovider.Rotation(*in.Rotation))
+	if in.Models != nil {
+		c.SetModels(in.Models)
 	}
 	if in.CacheAffinitySeconds != nil {
 		c.SetCacheAffinitySeconds(*in.CacheAffinitySeconds)
@@ -73,7 +71,7 @@ func (st *store) create(ctx context.Context, in ProviderInput) (Provider, error)
 	if err != nil {
 		return Provider{}, mapErr(err)
 	}
-	return toProvider(row), nil
+	return st.toProvider(row), nil
 }
 
 func (st *store) update(ctx context.Context, id string, in ProviderInput) (Provider, error) {
@@ -97,8 +95,8 @@ func (st *store) update(ctx context.Context, id string, in ProviderInput) (Provi
 	if in.Enabled != nil {
 		u.SetEnabled(*in.Enabled)
 	}
-	if in.Rotation != nil {
-		u.SetRotation(entprovider.Rotation(*in.Rotation))
+	if in.Models != nil {
+		u.SetModels(in.Models)
 	}
 	if in.CacheAffinitySeconds != nil {
 		u.SetCacheAffinitySeconds(*in.CacheAffinitySeconds)
@@ -110,7 +108,7 @@ func (st *store) update(ctx context.Context, id string, in ProviderInput) (Provi
 	if err != nil {
 		return Provider{}, mapErr(err)
 	}
-	return toProvider(row), nil
+	return st.toProvider(row), nil
 }
 
 func (st *store) rejectSubscriptionWithKeys(ctx context.Context, id uuid.UUID, kind *Kind) error {
@@ -135,7 +133,7 @@ func (st *store) delete(ctx context.Context, id string) error {
 	return mapErr(st.db.Provider.DeleteOneID(uid).Exec(ctx))
 }
 
-func (st *store) addKey(ctx context.Context, providerID string, in KeyInput, sealed *sealedSecret) (Key, error) {
+func (st *store) addKey(ctx context.Context, providerID string, in KeyInput, sealed []byte) (Key, error) {
 	uid, err := parseID(providerID)
 	if err != nil {
 		return Key{}, err
@@ -150,8 +148,7 @@ func (st *store) addKey(ctx context.Context, providerID string, in KeyInput, sea
 	c := st.db.ProviderKey.Create().
 		SetProviderID(uid).
 		SetName(*in.Name).
-		SetCiphertext(sealed.ciphertext).
-		SetLast4(sealed.last4).
+		SetCiphertext(sealed).
 		SetMaxInFlight(*in.MaxInFlight)
 	if in.Enabled != nil {
 		c.SetEnabled(*in.Enabled)
@@ -159,17 +156,14 @@ func (st *store) addKey(ctx context.Context, providerID string, in KeyInput, sea
 	if in.Weight != nil {
 		c.SetWeight(*in.Weight)
 	}
-	if in.Priority != nil {
-		c.SetPriority(*in.Priority)
-	}
 	row, err := c.Save(ctx)
 	if err != nil {
 		return Key{}, mapErr(err)
 	}
-	return toKey(row), nil
+	return st.toKey(row), nil
 }
 
-func (st *store) updateKey(ctx context.Context, id string, in KeyInput, sealed *sealedSecret) (Key, error) {
+func (st *store) updateKey(ctx context.Context, id string, in KeyInput, sealed []byte) (Key, error) {
 	uid, err := parseID(id)
 	if err != nil {
 		return Key{}, err
@@ -179,7 +173,7 @@ func (st *store) updateKey(ctx context.Context, id string, in KeyInput, sealed *
 		u.SetName(*in.Name)
 	}
 	if sealed != nil {
-		u.SetCiphertext(sealed.ciphertext).SetLast4(sealed.last4)
+		u.SetCiphertext(sealed)
 	}
 	if in.Enabled != nil {
 		u.SetEnabled(*in.Enabled)
@@ -190,14 +184,11 @@ func (st *store) updateKey(ctx context.Context, id string, in KeyInput, sealed *
 	if in.Weight != nil {
 		u.SetWeight(*in.Weight)
 	}
-	if in.Priority != nil {
-		u.SetPriority(*in.Priority)
-	}
 	row, err := u.Save(ctx)
 	if err != nil {
 		return Key{}, mapErr(err)
 	}
-	return toKey(row), nil
+	return st.toKey(row), nil
 }
 
 func (st *store) deleteKey(ctx context.Context, id string) error {
@@ -220,19 +211,19 @@ func (st *store) ciphertext(ctx context.Context, keyID string) ([]byte, error) {
 	return row.Ciphertext, nil
 }
 
-func toProvider(row *ent.Provider) Provider {
+func (st *store) toProvider(row *ent.Provider) Provider {
 	p := Provider{
 		ID:                   row.ID.String(),
 		Name:                 row.Name,
 		Kind:                 Kind(row.Kind),
 		BaseURL:              row.BaseURL,
 		Enabled:              row.Enabled,
-		Rotation:             Rotation(row.Rotation),
+		Models:               append([]string{}, row.Models...),
 		CacheAffinitySeconds: row.CacheAffinitySeconds,
 		Keys:                 make([]Key, len(row.Edges.Keys)),
 	}
 	for i, k := range row.Edges.Keys {
-		p.Keys[i] = toKey(k)
+		p.Keys[i] = st.toKey(k)
 		if k.Enabled {
 			p.Capacity += k.MaxInFlight
 		}
@@ -240,15 +231,14 @@ func toProvider(row *ent.Provider) Provider {
 	return p
 }
 
-func toKey(row *ent.ProviderKey) Key {
+func (st *store) toKey(row *ent.ProviderKey) Key {
 	return Key{
 		ID:          row.ID.String(),
 		Name:        row.Name,
 		Enabled:     row.Enabled,
 		MaxInFlight: row.MaxInFlight,
 		Weight:      row.Weight,
-		Priority:    row.Priority,
-		MaskedKey:   maskedKey(row.Last4),
+		MaskedKey:   st.mask(row.Ciphertext),
 	}
 }
 
@@ -267,7 +257,7 @@ func (st *store) byIDs(ctx context.Context, ids []string) (map[string]Provider, 
 	}
 	out := make(map[string]Provider, len(rows))
 	for _, row := range rows {
-		p := toProvider(row)
+		p := st.toProvider(row)
 		out[p.ID] = p
 	}
 	return out, nil

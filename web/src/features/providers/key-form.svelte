@@ -3,36 +3,49 @@
 	import { Button } from '#src/components/ui/button/index.js';
 	import { Input } from '#src/components/ui/input/index.js';
 	import { Label } from '#src/components/ui/label/index.js';
-	import type { createProvidersStore, Provider } from './providers.svelte';
+	import { Switch } from '#src/components/ui/switch/index.js';
+	import type { createProvidersStore, Provider, ProviderKey } from './providers.svelte';
 
 	interface Props {
 		store: ReturnType<typeof createProvidersStore>;
-		provider: Provider | null;
+		target: { provider: Provider; key: ProviderKey | null } | null;
 		onclose: () => void;
 	}
 
-	const { store, provider, onclose }: Props = $props();
+	const { store, target, onclose }: Props = $props();
 
 	let name = $state('');
 	let secret = $state('');
 	let maxInFlight = $state(4);
 	let weight = $state(1);
-	let priority = $state(0);
+	let enabled = $state(true);
+
+	const editing = $derived(target?.key ?? null);
+
+	$effect(() => {
+		name = editing?.name ?? '';
+		maxInFlight = editing?.maxInFlight ?? 4;
+		weight = editing?.weight ?? 1;
+		enabled = editing?.enabled ?? true;
+		secret = '';
+	});
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
-		if (!provider) return;
-		void store.addKey(provider.id, { name, secret, maxInFlight, weight, priority }).then((ok) => {
+		if (!target) return;
+		const input = { name, secret, maxInFlight, weight };
+		const done = editing
+			? store.updateKey(editing.id, { ...input, enabled })
+			: store.addKey(target.provider.id, input);
+		void done.then((ok) => {
 			secret = '';
-			if (!ok) return;
-			name = '';
-			onclose();
+			if (ok) onclose();
 		});
 	}
 </script>
 
 <Dialog.Root
-	open={provider !== null}
+	open={target !== null}
 	onOpenChange={(open) => {
 		if (!open) {
 			secret = '';
@@ -42,7 +55,9 @@
 >
 	<Dialog.Content>
 		<Dialog.Header>
-			<Dialog.Title>Add key to {provider?.name}</Dialog.Title>
+			<Dialog.Title>
+				{editing ? `Edit key ${editing.name}` : `Add key to ${target?.provider.name}`}
+			</Dialog.Title>
 			<Dialog.Description>
 				The secret is encrypted on save and cannot be shown again.
 			</Dialog.Description>
@@ -54,29 +69,33 @@
 			</div>
 			<div class="flex flex-col gap-2">
 				<Label for="key-secret">Secret</Label>
-				<Input id="key-secret" type="password" autocomplete="off" bind:value={secret} />
+				<Input
+					id="key-secret"
+					type="password"
+					autocomplete="off"
+					placeholder={editing ? 'Leave blank to keep the current secret' : ''}
+					bind:value={secret}
+				/>
 			</div>
 			<div class="flex flex-col gap-2">
 				<Label for="key-in-flight">Max in flight</Label>
 				<Input id="key-in-flight" type="number" min="1" bind:value={maxInFlight} />
 			</div>
-			{#if provider?.rotation === 'weighted_round_robin'}
-				<div class="flex flex-col gap-2">
-					<Label for="key-weight">Weight</Label>
-					<Input id="key-weight" type="number" min="1" bind:value={weight} />
-				</div>
-			{/if}
-			{#if provider?.rotation === 'priority_overflow'}
-				<div class="flex flex-col gap-2">
-					<Label for="key-priority">Priority</Label>
-					<Input id="key-priority" type="number" bind:value={priority} />
+			<div class="flex flex-col gap-2">
+				<Label for="key-weight">Weight</Label>
+				<Input id="key-weight" type="number" min="1" bind:value={weight} />
+			</div>
+			{#if editing}
+				<div class="flex items-center gap-2">
+					<Switch bind:checked={enabled} />
+					<Label>Enabled</Label>
 				</div>
 			{/if}
 			{#if store.error}
 				<p class="text-sm text-destructive">{store.error}</p>
 			{/if}
 			<Dialog.Footer>
-				<Button type="submit">Add key</Button>
+				<Button type="submit">{editing ? 'Save' : 'Add key'}</Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

@@ -16,7 +16,7 @@ var (
 		{Name: "kind", Type: field.TypeEnum, Enums: []string{"openai_compatible", "anthropic", "claude_subscription"}},
 		{Name: "base_url", Type: field.TypeString},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
-		{Name: "rotation", Type: field.TypeEnum, Enums: []string{"round_robin", "weighted_round_robin", "priority_overflow", "least_in_flight"}, Default: "round_robin"},
+		{Name: "models", Type: field.TypeJSON, Nullable: true},
 		{Name: "cache_affinity_seconds", Type: field.TypeInt, Default: 600},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -32,11 +32,9 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
 		{Name: "ciphertext", Type: field.TypeBytes},
-		{Name: "last4", Type: field.TypeString, Default: ""},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
 		{Name: "max_in_flight", Type: field.TypeInt},
 		{Name: "weight", Type: field.TypeInt, Default: 1},
-		{Name: "priority", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "provider_keys", Type: field.TypeUUID},
@@ -49,7 +47,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "providers_keys_providers_providers_keys",
-				Columns:    []*schema.Column{ProvidersKeysColumns[10]},
+				Columns:    []*schema.Column{ProvidersKeysColumns[8]},
 				RefColumns: []*schema.Column{ProvidersProvidersColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -58,7 +56,7 @@ var (
 			{
 				Name:    "providerkey_name_provider_keys",
 				Unique:  true,
-				Columns: []*schema.Column{ProvidersKeysColumns[1], ProvidersKeysColumns[10]},
+				Columns: []*schema.Column{ProvidersKeysColumns[1], ProvidersKeysColumns[8]},
 			},
 		},
 	}

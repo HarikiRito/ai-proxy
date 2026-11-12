@@ -24,8 +24,8 @@ const (
 	FieldBaseURL = "base_url"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
-	// FieldRotation holds the string denoting the rotation field in the database.
-	FieldRotation = "rotation"
+	// FieldModels holds the string denoting the models field in the database.
+	FieldModels = "models"
 	// FieldCacheAffinitySeconds holds the string denoting the cache_affinity_seconds field in the database.
 	FieldCacheAffinitySeconds = "cache_affinity_seconds"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -52,7 +52,7 @@ var Columns = []string{
 	FieldKind,
 	FieldBaseURL,
 	FieldEnabled,
-	FieldRotation,
+	FieldModels,
 	FieldCacheAffinitySeconds,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -113,34 +113,6 @@ func KindValidator(k Kind) error {
 	}
 }
 
-// Rotation defines the type for the "rotation" enum field.
-type Rotation string
-
-// RotationRoundRobin is the default value of the Rotation enum.
-const DefaultRotation = RotationRoundRobin
-
-// Rotation values.
-const (
-	RotationRoundRobin         Rotation = "round_robin"
-	RotationWeightedRoundRobin Rotation = "weighted_round_robin"
-	RotationPriorityOverflow   Rotation = "priority_overflow"
-	RotationLeastInFlight      Rotation = "least_in_flight"
-)
-
-func (r Rotation) String() string {
-	return string(r)
-}
-
-// RotationValidator is a validator for the "rotation" field enum values. It is called by the builders before save.
-func RotationValidator(r Rotation) error {
-	switch r {
-	case RotationRoundRobin, RotationWeightedRoundRobin, RotationPriorityOverflow, RotationLeastInFlight:
-		return nil
-	default:
-		return fmt.Errorf("provider: invalid enum value for rotation field: %q", r)
-	}
-}
-
 // OrderOption defines the ordering options for the Provider queries.
 type OrderOption func(*sql.Selector)
 
@@ -167,11 +139,6 @@ func ByBaseURL(opts ...sql.OrderTermOption) OrderOption {
 // ByEnabled orders the results by the enabled field.
 func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
-}
-
-// ByRotation orders the results by the rotation field.
-func ByRotation(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRotation, opts...).ToFunc()
 }
 
 // ByCacheAffinitySeconds orders the results by the cache_affinity_seconds field.
