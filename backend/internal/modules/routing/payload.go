@@ -32,8 +32,12 @@ func chatPayload(body map[string]json.RawMessage) payload {
 // formPayload re-emits the parts under a fresh boundary; only the "model" field value changes.
 func formPayload(parts []Part) payload {
 	return payload{virtualmodels.KindTranscription, "/audio/transcriptions", func(model string) ([]byte, string) {
-		var b bytes.Buffer
-		w := multipart.NewWriter(&b)
+		size := 1024
+		for _, p := range parts {
+			size += len(p.Data) + 256
+		}
+		b := bytes.NewBuffer(make([]byte, 0, size))
+		w := multipart.NewWriter(b)
 		for _, p := range parts {
 			data := p.Data
 			if p.Name == "model" {

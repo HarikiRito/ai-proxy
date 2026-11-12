@@ -11,6 +11,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 const (
 	touchTimeout  = 5 * time.Second
 	touchInterval = 30 * time.Second
+	maxFormParts  = 32
 )
 
 // Consumer-defined views of the facades and engine this package needs.
@@ -209,7 +211,7 @@ func (g *gateway) transcriptions(w http.ResponseWriter, r *http.Request) {
 	case model == "":
 		writeError(w, http.StatusBadRequest, "invalid_request", "form field model is required", 0)
 		return
-	case strings.EqualFold(strings.TrimSpace(string(formValue(parts, "stream"))), "true"):
+	case slices.ContainsFunc(parts, isStreamTrue):
 		writeError(w, http.StatusBadRequest, "invalid_request", "streaming is not supported for transcription", 0)
 		return
 	case !allowed(w, r, model):
@@ -232,8 +234,8 @@ func parseForm(contentType string, raw []byte) ([]routing.Part, error) {
 		if errors.Is(err, io.EOF) {
 			return parts, nil
 		}
-		if err != nil {
-			return nil, err
+		if err != nil || len(parts) == maxFormParts {
+			return nil, errors.New("bad or oversized multipart body")
 		}
 		data, err := io.ReadAll(p)
 		if err != nil {
@@ -241,6 +243,10 @@ func parseForm(contentType string, raw []byte) ([]routing.Part, error) {
 		}
 		parts = append(parts, routing.Part{Name: p.FormName(), Header: p.Header, Data: data})
 	}
+}
+
+func isStreamTrue(p routing.Part) bool {
+	return p.Name == "stream" && strings.EqualFold(strings.TrimSpace(string(p.Data)), "true")
 }
 
 func formValue(parts []routing.Part, name string) []byte {

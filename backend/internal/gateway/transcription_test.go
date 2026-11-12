@@ -159,6 +159,7 @@ func TestTranscriptionValidation(t *testing.T) {
 	_, only := e.newKey(t, "chatty", "m")
 	e.models["other"] = virtualmodels.Model{Name: "other", Kind: virtualmodels.KindTranscription}
 
+	manyParts, mpctype := multipartBody(t, make([]field, 100)...)
 	form := func(fields ...field) (string, string) {
 		return multipartBody(t, append(fields, field{"file", "a.mp3", "audio/mpeg", "x"})...)
 	}
@@ -167,6 +168,7 @@ func TestTranscriptionValidation(t *testing.T) {
 	unknown, uctype := form(field{"model", "", "", "nope"})
 	wrongKind, wctype := form(field{"model", "", "", "chatty"})
 	streaming, sctype := form(field{"model", "", "", "m"}, field{"stream", "", "", "true"})
+	twoStreams, tsctype := form(field{"model", "", "", "m"}, field{"stream", "", "", "false"}, field{"stream", "", "", "true"})
 	_, plain := form(field{"model", "", "", "m"})
 
 	for name, tc := range map[string]struct {
@@ -179,6 +181,8 @@ func TestTranscriptionValidation(t *testing.T) {
 		"not allowed":      {only, forbidden, fctype, 403, "model_not_allowed"},
 		"missing model":    {"", missing, mctype, 400, "invalid_request"},
 		"stream":           {"", streaming, sctype, 400, "invalid_request"},
+		"second stream":    {"", twoStreams, tsctype, 400, "invalid_request"},
+		"too many parts":   {"", manyParts, mpctype, 400, "invalid_request"},
 		"json body":        {"", `{"model":"m"}`, "application/json", 400, "invalid_request"},
 		"missing boundary": {"", "x", "multipart/form-data", 400, "invalid_request"},
 		"wrong boundary":   {"", missing, strings.Replace(plain, "boundary=", "boundary=zz", 1), 400, "invalid_request"},
