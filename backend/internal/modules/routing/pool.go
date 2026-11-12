@@ -96,7 +96,9 @@ func (e *Engine) sweep() {
 func (e *Engine) cool(keyID string, d time.Duration) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.cooldown[keyID] = e.now().Add(d)
+	if until := e.now().Add(d); until.After(e.cooldown[keyID]) {
+		e.cooldown[keyID] = until
+	}
 	e.notify()
 }
 

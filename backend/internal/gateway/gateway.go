@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -20,7 +21,10 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
-const touchTimeout = 5 * time.Second
+const (
+	touchTimeout  = 5 * time.Second
+	touchInterval = 30 * time.Second
+)
 
 // Consumer-defined views of the facades and engine this package needs.
 type (
@@ -47,7 +51,11 @@ type Deps struct {
 	Log      *slog.Logger
 }
 
-type gateway struct{ Deps }
+type gateway struct {
+	Deps
+	mu      sync.Mutex
+	touched map[string]time.Time
+}
 
 type keyCtx struct{}
 
@@ -56,7 +64,7 @@ func New(d Deps) http.Handler {
 	if d.Log == nil {
 		d.Log = slog.Default()
 	}
-	g := &gateway{d}
+	g := &gateway{Deps: d, touched: map[string]time.Time{}}
 	r := chi.NewRouter()
 	r.Use(g.auth)
 	r.Get("/models", g.models)
@@ -87,9 +95,22 @@ func (g *gateway) auth(next http.Handler) http.Handler {
 			writeError(w, http.StatusInternalServerError, "internal_error", "internal error", 0)
 			return
 		}
-		go g.touch(context.WithoutCancel(r.Context()), key.ID)
+		if g.shouldTouch(key.ID) {
+			go g.touch(context.WithoutCancel(r.Context()), key.ID)
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), keyCtx{}, key)))
 	})
+}
+
+// shouldTouch debounces last-used writes: SQLite has one writer.
+func (g *gateway) shouldTouch(id string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if time.Since(g.touched[id]) < touchInterval {
+		return false
+	}
+	g.touched[id] = time.Now()
+	return true
 }
 
 func (g *gateway) touch(ctx context.Context, id string) {

@@ -196,6 +196,16 @@ func TestCooldownExpires(t *testing.T) {
 	}
 }
 
+func TestShorterCooldownDoesNotShortenLonger(t *testing.T) {
+	m := model(virtualmodels.StrategyPriorityOverflow, []virtualmodels.Entry{ent("a", "pa", 1)})
+	e, r, _ := setup(t, m, prov("pa", key("ka", 1, 1)))
+	e.cool("ka", time.Hour)
+	e.cool("ka", time.Minute)
+	if _, out, ok := r.pick(); ok || out.soonest != time.Hour {
+		t.Fatalf("ok=%v soonest=%v", ok, out.soonest)
+	}
+}
+
 func TestLeaseLimitReleaseAndWatchdog(t *testing.T) {
 	m := model(virtualmodels.StrategyPriorityOverflow, []virtualmodels.Entry{ent("a", "pa", 1)})
 	e, r, clk := setup(t, m, prov("pa", key("ka", 2, 1)))

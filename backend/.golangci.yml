@@ -94,6 +94,11 @@ linters:
           deny:
             - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent
               desc: health owns no tables, and must not read other modules' entities
+        routing:
+          files: ["**/internal/modules/routing/**"]
+          deny:
+            - pkg: github.com/HarikiRito/ai-proxy/backend/internal/ent
+              desc: routing owns no tables and reads other modules through their facades
         providers-tables:
           files: ["**/internal/modules/**", "!**/internal/modules/providers/**"]
           deny:

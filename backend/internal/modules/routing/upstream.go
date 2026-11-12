@@ -58,7 +58,7 @@ func (r *request) call(a attempt) (Result, error) {
 func (r *request) cooldownFor(header string) time.Duration {
 	d := time.Duration(r.cfg.DefaultCooldownSeconds) * time.Second
 	if secs, err := strconv.Atoi(header); err == nil && secs > 0 {
-		d = time.Duration(secs) * time.Second
+		d = time.Duration(min(secs, int(maxCooldown/time.Second))) * time.Second
 	} else if t, err := http.ParseTime(header); err == nil && t.After(r.e.now()) {
 		d = t.Sub(r.e.now())
 	}
