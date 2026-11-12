@@ -39,7 +39,7 @@ The standalone image (`docker build .`) does not migrate itself: run `atlas migr
 
 ## Admin login (WorkOS AuthKit, owner only)
 
-`/graphql` requires a WorkOS access token whose user is the owner. `/healthz`, `/config.json` and the SPA stay public; `/v1/*` is the OpenAI-compatible API behind proxy keys (`POST /v1/chat/completions` and `GET /v1/models` are live, including SSE streaming). The api refuses to start without any variable in the table below except `WORKOS_DEV_MODE`.
+`/graphql` requires a WorkOS access token whose user is the owner. `/healthz`, `/config.json` and the SPA stay public; `/v1/*` is the OpenAI-compatible API behind proxy keys (`POST /v1/chat/completions`, `POST /v1/audio/transcriptions` and `GET /v1/models` are live, including SSE streaming for chat). The api refuses to start without any variable in the table below except `WORKOS_DEV_MODE`.
 
 | Env | Meaning |
 | --- | --- |

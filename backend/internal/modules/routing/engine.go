@@ -110,16 +110,21 @@ func New(d Deps) *Engine {
 // Do routes a chat completion body to the virtual model's targets and returns the upstream answer.
 // Errors are *Error, or the context error when the caller went away.
 func (e *Engine) Do(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (Result, error) {
-	return e.route(ctx, name, hdr, body, false)
+	return e.route(ctx, name, hdr, chatPayload(body), false)
+}
+
+// Transcribe routes a buffered multipart transcription request; never streams.
+func (e *Engine) Transcribe(ctx context.Context, name string, hdr http.Header, parts []Part) (Result, error) {
+	return e.route(ctx, name, hdr, formPayload(parts), false)
 }
 
 // Stream is Do for streaming bodies: a 2xx answer comes back as Result.Stream, committed to that target.
 // Callers must close it; read errors are *Error (timeout) or the context error.
 func (e *Engine) Stream(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage) (Result, error) {
-	return e.route(ctx, name, hdr, body, true)
+	return e.route(ctx, name, hdr, chatPayload(body), true)
 }
 
-func (e *Engine) route(ctx context.Context, name string, hdr http.Header, body map[string]json.RawMessage, stream bool) (res Result, err error) {
+func (e *Engine) route(ctx context.Context, name string, hdr http.Header, pl payload, stream bool) (res Result, err error) {
 	cfg, err := e.settings.Get(ctx)
 	if err != nil {
 		return Result{}, err
@@ -138,15 +143,15 @@ func (e *Engine) route(ctx context.Context, name string, hdr http.Header, body m
 		return Result{}, &Error{Status: http.StatusNotFound, Code: "model_not_found", Message: "model " + name + " does not exist"}
 	case err != nil:
 		return Result{}, err
-	case m.Kind != virtualmodels.KindChat:
-		return Result{}, &Error{Status: http.StatusBadRequest, Code: "wrong_model_kind", Message: "model " + name + " is not a chat model"}
+	case m.Kind != pl.kind:
+		return Result{}, &Error{Status: http.StatusBadRequest, Code: "wrong_model_kind", Message: "model " + name + " is not a " + string(pl.kind) + " model"}
 	}
 	chain, err := e.chain(ctx, m)
 	if err != nil {
 		return Result{}, err
 	}
 	r := &request{
-		e: e, ctx: ctx, cancel: cancel, cfg: cfg, model: m, chain: chain, hdr: hdr, body: body, stream: stream,
+		e: e, ctx: ctx, cancel: cancel, cfg: cfg, model: m, chain: chain, hdr: hdr, pl: pl, stream: stream,
 		ttl: timeout + leaseGrace, tried: map[string]bool{},
 	}
 	return r.run()
