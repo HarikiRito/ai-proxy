@@ -20,6 +20,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/providerkey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/usagerecord"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
@@ -38,6 +39,8 @@ type Client struct {
 	ProxyKey *ProxyKeyClient
 	// Setting is the client for interacting with the Setting builders.
 	Setting *SettingClient
+	// UsageRecord is the client for interacting with the UsageRecord builders.
+	UsageRecord *UsageRecordClient
 	// VirtualModel is the client for interacting with the VirtualModel builders.
 	VirtualModel *VirtualModelClient
 	// VirtualModelEntry is the client for interacting with the VirtualModelEntry builders.
@@ -59,6 +62,7 @@ func (c *Client) init() {
 	c.ProviderKey = NewProviderKeyClient(c.config)
 	c.ProxyKey = NewProxyKeyClient(c.config)
 	c.Setting = NewSettingClient(c.config)
+	c.UsageRecord = NewUsageRecordClient(c.config)
 	c.VirtualModel = NewVirtualModelClient(c.config)
 	c.VirtualModelEntry = NewVirtualModelEntryClient(c.config)
 	c.VirtualModelTier = NewVirtualModelTierClient(c.config)
@@ -158,6 +162,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ProviderKey:       NewProviderKeyClient(cfg),
 		ProxyKey:          NewProxyKeyClient(cfg),
 		Setting:           NewSettingClient(cfg),
+		UsageRecord:       NewUsageRecordClient(cfg),
 		VirtualModel:      NewVirtualModelClient(cfg),
 		VirtualModelEntry: NewVirtualModelEntryClient(cfg),
 		VirtualModelTier:  NewVirtualModelTierClient(cfg),
@@ -184,6 +189,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ProviderKey:       NewProviderKeyClient(cfg),
 		ProxyKey:          NewProxyKeyClient(cfg),
 		Setting:           NewSettingClient(cfg),
+		UsageRecord:       NewUsageRecordClient(cfg),
 		VirtualModel:      NewVirtualModelClient(cfg),
 		VirtualModelEntry: NewVirtualModelEntryClient(cfg),
 		VirtualModelTier:  NewVirtualModelTierClient(cfg),
@@ -216,7 +222,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Provider, c.ProviderKey, c.ProxyKey, c.Setting, c.VirtualModel,
+		c.Provider, c.ProviderKey, c.ProxyKey, c.Setting, c.UsageRecord, c.VirtualModel,
 		c.VirtualModelEntry, c.VirtualModelTier,
 	} {
 		n.Use(hooks...)
@@ -227,7 +233,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Provider, c.ProviderKey, c.ProxyKey, c.Setting, c.VirtualModel,
+		c.Provider, c.ProviderKey, c.ProxyKey, c.Setting, c.UsageRecord, c.VirtualModel,
 		c.VirtualModelEntry, c.VirtualModelTier,
 	} {
 		n.Intercept(interceptors...)
@@ -245,6 +251,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ProxyKey.mutate(ctx, m)
 	case *SettingMutation:
 		return c.Setting.mutate(ctx, m)
+	case *UsageRecordMutation:
+		return c.UsageRecord.mutate(ctx, m)
 	case *VirtualModelMutation:
 		return c.VirtualModel.mutate(ctx, m)
 	case *VirtualModelEntryMutation:
@@ -820,6 +828,139 @@ func (c *SettingClient) mutate(ctx context.Context, m *SettingMutation) (Value, 
 	}
 }
 
+// UsageRecordClient is a client for the UsageRecord schema.
+type UsageRecordClient struct {
+	config
+}
+
+// NewUsageRecordClient returns a client for the UsageRecord from the given config.
+func NewUsageRecordClient(c config) *UsageRecordClient {
+	return &UsageRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usagerecord.Hooks(f(g(h())))`.
+func (c *UsageRecordClient) Use(hooks ...Hook) {
+	c.hooks.UsageRecord = append(c.hooks.UsageRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usagerecord.Intercept(f(g(h())))`.
+func (c *UsageRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UsageRecord = append(c.inters.UsageRecord, interceptors...)
+}
+
+// Create returns a builder for creating a UsageRecord entity.
+func (c *UsageRecordClient) Create() *UsageRecordCreate {
+	mutation := newUsageRecordMutation(c.config, OpCreate)
+	return &UsageRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UsageRecord entities.
+func (c *UsageRecordClient) CreateBulk(builders ...*UsageRecordCreate) *UsageRecordCreateBulk {
+	return &UsageRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UsageRecordClient) MapCreateBulk(slice any, setFunc func(*UsageRecordCreate, int)) *UsageRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UsageRecordCreateBulk{err: fmt.Errorf("calling to UsageRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UsageRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UsageRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UsageRecord.
+func (c *UsageRecordClient) Update() *UsageRecordUpdate {
+	mutation := newUsageRecordMutation(c.config, OpUpdate)
+	return &UsageRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UsageRecordClient) UpdateOne(_m *UsageRecord) *UsageRecordUpdateOne {
+	mutation := newUsageRecordMutation(c.config, OpUpdateOne, withUsageRecord(_m))
+	return &UsageRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UsageRecordClient) UpdateOneID(id uuid.UUID) *UsageRecordUpdateOne {
+	mutation := newUsageRecordMutation(c.config, OpUpdateOne, withUsageRecordID(id))
+	return &UsageRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UsageRecord.
+func (c *UsageRecordClient) Delete() *UsageRecordDelete {
+	mutation := newUsageRecordMutation(c.config, OpDelete)
+	return &UsageRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UsageRecordClient) DeleteOne(_m *UsageRecord) *UsageRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UsageRecordClient) DeleteOneID(id uuid.UUID) *UsageRecordDeleteOne {
+	builder := c.Delete().Where(usagerecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UsageRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for UsageRecord.
+func (c *UsageRecordClient) Query() *UsageRecordQuery {
+	return &UsageRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUsageRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UsageRecord entity by its id.
+func (c *UsageRecordClient) Get(ctx context.Context, id uuid.UUID) (*UsageRecord, error) {
+	return c.Query().Where(usagerecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UsageRecordClient) GetX(ctx context.Context, id uuid.UUID) *UsageRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *UsageRecordClient) Hooks() []Hook {
+	return c.hooks.UsageRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *UsageRecordClient) Interceptors() []Interceptor {
+	return c.inters.UsageRecord
+}
+
+func (c *UsageRecordClient) mutate(ctx context.Context, m *UsageRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UsageRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UsageRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UsageRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UsageRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UsageRecord mutation op: %q", m.Op())
+	}
+}
+
 // VirtualModelClient is a client for the VirtualModel schema.
 type VirtualModelClient struct {
 	config
@@ -1286,11 +1427,11 @@ func (c *VirtualModelTierClient) mutate(ctx context.Context, m *VirtualModelTier
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Provider, ProviderKey, ProxyKey, Setting, VirtualModel, VirtualModelEntry,
-		VirtualModelTier []ent.Hook
+		Provider, ProviderKey, ProxyKey, Setting, UsageRecord, VirtualModel,
+		VirtualModelEntry, VirtualModelTier []ent.Hook
 	}
 	inters struct {
-		Provider, ProviderKey, ProxyKey, Setting, VirtualModel, VirtualModelEntry,
-		VirtualModelTier []ent.Interceptor
+		Provider, ProviderKey, ProxyKey, Setting, UsageRecord, VirtualModel,
+		VirtualModelEntry, VirtualModelTier []ent.Interceptor
 	}
 )

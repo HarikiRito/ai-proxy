@@ -47,7 +47,7 @@ func (r *request) call(a attempt) (Result, error) {
 	}
 	if r.stream && resp.StatusCode/100 == 2 {
 		handedOff = true
-		return r.adapt(a, Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Stream: &liveBody{ReadCloser: resp.Body, r: r, lease: a.lease}})
+		return r.adapt(a, r.meter(a, Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Stream: &liveBody{ReadCloser: resp.Body, r: r, lease: a.lease}}))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
@@ -63,7 +63,7 @@ func (r *request) call(a attempt) (Result, error) {
 	case resp.StatusCode >= http.StatusInternalServerError:
 		return Result{}, fmt.Errorf("provider %q: upstream status %d", name, resp.StatusCode)
 	}
-	return r.adapt(a, Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Body: data})
+	return r.adapt(a, r.meter(a, Result{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type"), Body: data}))
 }
 
 // adapt answers a chat request served by a Claude target in chat completions format.

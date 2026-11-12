@@ -52,7 +52,20 @@ type Error struct {
 	Code       string
 	Message    string
 	RetryAfter int // seconds, 0 = none
+	Meta       Meta
 }
+
+// Meta describes the upstream attempts of one request; Provider, Key and Model are those of the last attempt.
+type Meta struct {
+	ProviderID, ProviderName string
+	KeyID, KeyName           string
+	EntryID, Model           string
+	Steps                    int    // upstream attempts made
+	Usage                    *Usage // nil when the endpoint reports none; a stream fills it as events arrive
+}
+
+// Usage is the token counts of one answer; nil fields are unknown. In is the whole prompt, cache parts included.
+type Usage struct{ In, Out, CacheRead, CacheCreation *int }
 
 func (e *Error) Error() string { return e.Message }
 
@@ -64,6 +77,7 @@ type Result struct {
 	Body        []byte
 	Stream      io.ReadCloser
 	Affinity    string // hit, break or new for pinned conversations, "" when affinity does not apply
+	Meta        Meta
 }
 
 type Engine struct {

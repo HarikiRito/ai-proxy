@@ -18,6 +18,9 @@ type ProxyKey func(*sql.Selector)
 // Setting is the predicate function for setting builders.
 type Setting func(*sql.Selector)
 
+// UsageRecord is the predicate function for usagerecord builders.
+type UsageRecord func(*sql.Selector)
+
 // VirtualModel is the predicate function for virtualmodel builders.
 type VirtualModel func(*sql.Selector)
 

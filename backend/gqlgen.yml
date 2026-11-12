@@ -58,3 +58,13 @@ models:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/settings.Settings
   SettingsInput:
     model: github.com/HarikiRito/ai-proxy/backend/internal/modules/settings.Input
+  UsageRecord:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/usage.Record
+  UsageRecordPage:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/usage.Page
+  UsageFilter:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/usage.Filter
+  UsageGroup:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/usage.Group
+  UsageTotal:
+    model: github.com/HarikiRito/ai-proxy/backend/internal/modules/usage.Total

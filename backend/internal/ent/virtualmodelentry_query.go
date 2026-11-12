@@ -26,6 +26,7 @@ type VirtualModelEntryQuery struct {
 	predicates []predicate.VirtualModelEntry
 	withTier   *VirtualModelTierQuery
 	withFKs    bool
+	modifiers  []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -278,8 +279,9 @@ func (_q *VirtualModelEntryQuery) Clone() *VirtualModelEntryQuery {
 		predicates: append([]predicate.VirtualModelEntry{}, _q.predicates...),
 		withTier:   _q.withTier.Clone(),
 		// clone intermediate query.
-		sql:  _q.sql.Clone(),
-		path: _q.path,
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
 }
 
@@ -392,6 +394,9 @@ func (_q *VirtualModelEntryQuery) sqlAll(ctx context.Context, hooks ...queryHook
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -445,6 +450,9 @@ func (_q *VirtualModelEntryQuery) loadTier(ctx context.Context, query *VirtualMo
 
 func (_q *VirtualModelEntryQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -507,6 +515,9 @@ func (_q *VirtualModelEntryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range _q.modifiers {
+		m(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -522,6 +533,12 @@ func (_q *VirtualModelEntryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_q *VirtualModelEntryQuery) Modify(modifiers ...func(s *sql.Selector)) *VirtualModelEntrySelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // VirtualModelEntryGroupBy is the group-by builder for VirtualModelEntry entities.
@@ -612,4 +629,10 @@ func (_s *VirtualModelEntrySelect) sqlScan(ctx context.Context, root *VirtualMod
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_s *VirtualModelEntrySelect) Modify(modifiers ...func(s *sql.Selector)) *VirtualModelEntrySelect {
+	_s.modifiers = append(_s.modifiers, modifiers...)
+	return _s
 }

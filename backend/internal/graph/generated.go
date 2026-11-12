@@ -19,6 +19,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/usage"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -103,6 +104,8 @@ type ComplexityRoot struct {
 		Providers     func(childComplexity int) int
 		ProxyKeys     func(childComplexity int) int
 		Settings      func(childComplexity int) int
+		UsageRecords  func(childComplexity int, filter *usage.Filter, limit *int, offset *int) int
+		UsageTotals   func(childComplexity int, filter *usage.Filter, groupBy usage.Group) int
 		Viewer        func(childComplexity int) int
 		VirtualModels func(childComplexity int) int
 	}
@@ -112,6 +115,42 @@ type ComplexityRoot struct {
 		MaxBodyBytes           func(childComplexity int) int
 		QueueWaitSeconds       func(childComplexity int) int
 		RequestTimeoutSeconds  func(childComplexity int) int
+	}
+
+	UsageRecord struct {
+		Affinity            func(childComplexity int) int
+		CacheCreationTokens func(childComplexity int) int
+		CacheReadTokens     func(childComplexity int) int
+		CreatedAt           func(childComplexity int) int
+		DurationMs          func(childComplexity int) int
+		ID                  func(childComplexity int) int
+		InputTokens         func(childComplexity int) int
+		KeyID               func(childComplexity int) int
+		KeyName             func(childComplexity int) int
+		Model               func(childComplexity int) int
+		OutputTokens        func(childComplexity int) int
+		ProviderID          func(childComplexity int) int
+		ProviderName        func(childComplexity int) int
+		ProxyKeyID          func(childComplexity int) int
+		ProxyKeyName        func(childComplexity int) int
+		Status              func(childComplexity int) int
+		Steps               func(childComplexity int) int
+		VirtualModel        func(childComplexity int) int
+	}
+
+	UsageRecordPage struct {
+		Items func(childComplexity int) int
+		Total func(childComplexity int) int
+	}
+
+	UsageTotal struct {
+		CacheCreationTokens func(childComplexity int) int
+		CacheReadTokens     func(childComplexity int) int
+		Errors              func(childComplexity int) int
+		InputTokens         func(childComplexity int) int
+		Label               func(childComplexity int) int
+		OutputTokens        func(childComplexity int) int
+		Requests            func(childComplexity int) int
 	}
 
 	Viewer struct {
@@ -168,6 +207,8 @@ type QueryResolver interface {
 	Providers(ctx context.Context) ([]*providers.Provider, error)
 	ProxyKeys(ctx context.Context) ([]*proxykeys.Key, error)
 	Settings(ctx context.Context) (*settings.Settings, error)
+	UsageRecords(ctx context.Context, filter *usage.Filter, limit *int, offset *int) (*usage.Page, error)
+	UsageTotals(ctx context.Context, filter *usage.Filter, groupBy usage.Group) ([]*usage.Total, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
 	VirtualModels(ctx context.Context) ([]*virtualmodels.Model, error)
 }
@@ -514,6 +555,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Settings(childComplexity), true
+	case "Query.usageRecords":
+		if e.ComplexityRoot.Query.UsageRecords == nil {
+			break
+		}
+
+		args, err := ec.field_Query_usageRecords_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.UsageRecords(childComplexity, args["filter"].(*usage.Filter), args["limit"].(*int), args["offset"].(*int)), true
+	case "Query.usageTotals":
+		if e.ComplexityRoot.Query.UsageTotals == nil {
+			break
+		}
+
+		args, err := ec.field_Query_usageTotals_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.UsageTotals(childComplexity, args["filter"].(*usage.Filter), args["groupBy"].(usage.Group)), true
 	case "Query.viewer":
 		if e.ComplexityRoot.Query.Viewer == nil {
 			break
@@ -551,6 +614,171 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Settings.RequestTimeoutSeconds(childComplexity), true
+
+	case "UsageRecord.affinity":
+		if e.ComplexityRoot.UsageRecord.Affinity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.Affinity(childComplexity), true
+	case "UsageRecord.cacheCreationTokens":
+		if e.ComplexityRoot.UsageRecord.CacheCreationTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.CacheCreationTokens(childComplexity), true
+	case "UsageRecord.cacheReadTokens":
+		if e.ComplexityRoot.UsageRecord.CacheReadTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.CacheReadTokens(childComplexity), true
+	case "UsageRecord.createdAt":
+		if e.ComplexityRoot.UsageRecord.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.CreatedAt(childComplexity), true
+	case "UsageRecord.durationMs":
+		if e.ComplexityRoot.UsageRecord.DurationMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.DurationMs(childComplexity), true
+	case "UsageRecord.id":
+		if e.ComplexityRoot.UsageRecord.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.ID(childComplexity), true
+	case "UsageRecord.inputTokens":
+		if e.ComplexityRoot.UsageRecord.InputTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.InputTokens(childComplexity), true
+	case "UsageRecord.keyId":
+		if e.ComplexityRoot.UsageRecord.KeyID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.KeyID(childComplexity), true
+	case "UsageRecord.keyName":
+		if e.ComplexityRoot.UsageRecord.KeyName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.KeyName(childComplexity), true
+	case "UsageRecord.model":
+		if e.ComplexityRoot.UsageRecord.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.Model(childComplexity), true
+	case "UsageRecord.outputTokens":
+		if e.ComplexityRoot.UsageRecord.OutputTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.OutputTokens(childComplexity), true
+	case "UsageRecord.providerId":
+		if e.ComplexityRoot.UsageRecord.ProviderID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.ProviderID(childComplexity), true
+	case "UsageRecord.providerName":
+		if e.ComplexityRoot.UsageRecord.ProviderName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.ProviderName(childComplexity), true
+	case "UsageRecord.proxyKeyId":
+		if e.ComplexityRoot.UsageRecord.ProxyKeyID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.ProxyKeyID(childComplexity), true
+	case "UsageRecord.proxyKeyName":
+		if e.ComplexityRoot.UsageRecord.ProxyKeyName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.ProxyKeyName(childComplexity), true
+	case "UsageRecord.status":
+		if e.ComplexityRoot.UsageRecord.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.Status(childComplexity), true
+	case "UsageRecord.steps":
+		if e.ComplexityRoot.UsageRecord.Steps == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.Steps(childComplexity), true
+	case "UsageRecord.virtualModel":
+		if e.ComplexityRoot.UsageRecord.VirtualModel == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecord.VirtualModel(childComplexity), true
+
+	case "UsageRecordPage.items":
+		if e.ComplexityRoot.UsageRecordPage.Items == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecordPage.Items(childComplexity), true
+	case "UsageRecordPage.total":
+		if e.ComplexityRoot.UsageRecordPage.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageRecordPage.Total(childComplexity), true
+
+	case "UsageTotal.cacheCreationTokens":
+		if e.ComplexityRoot.UsageTotal.CacheCreationTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.CacheCreationTokens(childComplexity), true
+	case "UsageTotal.cacheReadTokens":
+		if e.ComplexityRoot.UsageTotal.CacheReadTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.CacheReadTokens(childComplexity), true
+	case "UsageTotal.errors":
+		if e.ComplexityRoot.UsageTotal.Errors == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.Errors(childComplexity), true
+	case "UsageTotal.inputTokens":
+		if e.ComplexityRoot.UsageTotal.InputTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.InputTokens(childComplexity), true
+	case "UsageTotal.label":
+		if e.ComplexityRoot.UsageTotal.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.Label(childComplexity), true
+	case "UsageTotal.outputTokens":
+		if e.ComplexityRoot.UsageTotal.OutputTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.OutputTokens(childComplexity), true
+	case "UsageTotal.requests":
+		if e.ComplexityRoot.UsageTotal.Requests == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsageTotal.Requests(childComplexity), true
 
 	case "Viewer.email":
 		if e.ComplexityRoot.Viewer.Email == nil {
@@ -675,6 +903,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			graphql.NewInputUnmarshaler("SettingsInput", ec.unmarshalInputSettingsInput),
 			graphql.NewInputUnmarshaler("TierInput", ec.unmarshalInputTierInput),
 			graphql.NewInputUnmarshaler("UpdateVirtualModelInput", ec.unmarshalInputUpdateVirtualModelInput),
+			graphql.NewInputUnmarshaler("UsageFilter", ec.unmarshalInputUsageFilter),
 		)
 	}
 	first := true
@@ -750,7 +979,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/settings.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
+//go:embed "schema/health.gql" "schema/providers.gql" "schema/proxykeys.gql" "schema/settings.gql" "schema/usage.gql" "schema/viewer.gql" "schema/virtualmodels.gql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -766,6 +995,7 @@ var sources = []*ast.Source{
 	{Name: "schema/providers.gql", Input: sourceData("schema/providers.gql"), BuiltIn: false},
 	{Name: "schema/proxykeys.gql", Input: sourceData("schema/proxykeys.gql"), BuiltIn: false},
 	{Name: "schema/settings.gql", Input: sourceData("schema/settings.gql"), BuiltIn: false},
+	{Name: "schema/usage.gql", Input: sourceData("schema/usage.gql"), BuiltIn: false},
 	{Name: "schema/viewer.gql", Input: sourceData("schema/viewer.gql"), BuiltIn: false},
 	{Name: "schema/virtualmodels.gql", Input: sourceData("schema/virtualmodels.gql"), BuiltIn: false},
 }
@@ -867,6 +1097,78 @@ func (ec *executionContext) childFields_Settings(ctx context.Context, field grap
 		return ec.fieldContext_Settings_defaultCooldownSeconds(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Settings", field.Name)
+}
+
+func (ec *executionContext) childFields_UsageRecord(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_UsageRecord_id(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_UsageRecord_createdAt(ctx, field)
+	case "proxyKeyId":
+		return ec.fieldContext_UsageRecord_proxyKeyId(ctx, field)
+	case "proxyKeyName":
+		return ec.fieldContext_UsageRecord_proxyKeyName(ctx, field)
+	case "virtualModel":
+		return ec.fieldContext_UsageRecord_virtualModel(ctx, field)
+	case "providerId":
+		return ec.fieldContext_UsageRecord_providerId(ctx, field)
+	case "providerName":
+		return ec.fieldContext_UsageRecord_providerName(ctx, field)
+	case "keyId":
+		return ec.fieldContext_UsageRecord_keyId(ctx, field)
+	case "keyName":
+		return ec.fieldContext_UsageRecord_keyName(ctx, field)
+	case "model":
+		return ec.fieldContext_UsageRecord_model(ctx, field)
+	case "status":
+		return ec.fieldContext_UsageRecord_status(ctx, field)
+	case "durationMs":
+		return ec.fieldContext_UsageRecord_durationMs(ctx, field)
+	case "inputTokens":
+		return ec.fieldContext_UsageRecord_inputTokens(ctx, field)
+	case "outputTokens":
+		return ec.fieldContext_UsageRecord_outputTokens(ctx, field)
+	case "cacheReadTokens":
+		return ec.fieldContext_UsageRecord_cacheReadTokens(ctx, field)
+	case "cacheCreationTokens":
+		return ec.fieldContext_UsageRecord_cacheCreationTokens(ctx, field)
+	case "steps":
+		return ec.fieldContext_UsageRecord_steps(ctx, field)
+	case "affinity":
+		return ec.fieldContext_UsageRecord_affinity(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type UsageRecord", field.Name)
+}
+
+func (ec *executionContext) childFields_UsageRecordPage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "items":
+		return ec.fieldContext_UsageRecordPage_items(ctx, field)
+	case "total":
+		return ec.fieldContext_UsageRecordPage_total(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type UsageRecordPage", field.Name)
+}
+
+func (ec *executionContext) childFields_UsageTotal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "label":
+		return ec.fieldContext_UsageTotal_label(ctx, field)
+	case "requests":
+		return ec.fieldContext_UsageTotal_requests(ctx, field)
+	case "inputTokens":
+		return ec.fieldContext_UsageTotal_inputTokens(ctx, field)
+	case "outputTokens":
+		return ec.fieldContext_UsageTotal_outputTokens(ctx, field)
+	case "cacheReadTokens":
+		return ec.fieldContext_UsageTotal_cacheReadTokens(ctx, field)
+	case "cacheCreationTokens":
+		return ec.fieldContext_UsageTotal_cacheCreationTokens(ctx, field)
+	case "errors":
+		return ec.fieldContext_UsageTotal_errors(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type UsageTotal", field.Name)
 }
 
 func (ec *executionContext) childFields_Viewer(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1276,6 +1578,58 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_usageRecords_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter",
+		func(ctx context.Context, v any) (*usage.Filter, error) {
+			return ec.unmarshalOUsageFilter2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐFilter(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_usageTotals_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter",
+		func(ctx context.Context, v any) (*usage.Filter, error) {
+			return ec.unmarshalOUsageFilter2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐFilter(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "groupBy",
+		func(ctx context.Context, v any) (usage.Group, error) {
+			return ec.unmarshalNUsageGroup2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐGroup(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["groupBy"] = arg1
 	return args, nil
 }
 
@@ -2646,6 +3000,94 @@ func (ec *executionContext) fieldContext_Query_settings(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_usageRecords(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_usageRecords(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().UsageRecords(ctx, fc.Args["filter"].(*usage.Filter), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *usage.Page) graphql.Marshaler {
+			return ec.marshalNUsageRecordPage2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐPage(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_usageRecords(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_UsageRecordPage(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_usageRecords_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_usageTotals(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_usageTotals(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().UsageTotals(ctx, fc.Args["filter"].(*usage.Filter), fc.Args["groupBy"].(usage.Group))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*usage.Total) graphql.Marshaler {
+			return ec.marshalNUsageTotal2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐTotalᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_usageTotals(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_UsageTotal(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_usageTotals_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_viewer(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2876,6 +3318,636 @@ func (ec *executionContext) _Settings_defaultCooldownSeconds(ctx context.Context
 }
 func (ec *executionContext) fieldContext_Settings_defaultCooldownSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Settings", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_id(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "ID")
+}
+
+func (ec *executionContext) _UsageRecord_createdAt(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Time")
+}
+
+func (ec *executionContext) _UsageRecord_proxyKeyId(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_proxyKeyId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProxyKeyID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_proxyKeyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "ID")
+}
+
+func (ec *executionContext) _UsageRecord_proxyKeyName(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_proxyKeyName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProxyKeyName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_proxyKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageRecord_virtualModel(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_virtualModel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.VirtualModel, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_virtualModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageRecord_providerId(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_providerId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProviderID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_providerId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "ID")
+}
+
+func (ec *executionContext) _UsageRecord_providerName(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_providerName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProviderName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_providerName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageRecord_keyId(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_keyId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_keyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "ID")
+}
+
+func (ec *executionContext) _UsageRecord_keyName(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_keyName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_keyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageRecord_model(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_model(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageRecord_status(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_durationMs(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_durationMs(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DurationMs, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_inputTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_inputTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_outputTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_outputTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_cacheReadTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_cacheReadTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CacheReadTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_cacheReadTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_cacheCreationTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_cacheCreationTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CacheCreationTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_cacheCreationTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_steps(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_steps(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Steps, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_steps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageRecord_affinity(ctx context.Context, field graphql.CollectedField, obj *usage.Record) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecord_affinity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Affinity, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecord_affinity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecord", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageRecordPage_items(ctx context.Context, field graphql.CollectedField, obj *usage.Page) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecordPage_items(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []usage.Record) graphql.Marshaler {
+			return ec.marshalNUsageRecord2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐRecordᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecordPage_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageRecordPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_UsageRecord(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageRecordPage_total(ctx context.Context, field graphql.CollectedField, obj *usage.Page) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageRecordPage_total(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageRecordPage_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageRecordPage", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageTotal_label(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_label(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "String")
+}
+
+func (ec *executionContext) _UsageTotal_requests(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_requests(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Requests, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_requests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageTotal_inputTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_inputTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageTotal_outputTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_outputTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageTotal_cacheReadTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_cacheReadTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CacheReadTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_cacheReadTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageTotal_cacheCreationTokens(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_cacheCreationTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CacheCreationTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_cacheCreationTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UsageTotal_errors(ctx context.Context, field graphql.CollectedField, obj *usage.Total) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsageTotal_errors(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Errors, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsageTotal_errors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsageTotal", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Viewer_email(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
@@ -4850,6 +5922,69 @@ func UnmarshalUpdateVirtualModelInput(ctx context.Context, raw any) (virtualmode
 	return out, err
 }
 
+func (ec *executionContext) unmarshalInputUsageFilter(ctx context.Context, obj any) (usage.Filter, error) {
+	var it usage.Filter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"proxyKeyId", "virtualModel", "from", "to"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "proxyKeyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("proxyKeyId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProxyKeyID = data
+		case "virtualModel":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("virtualModel"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VirtualModel = data
+		case "from":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.From = data
+		case "to":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.To = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalUsageFilter unmarshals raw into the UsageFilter input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalUsageFilter(ctx context.Context, raw any) (usage.Filter, error) {
+	var out usage.Filter
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "UsageFilter", raw, &out)
+	return out, err
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -5293,6 +6428,18 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_settings(ctx, field)
 				})
+		case "usageRecords":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_usageRecords(ctx, field)
+				})
+		case "usageTotals":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_usageTotals(ctx, field)
+				})
 		case "viewer":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
 				true, true,
@@ -5364,6 +6511,225 @@ func (ec *executionContext) _Settings(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "defaultCooldownSeconds":
 			out.Values[i] = ec._Settings_defaultCooldownSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var usageRecordImplementors = []string{"UsageRecord"}
+
+func (ec *executionContext) _UsageRecord(ctx context.Context, sel ast.SelectionSet, obj *usage.Record) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, usageRecordImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UsageRecord")
+		case "id":
+			out.Values[i] = ec._UsageRecord_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._UsageRecord_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "proxyKeyId":
+			out.Values[i] = ec._UsageRecord_proxyKeyId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "proxyKeyName":
+			out.Values[i] = ec._UsageRecord_proxyKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "virtualModel":
+			out.Values[i] = ec._UsageRecord_virtualModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "providerId":
+			out.Values[i] = ec._UsageRecord_providerId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "providerName":
+			out.Values[i] = ec._UsageRecord_providerName(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "keyId":
+			out.Values[i] = ec._UsageRecord_keyId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "keyName":
+			out.Values[i] = ec._UsageRecord_keyName(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._UsageRecord_model(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._UsageRecord_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationMs":
+			out.Values[i] = ec._UsageRecord_durationMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputTokens":
+			out.Values[i] = ec._UsageRecord_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "outputTokens":
+			out.Values[i] = ec._UsageRecord_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "cacheReadTokens":
+			out.Values[i] = ec._UsageRecord_cacheReadTokens(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "cacheCreationTokens":
+			out.Values[i] = ec._UsageRecord_cacheCreationTokens(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "steps":
+			out.Values[i] = ec._UsageRecord_steps(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "affinity":
+			out.Values[i] = ec._UsageRecord_affinity(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var usageRecordPageImplementors = []string{"UsageRecordPage"}
+
+func (ec *executionContext) _UsageRecordPage(ctx context.Context, sel ast.SelectionSet, obj *usage.Page) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, usageRecordPageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UsageRecordPage")
+		case "items":
+			out.Values[i] = ec._UsageRecordPage_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._UsageRecordPage_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var usageTotalImplementors = []string{"UsageTotal"}
+
+func (ec *executionContext) _UsageTotal(ctx context.Context, sel ast.SelectionSet, obj *usage.Total) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, usageTotalImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UsageTotal")
+		case "label":
+			out.Values[i] = ec._UsageTotal_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requests":
+			out.Values[i] = ec._UsageTotal_requests(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputTokens":
+			out.Values[i] = ec._UsageTotal_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outputTokens":
+			out.Values[i] = ec._UsageTotal_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheReadTokens":
+			out.Values[i] = ec._UsageTotal_cacheReadTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheCreationTokens":
+			out.Values[i] = ec._UsageTotal_cacheCreationTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "errors":
+			out.Values[i] = ec._UsageTotal_errors(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6270,6 +7636,73 @@ func (ec *executionContext) unmarshalNUpdateVirtualModelInput2githubᚗcomᚋHar
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNUsageGroup2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐGroup(ctx context.Context, v any) (usage.Group, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := usage.Group(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUsageGroup2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐGroup(ctx context.Context, sel ast.SelectionSet, v usage.Group) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		graphql.AddInvalidNullFromMarshaler(ctx, "UsageGroup!")
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNUsageRecord2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐRecord(ctx context.Context, sel ast.SelectionSet, v usage.Record) graphql.Marshaler {
+	return ec._UsageRecord(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUsageRecord2ᚕgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐRecordᚄ(ctx context.Context, sel ast.SelectionSet, v []usage.Record) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNUsageRecord2githubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐRecord(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUsageRecordPage2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐPage(ctx context.Context, sel ast.SelectionSet, v *usage.Page) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "UsageRecordPage!")
+		return graphql.Null
+	}
+	return ec._UsageRecordPage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNUsageTotal2ᚕᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐTotalᚄ(ctx context.Context, sel ast.SelectionSet, v []*usage.Total) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNUsageTotal2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐTotal(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUsageTotal2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐTotal(ctx context.Context, sel ast.SelectionSet, v *usage.Total) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "UsageTotal!")
+		return graphql.Null
+	}
+	return ec._UsageTotal(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNViewer2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋgraphᚋmodelᚐViewer(ctx context.Context, sel ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
 	if v == nil {
 		graphql.AddInvalidNullError(ctx, "Viewer!")
@@ -6529,6 +7962,24 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(*v)
+	return res
+}
+
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
 	if v == nil {
 		return nil, nil
@@ -6635,6 +8086,14 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOUsageFilter2ᚖgithubᚗcomᚋHarikiRitoᚋaiᚑproxyᚋbackendᚋinternalᚋmodulesᚋusageᚐFilter(ctx context.Context, v any) (*usage.Filter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputUsageFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

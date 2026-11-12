@@ -5,6 +5,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/usage"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
@@ -17,5 +18,14 @@ type Resolver struct {
 	ProxyKeys *proxykeys.Service
 
 	Settings      *settings.Service
+	Usage         *usage.Service
 	VirtualModels *virtualmodels.Service
+}
+
+func deref[T any](p *T) T {
+	var zero T
+	if p != nil {
+		zero = *p
+	}
+	return zero
 }

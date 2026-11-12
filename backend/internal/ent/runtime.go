@@ -10,6 +10,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/proxykey"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/schema"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/setting"
+	"github.com/HarikiRito/ai-proxy/backend/internal/ent/usagerecord"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodel"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodelentry"
 	"github.com/HarikiRito/ai-proxy/backend/internal/ent/virtualmodeltier"
@@ -116,6 +117,16 @@ func init() {
 	settingDescID := settingFields[0].Descriptor()
 	// setting.DefaultID holds the default value on creation for the id field.
 	setting.DefaultID = settingDescID.Default.(int)
+	usagerecordFields := schema.UsageRecord{}.Fields()
+	_ = usagerecordFields
+	// usagerecordDescCreatedAt is the schema descriptor for created_at field.
+	usagerecordDescCreatedAt := usagerecordFields[1].Descriptor()
+	// usagerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usagerecord.DefaultCreatedAt = usagerecordDescCreatedAt.Default.(func() time.Time)
+	// usagerecordDescID is the schema descriptor for id field.
+	usagerecordDescID := usagerecordFields[0].Descriptor()
+	// usagerecord.DefaultID holds the default value on creation for the id field.
+	usagerecord.DefaultID = usagerecordDescID.Default.(func() uuid.UUID)
 	virtualmodelFields := schema.VirtualModel{}.Fields()
 	_ = virtualmodelFields
 	// virtualmodelDescName is the schema descriptor for name field.

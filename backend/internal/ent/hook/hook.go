@@ -57,6 +57,18 @@ func (f SettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SettingMutation", m)
 }
 
+// The UsageRecordFunc type is an adapter to allow the use of ordinary
+// function as UsageRecord mutator.
+type UsageRecordFunc func(context.Context, *ent.UsageRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UsageRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UsageRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UsageRecordMutation", m)
+}
+
 // The VirtualModelFunc type is an adapter to allow the use of ordinary
 // function as VirtualModel mutator.
 type VirtualModelFunc func(context.Context, *ent.VirtualModelMutation) (ent.Value, error)

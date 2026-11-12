@@ -19,8 +19,9 @@ import (
 // ProxyKeyUpdate is the builder for updating ProxyKey entities.
 type ProxyKeyUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ProxyKeyMutation
+	hooks     []Hook
+	mutation  *ProxyKeyMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the ProxyKeyUpdate builder.
@@ -156,6 +157,12 @@ func (_u *ProxyKeyUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ProxyKeyUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ProxyKeyUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ProxyKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -194,6 +201,7 @@ func (_u *ProxyKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.RevokedAtCleared() {
 		_spec.ClearField(proxykey.FieldRevokedAt, field.TypeTime)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{proxykey.Label}
@@ -209,9 +217,10 @@ func (_u *ProxyKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 // ProxyKeyUpdateOne is the builder for updating a single ProxyKey entity.
 type ProxyKeyUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *ProxyKeyMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *ProxyKeyMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetName sets the "name" field.
@@ -354,6 +363,12 @@ func (_u *ProxyKeyUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ProxyKeyUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ProxyKeyUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ProxyKeyUpdateOne) sqlSave(ctx context.Context) (_node *ProxyKey, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -409,6 +424,7 @@ func (_u *ProxyKeyUpdateOne) sqlSave(ctx context.Context) (_node *ProxyKey, err 
 	if _u.mutation.RevokedAtCleared() {
 		_spec.ClearField(proxykey.FieldRevokedAt, field.TypeTime)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &ProxyKey{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

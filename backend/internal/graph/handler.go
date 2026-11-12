@@ -17,6 +17,7 @@ import (
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/providers"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/proxykeys"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/settings"
+	"github.com/HarikiRito/ai-proxy/backend/internal/modules/usage"
 	"github.com/HarikiRito/ai-proxy/backend/internal/modules/virtualmodels"
 )
 
@@ -51,6 +52,7 @@ func userMessage(err error) (string, bool) {
 	var keyErr *proxykeys.UserError
 	var modelErr *virtualmodels.UserError
 	var settingsErr *settings.UserError
+	var usageErr *usage.UserError
 	switch {
 	case errors.As(err, &providerErr):
 		return providerErr.Msg, true
@@ -60,6 +62,8 @@ func userMessage(err error) (string, bool) {
 		return modelErr.Msg, true
 	case errors.As(err, &settingsErr):
 		return settingsErr.Msg, true
+	case errors.As(err, &usageErr):
+		return usageErr.Msg, true
 	}
 	return "", false
 }

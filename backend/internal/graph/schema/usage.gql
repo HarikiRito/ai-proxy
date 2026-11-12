@@ -1,0 +1,60 @@
+"One proxied request. Token counts are null when the upstream did not report them; inputTokens includes the cache parts."
+type UsageRecord {
+  id: ID!
+  createdAt: Time!
+  proxyKeyId: ID!
+  proxyKeyName: String!
+  virtualModel: String!
+  providerId: ID
+  providerName: String
+  keyId: ID
+  keyName: String
+  "The real upstream model of the last attempt."
+  model: String
+  status: Int!
+  durationMs: Int!
+  inputTokens: Int
+  outputTokens: Int
+  cacheReadTokens: Int
+  cacheCreationTokens: Int
+  "Upstream attempts made."
+  steps: Int!
+  "hit, break or new for pinned conversations."
+  affinity: String
+}
+
+type UsageRecordPage {
+  items: [UsageRecord!]!
+  total: Int!
+}
+
+"All fields optional; from and to are inclusive."
+input UsageFilter {
+  proxyKeyId: ID
+  virtualModel: String
+  from: Time
+  to: Time
+}
+
+enum UsageGroup {
+  DAY
+  MODEL
+  PROVIDER
+}
+
+"DAY labels are UTC dates; missing token counts add as 0; errors counts statuses of 400 and above."
+type UsageTotal {
+  label: String!
+  requests: Int!
+  inputTokens: Int!
+  outputTokens: Int!
+  cacheReadTokens: Int!
+  cacheCreationTokens: Int!
+  errors: Int!
+}
+
+extend type Query {
+  "Newest first. limit defaults to 50, at most 200."
+  usageRecords(filter: UsageFilter, limit: Int, offset: Int): UsageRecordPage!
+  usageTotals(filter: UsageFilter, groupBy: UsageGroup!): [UsageTotal!]!
+}
