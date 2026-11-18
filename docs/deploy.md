@@ -34,7 +34,7 @@ Never build on the deploy host. Images are built on `h-wsl` (linux/amd64) and pu
 1. `scripts/build-push.sh staging [git-sha]` (default HEAD). Pushes `ai-proxy:<sha>`, `ai-proxy-sidecar:<sha>` and `staging-latest` tags. Prints `IMAGE_TAG=<sha> DEPLOY_ENV=staging`.
 2. Dokploy Environment: set `IMAGE_TAG=<sha>`.
 3. Deploy.
-4. Tags older than 72h are deleted except `*-latest` and `*-deployed`. Rollback within 72h: set `IMAGE_TAG` to the previous sha, deploy; older: rebuild.
+4. Retention: only the latest build per repo is kept; tags older than 24h are auto-deleted (kept: `*-latest`, `production`, `staging`, `latest`). Redeploying an older sha tag fails: rebuild. No rollback by design.
 
 Creds: 1Password item `nlsnuiubtnqzjneo3n7afapqcq` (`Zot registry (public) push/pull`, vault Dev). Deploy host: `docker login container.harikidev.win` with the pull creds.
 
