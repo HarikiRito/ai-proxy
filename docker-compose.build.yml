@@ -1,0 +1,6 @@
+# Local build override: IMAGE_TAG=local docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build --wait
+services:
+  api:
+    build: .
+  sidecar:
+    build: ./sidecar

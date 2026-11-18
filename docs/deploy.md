@@ -11,6 +11,8 @@
 | `OWNER_EMAIL` | yes | only email allowed into the admin UI, verified in WorkOS |
 | `MASTER_KEY` | yes | base64 of 32 bytes: `openssl rand -base64 32`. Encrypts provider keys at rest |
 | `WORKOS_DEV_MODE` | no | `true` or `false` (anything else fails startup), default `false`. `true` stores the refresh token in localStorage; needed unless a same-site custom auth domain exists |
+| `IMAGE_TAG` | yes | git sha printed by `scripts/build-push.sh`; compose pulls `ai-proxy:<sha>` and `ai-proxy-sidecar:<sha>` from the zot registry, never builds |
+| `REGISTRY` | no | default `h-wsl.tailc71524.ts.net:8443` |
 | `PORT` | no | listen port, default `8080`; compose sets `8080` |
 | `CORS_ORIGINS` | no | comma separated allowed origins; compose does not pass it, so the SPA is same-origin only |
 | `DEBUG` | no | `true` for debug logging, default `false`; compose does not pass it |
@@ -20,10 +22,23 @@ The api exits at startup if a required var is missing.
 ## Dokploy
 
 1. Create a Compose app from this repository, branch `main`, compose path `docker-compose.yml`.
-2. Enable autodeploy on push. Dokploy builds the images from the repository on deploy, no CI needed.
+2. Autodeploy off. Images are not built by Dokploy; a push does not produce a new image.
 3. Set the env vars above in the app's Environment tab.
 4. Domain: service `api`, port `8080`, HTTPS on. The `sidecar` has no published port.
 5. Provider form for Claude subscription accounts: sidecar address `http://sidecar:3000`.
+
+## Images (zot registry)
+
+Never build on the deploy host. Images are built on `h-wsl` (linux/amd64) and pushed to `h-wsl.tailc71524.ts.net:8443` (tailnet only).
+
+1. `scripts/build-push.sh staging [git-sha]` (default HEAD). Pushes `ai-proxy:<sha>`, `ai-proxy-sidecar:<sha>` and `staging-latest` tags. Prints `IMAGE_TAG=<sha> DEPLOY_ENV=staging`.
+2. Dokploy Environment: set `IMAGE_TAG=<sha>`.
+3. Deploy.
+4. Tags older than 72h are deleted except `*-latest` and `*-deployed`. Rollback within 72h: set `IMAGE_TAG` to the previous sha, deploy; older: rebuild.
+
+Push creds: 1Password `Dev` / `Zot registry push`. The deploy host needs `docker login` with `Zot registry pull`.
+
+Local build (no registry): `IMAGE_TAG=local docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build --wait`.
 
 ## WorkOS (production)
 

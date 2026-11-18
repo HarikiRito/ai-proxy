@@ -17,7 +17,7 @@ services:
         condition: service_completed_successfully
 
   api:
-    build: .
+    image: ${REGISTRY:-h-wsl.tailc71524.ts.net:8443}/ai-proxy:${IMAGE_TAG:?set IMAGE_TAG}
     restart: unless-stopped
     environment:
       PORT: "8080"
@@ -41,7 +41,7 @@ services:
       retries: 10
 
   sidecar:
-    build: ./sidecar
+    image: ${REGISTRY:-h-wsl.tailc71524.ts.net:8443}/ai-proxy-sidecar:${IMAGE_TAG:?set IMAGE_TAG}
     init: true
     restart: unless-stopped
     volumes:
