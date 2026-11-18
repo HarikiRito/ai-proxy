@@ -31,7 +31,7 @@ cd web && pnpm install && pnpm dev    # :5173
 Docker (empty volume works, no manual steps):
 
 ```sh
-docker compose up -d --build --wait   # data-init, migrate (atlas), then api on :8080
+IMAGE_TAG=local docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build --wait   # data-init, migrate (atlas), then api on :8080
 docker compose exec api wget -qO- http://localhost:8080/healthz
 docker compose down -v
 ```
@@ -64,8 +64,8 @@ WorkOS dashboard (per origin; add the `http://localhost:5173` ones for local dev
 ## Deployment
 
 - URL: https://ai-proxy.harikidev.win (`/healthz` for status)
-- Dokploy compose app `ai-proxy`, built from `docker-compose.yml` on `main`
-- Every push to `main` auto-deploys via Dokploy
+- Dokploy compose app `ai-proxy`, `docker-compose.yml` pulls prebuilt images (`IMAGE_TAG`) from the zot registry; images built by `scripts/build-push.sh`, never on the host
+- No autodeploy: deploy manually after build-push
 - `sidecar` compose service (Claude Agent SDK, [sidecar/README.md](sidecar/README.md)): internal only, no published port; volume `sidecar-data` holds Claude account credentials, exclude it from backups or encrypt them
 - Setup, backup and first-run checklist: [docs/deploy.md](docs/deploy.md)
 - Dokploy env must define `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_ISSUER`, `OWNER_EMAIL`, `MASTER_KEY`, `WORKOS_DEV_MODE=true` (see Admin login; back up `MASTER_KEY`)
