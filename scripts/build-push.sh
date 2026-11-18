@@ -5,7 +5,7 @@ set -euo pipefail
 
 ENV_NAME=${1:?usage: build-push.sh <staging|prod> [git-sha]}
 [[ $ENV_NAME == staging || $ENV_NAME == prod ]] || { echo "env must be staging|prod" >&2; exit 2; }
-REGISTRY=${REGISTRY:-h-wsl.tailc71524.ts.net:8443}
+REGISTRY=${REGISTRY:-container.harikidev.win}
 REPO_URL=${REPO_URL:-https://github.com/HarikiRito/ai-proxy.git}
 
 if [[ ${ON_BUILD_HOST:-} != 1 ]]; then
@@ -26,7 +26,7 @@ git -C "$WORK/src" -c credential.helper='!gh auth git-credential' fetch -q --dep
 git -C "$WORK/src" checkout -q FETCH_HEAD
 SHA=$(git -C "$WORK/src" rev-parse HEAD)
 
-op read "op://Dev/Zot registry push/password" | docker login "$REGISTRY" -u "$(op read 'op://Dev/Zot registry push/username')" --password-stdin >/dev/null
+op read "op://Dev/nlsnuiubtnqzjneo3n7afapqcq/push password" | docker login "$REGISTRY" -u "$(op read 'op://Dev/nlsnuiubtnqzjneo3n7afapqcq/push username')" --password-stdin >/dev/null
 
 API=$REGISTRY/ai-proxy
 SIDECAR=$REGISTRY/ai-proxy-sidecar
